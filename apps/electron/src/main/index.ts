@@ -114,6 +114,7 @@ import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-p
 import log, { isDebugMode, mainLog, getLogFilePath, getMessagingGatewayLogFilePath, messagingGatewayLog, autoUpdateLog } from './logger'
 import { setPerfEnabled, enableDebug } from '@craft-agent/shared/utils'
 import { registerPiModelResolver } from '@craft-agent/shared/config'
+import { DEFAULT_DEEPLINK_SCHEME, PRODUCT_NAME } from '@craft-agent/shared/product-identity'
 import { getPiModelsForAuthProvider, getAllPiModels } from '@craft-agent/shared/config'
 import { initNotificationService, initBadgeIcon, initInstanceBadge, updateBadgeCount } from './notifications'
 import { checkForUpdatesOnLaunch, setAutoUpdateEventSink, isUpdating, setBeforeUpdateQuitHook } from './auto-update'
@@ -203,9 +204,9 @@ registerPiModelResolver((piAuthProvider) =>
   piAuthProvider ? getPiModelsForAuthProvider(piAuthProvider) : getAllPiModels()
 )
 
-// Custom URL scheme for deeplinks (e.g., craftagents://auth-complete)
-// Supports multi-instance dev: CRAFT_DEEPLINK_SCHEME env var (craftagents1, craftagents2, etc.)
-const DEEPLINK_SCHEME = process.env.CRAFT_DEEPLINK_SCHEME || 'craftagents'
+// Custom URL scheme for deeplinks (e.g., origincoworks://auth-complete)
+// Supports multi-instance dev: CRAFT_DEEPLINK_SCHEME env var (origincoworks1, etc.)
+const DEEPLINK_SCHEME = process.env.CRAFT_DEEPLINK_SCHEME || DEFAULT_DEEPLINK_SCHEME
 
 let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
@@ -225,8 +226,8 @@ let messagingHandle: MessagingBootstrapHandle | null = null
 let pendingDeepLink: string | null = null
 
 // Set app name early (before app.whenReady) to ensure correct macOS menu bar title
-// Supports multi-instance dev: CRAFT_APP_NAME env var (e.g., "Craft Agents [1]")
-app.setName(process.env.CRAFT_APP_NAME || 'Craft Agents')
+// Supports multi-instance dev: CRAFT_APP_NAME env var (e.g., "OriginCoworks Next [1]")
+app.setName(process.env.CRAFT_APP_NAME || PRODUCT_NAME)
 
 // Register as default protocol client for craftagents:// URLs
 // This must be done before app.whenReady() on some platforms

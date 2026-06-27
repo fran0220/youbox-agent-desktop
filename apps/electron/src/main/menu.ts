@@ -6,6 +6,7 @@ import type { MenuItem } from '../shared/menu-schema'
 import type { WindowManager } from './window-manager'
 import type { EventSink } from '@craft-agent/server-core/transport'
 import { mainLog, isDebugMode } from './logger'
+import { PRODUCT_NAME } from '@craft-agent/shared/product-identity'
 
 type ClientResolver = (webContentsId: number) => string | undefined
 
@@ -79,7 +80,7 @@ export async function rebuildMenu(): Promise<void> {
   const template: Electron.MenuItemConstructorOptions[] = [
     // App menu (macOS only)
     ...(isMac ? [{
-      label: 'Craft Agents',
+      label: PRODUCT_NAME,
       submenu: [
         { role: 'about' as const, label: i18n.t('menu.aboutCraftAgents') },
         updateMenuItem,

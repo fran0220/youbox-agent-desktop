@@ -30,3 +30,4 @@
 
 // Export branding (standalone, no dependencies)
 export * from './branding.ts';
+export * from './product-identity.ts';
