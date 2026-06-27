@@ -6,14 +6,16 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { fileURLToPath } from 'url'
+import { getConfigDir } from '@craft-agent/shared/config'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const TOOL_ICONS_DIR = path.join(process.env.HOME!, '.craft-agent/tool-icons')
+const DATA_DIR = getConfigDir()
+const TOOL_ICONS_DIR = path.join(DATA_DIR, 'tool-icons')
 const SOURCES_DIR = path.join(
-  process.env.HOME!,
-  '.craft-agent/workspaces/046a02d0-6521-98eb-8756-95ec4bb8c41f/sources'
+  DATA_DIR,
+  'workspaces/046a02d0-6521-98eb-8756-95ec4bb8c41f/sources'
 )
 const OUTPUT_FILE = path.join(__dirname, 'sample-icons.ts')
 
@@ -113,7 +115,7 @@ function generateIconsFile() {
  * DO NOT EDIT MANUALLY
  */
 
-// Native tool icons (from ~/.craft-agent/tool-icons/)
+// Native tool icons (from ~/.origincoworks-next/tool-icons/)
 export const nativeToolIcons = {
 ${Object.entries(nativeIcons)
   .map(([name, data]) => `  ${name}: '${data}',`)

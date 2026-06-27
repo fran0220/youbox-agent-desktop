@@ -8,6 +8,7 @@ import { existsSync, rmSync, cpSync, readFileSync, statSync, mkdirSync } from "f
 import { join, basename } from "path";
 import * as esbuild from "esbuild";
 import { downloadUv, type Platform, type Arch } from "./build/common";
+import { getInstanceConfigDir } from "../packages/shared/src/config/paths.ts";
 
 const ROOT_DIR = join(import.meta.dir, "..");
 const ELECTRON_DIR = join(ROOT_DIR, "apps/electron");
@@ -88,7 +89,7 @@ function detectInstance(): void {
     process.env.CRAFT_INSTANCE_NUMBER = instanceNum;
     process.env.CRAFT_VITE_PORT = `${instanceNum}173`;
     process.env.CRAFT_APP_NAME = `Craft Agents [${instanceNum}]`;
-    process.env.CRAFT_CONFIG_DIR = join(process.env.HOME || "", `.craft-agent-${instanceNum}`);
+    process.env.CRAFT_CONFIG_DIR = getInstanceConfigDir(instanceNum);
     process.env.CRAFT_DEEPLINK_SCHEME = `origincoworks${instanceNum}`;
     console.log(`🔢 Instance ${instanceNum} detected: port=${process.env.CRAFT_VITE_PORT}, config=${process.env.CRAFT_CONFIG_DIR}`);
   }

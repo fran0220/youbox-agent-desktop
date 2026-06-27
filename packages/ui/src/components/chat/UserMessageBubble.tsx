@@ -15,6 +15,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Clock } from 'lucide-react'
 import type { StoredAttachment, ContentBadge } from '@craft-agent/core'
 import { normalizePath } from '@craft-agent/core/utils'
+import { stripCraftDataDirWorkspacePath } from '@craft-agent/shared/config'
 import { cn } from '../../lib/utils'
 import { Markdown } from '../markdown'
 import { FileTypeIcon, getFileTypeLabel } from './attachment-helpers'
@@ -170,10 +171,9 @@ function InlineFileBadge({
   badge: ContentBadge
   onFileClick?: (path: string) => void
 }) {
-  // Strip .craft-agent workspace/session path prefix for cleaner tooltip display
-  // e.g. "/Users/.../workspaces/{id}/sessions/{id}/plans/foo.md" → "plans/foo.md"
+  // Strip data-dir workspace/session path prefix for cleaner tooltip display
   const rawPath = badge.filePath || badge.label
-  const tooltipPath = normalizePath(rawPath).replace(/^.*\.craft-agent\/workspaces\/[^/]+\/(sessions\/[^/]+\/)?/, '')
+  const tooltipPath = stripCraftDataDirWorkspacePath(normalizePath(rawPath))
   const isClickable = !!badge.filePath && !!onFileClick
 
   const badgeContent = (

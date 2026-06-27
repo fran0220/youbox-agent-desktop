@@ -1,4 +1,10 @@
-export { CONFIG_DIR, DEFAULT_DATA_DIR_NAME, getConfigDir } from './paths.ts';
+export {
+  CONFIG_DIR,
+  DEFAULT_DATA_DIR_NAME,
+  getConfigDir,
+  getInstanceConfigDir,
+  stripCraftDataDirWorkspacePath,
+} from './paths.ts';
 export * from './types.ts';
 export * from './llm-connections.ts';
 export * from './llm-validation.ts';
