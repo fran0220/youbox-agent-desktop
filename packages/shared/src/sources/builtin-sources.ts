@@ -11,6 +11,7 @@
  */
 
 import type { LoadedSource, FolderSourceConfig } from './types.ts';
+import { PRODUCT_DOCS_MCP_URL } from '../product-identity.ts';
 
 /**
  * Get all built-in sources for a workspace.
@@ -37,17 +38,17 @@ export function getDocsSource(workspaceId: string, workspaceRootPath: string): L
   // Return a placeholder - this shouldn't be called anymore
   const placeholderConfig: FolderSourceConfig = {
     id: 'builtin-craft-agents-docs',
-    name: 'Craft Agents Docs',
-    slug: 'craft-agents-docs',
+    name: 'OriginCoworks Docs',
+    slug: 'origincoworks-docs',
     enabled: false,
     provider: 'mintlify',
     type: 'mcp',
     mcp: {
       transport: 'http',
-      url: 'https://agents.craft.do/docs/mcp',
+      url: PRODUCT_DOCS_MCP_URL,
       authType: 'none',
     },
-    tagline: 'Search Craft Agents documentation and source setup guides',
+    tagline: 'Search OriginCoworks Next documentation and source setup guides',
     icon: '📚',
     isAuthenticated: true,
     connectionStatus: 'connected',

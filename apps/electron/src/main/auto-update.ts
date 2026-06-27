@@ -2,8 +2,8 @@
  * Auto-update module using electron-updater
  *
  * Handles checking for updates, downloading, and installing via the standard
- * electron-updater library. Updates are served from https://agents.craft.do/electron/latest
- * using the generic provider (YAML manifests + binaries on R2/S3).
+ * electron-updater library when a publish feed is configured in electron-builder.
+ * OriginCoworks Next ships with no craft.do product feed; checks are skipped until a feed URL is set.
  *
  * Platform behavior:
  * - macOS: Downloads zip, extracts and swaps app bundle atomically
@@ -326,8 +326,25 @@ function checkForExistingDownload(): { exists: boolean; version?: string } {
  *
  * @param options.autoDownload - If false, only checks without downloading (for manual "Check Now")
  */
+/** True when electron-builder embedded a generic publish URL in app-update.yml. */
+function hasConfiguredUpdateFeed(): boolean {
+  try {
+    const ymlPath = path.join(path.dirname(app.getAppPath()), 'app-update.yml')
+    if (!fs.existsSync(ymlPath)) return false
+    const raw = fs.readFileSync(ymlPath, 'utf8')
+    return /^\s*url:\s*\S+/m.test(raw) && !/craft\.do/i.test(raw)
+  } catch {
+    return false
+  }
+}
+
 export async function checkForUpdates(options: CheckOptions = {}): Promise<UpdateInfo> {
   const { autoDownload = true } = options
+
+  if (!hasConfiguredUpdateFeed()) {
+    mainLog.info('[auto-update] No product update feed configured; skipping check')
+    return getUpdateInfo()
+  }
 
   // Temporarily override autoDownload for this check if needed
   // (e.g., manual check from settings shouldn't auto-download on metered connections)
@@ -444,6 +461,11 @@ export interface UpdateOnLaunchResult {
  * - Auto-downloads if update available
  */
 export async function checkForUpdatesOnLaunch(): Promise<UpdateOnLaunchResult> {
+  if (!hasConfiguredUpdateFeed()) {
+    autoUpdateLog.info('No update feed configured; skipping launch check')
+    return { action: 'none' }
+  }
+
   autoUpdateLog.info('Checking for updates on launch...')
 
   const info = await checkForUpdates({ autoDownload: true })

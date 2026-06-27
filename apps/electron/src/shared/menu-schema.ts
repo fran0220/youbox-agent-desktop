@@ -14,6 +14,7 @@
 
 import { RPC_CHANNELS } from './types'
 import { FEATURE_FLAGS } from '@craft-agent/shared/feature-flags'
+import { PRODUCT_DOCS_URL } from '@craft-agent/shared/product-identity'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -299,7 +300,7 @@ export const HELP_LINKS: MenuItemUrl[] = [
     type: 'url',
     id: 'helpAndDocs',
     labelKey: 'menu.helpAndDocs',
-    url: 'https://agents.craft.do/docs',
+    url: PRODUCT_DOCS_URL,
     icon: 'HelpCircle',
   },
 ]

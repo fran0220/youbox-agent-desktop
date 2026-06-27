@@ -16,6 +16,7 @@ import { mapClaudeSdkAssistantError, type ClaudeSdkApiError } from './claude-sdk
 import { runErrorDiagnostics } from './diagnostics.ts';
 import { loadStoredConfig, loadConfigDefaults, type Workspace, type AuthType, getDefaultLlmConnection, getLlmConnection } from '../config/storage.ts';
 import { getValidClaudeOAuthToken } from '../auth/state.ts';
+import { PRODUCT_DOCS_MCP_URL } from '../product-identity.ts';
 import {
   clearClaudeBedrockRoutingEnvVars,
   resolveAuthEnvVars,
@@ -894,7 +895,7 @@ export class ClaudeAgent extends BaseAgent {
         // This is a public Mintlify MCP server, no auth needed
         'craft-agents-docs': {
           type: 'http',
-          url: 'https://agents.craft.do/docs/mcp',
+          url: PRODUCT_DOCS_MCP_URL,
         },
         // Per-source proxy servers from centralized MCP pool (MCP + API sources)
         // Each source gets its own SDK server keyed by slug (e.g., 'linear', 'github', 'gmail')

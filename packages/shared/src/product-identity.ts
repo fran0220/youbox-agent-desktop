@@ -14,3 +14,9 @@ export const DEFAULT_DEEPLINK_SCHEME = 'origincoworks';
 
 /** macOS / electron-builder bundle identifier. */
 export const PRODUCT_BUNDLE_ID = 'com.origincoworks.next';
+
+/** Product documentation base URL (no craft.do). */
+export const PRODUCT_DOCS_URL = 'https://origincoworks.local/docs';
+
+/** MCP endpoint for bundled product docs server (placeholder until hosted). */
+export const PRODUCT_DOCS_MCP_URL = 'https://origincoworks.local/docs/mcp';
