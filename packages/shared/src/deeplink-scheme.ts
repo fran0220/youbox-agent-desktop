@@ -5,9 +5,16 @@
 
 import { DEFAULT_DEEPLINK_SCHEME } from './product-identity.ts';
 
+function readDeeplinkSchemeEnv(): string | undefined {
+  if (typeof process === 'undefined') {
+    return undefined;
+  }
+  return process.env.CRAFT_DEEPLINK_SCHEME;
+}
+
 /** Effective scheme name without trailing colon (e.g. `origincoworks`). */
 export function resolveDeeplinkScheme(): string {
-  return process.env.CRAFT_DEEPLINK_SCHEME || DEFAULT_DEEPLINK_SCHEME;
+  return readDeeplinkSchemeEnv() || DEFAULT_DEEPLINK_SCHEME;
 }
 
 /** Protocol guard for parsers (`origincoworks:`). */
