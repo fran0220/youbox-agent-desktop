@@ -4,6 +4,7 @@ import type { HandlerFn, RequestContext, RpcServer } from '@craft-agent/server-c
 import * as gatewayAuth from '@craft-agent/origincoworks/auth';
 import type { HandlerDeps } from '../handler-deps';
 import { registerGatewayHandlers } from './gateway';
+import * as gatewayLlmSync from './gateway-llm-sync.ts';
 
 function createHarness() {
   const handlers = new Map<string, HandlerFn>();
@@ -64,15 +65,22 @@ function createHarness() {
 
 describe('registerGatewayHandlers gateway LOGIN', () => {
   let loginGatewaySpy: ReturnType<typeof spyOn<typeof gatewayAuth, 'loginGateway'>>;
+  let llmSyncSpy: ReturnType<typeof spyOn<typeof gatewayLlmSync, 'syncGatewayLlmConfigForSession'>>;
 
   afterEach(() => {
     loginGatewaySpy?.mockRestore();
+    llmSyncSpy?.mockRestore();
   });
 
   it('forwards positional username and password to loginGateway (IPC seam)', async () => {
     loginGatewaySpy = spyOn(gatewayAuth, 'loginGateway').mockResolvedValue({
       success: true,
       user: { id: '1', name: 'octest', email: 'octest@local.test', role: 'admin' },
+    });
+    llmSyncSpy = spyOn(gatewayLlmSync, 'syncGatewayLlmConfigForSession').mockResolvedValue({
+      success: true,
+      slug: 'origincoworks-gateway',
+      primaryModel: 'gpt-5.5',
     });
 
     const { login, ctx } = createHarness();

@@ -199,6 +199,12 @@ export interface LlmConnection {
   oauthOrganizationName?: string;
   oauthProfileVerifiedAt?: number; // epoch ms
 
+  /**
+   * When true, connection is provisioned from the gateway and must not be
+   * edited or deleted through manual provider onboarding UI.
+   */
+  managedByGateway?: boolean;
+
   // --- Timestamps ---
 
   /** Timestamp when connection was created */

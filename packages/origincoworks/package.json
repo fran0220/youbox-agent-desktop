@@ -10,7 +10,10 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth.ts",
     "./gateway-client": "./src/gateway-client.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./desktop-config": "./src/desktop-config.ts",
+    "./model-config": "./src/model-config.ts",
+    "./llm-config": "./src/llm-config.ts"
   },
   "dependencies": {
     "@craft-agent/shared": "workspace:*"

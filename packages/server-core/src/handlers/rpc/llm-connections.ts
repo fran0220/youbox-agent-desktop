@@ -1,5 +1,9 @@
 import { RPC_CHANNELS, type LlmConnectionSetup } from '@craft-agent/shared/protocol'
 import { getLlmConnections, getLlmConnection, addLlmConnection, updateLlmConnection, deleteLlmConnection, getDefaultLlmConnection, setDefaultLlmConnection, touchLlmConnection, isCompatProvider, isAnthropicProvider, getDefaultModelsForConnection, getDefaultModelForConnection, type LlmConnection, type LlmConnectionWithStatus, toBedrockNativeId, deriveBedrockRegionPrefix } from '@craft-agent/shared/config'
+import {
+  isGatewayManagedLlmSlug,
+  ORIGINCOWORKS_GATEWAY_LLM_SLUG,
+} from '@craft-agent/origincoworks/llm-config'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { setSetupDeferred } from '@craft-agent/shared/config/storage'
 import {
@@ -55,6 +59,12 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
 
       // Ensure connection exists in config
       let connection = getLlmConnection(setup.slug)
+      if (connection?.managedByGateway) {
+        return {
+          success: false,
+          error: 'This LLM connection is managed by the gateway and cannot be edited manually.',
+        }
+      }
       let isNewConnection = false
       if (!connection) {
         // Reauth guard: if updateOnly is set, the connection must already exist.
@@ -443,8 +453,20 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
   // If connection.slug exists and is found, updates it; otherwise creates new
   server.handle(RPC_CHANNELS.llmConnections.SAVE, async (_ctx, connection: LlmConnection): Promise<{ success: boolean; error?: string }> => {
     try {
+      if (connection.managedByGateway || isGatewayManagedLlmSlug(connection.slug)) {
+        return {
+          success: false,
+          error: 'This LLM connection is managed by the gateway and cannot be edited manually.',
+        }
+      }
       // Check if this is an update or create
       const existing = getLlmConnection(connection.slug)
+      if (existing?.managedByGateway) {
+        return {
+          success: false,
+          error: 'This LLM connection is managed by the gateway and cannot be edited manually.',
+        }
+      }
       if (existing) {
         // Update existing connection (can't change slug)
         const { slug: _slug, ...updates } = connection
@@ -490,6 +512,12 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
       const connection = getLlmConnection(slug)
       if (!connection) {
         return { success: false, error: 'Connection not found' }
+      }
+      if (connection.managedByGateway || isGatewayManagedLlmSlug(slug)) {
+        return {
+          success: false,
+          error: 'This LLM connection is managed by the gateway and cannot be removed.',
+        }
       }
       // deleteLlmConnection handles the "at least one must remain" check
       const success = deleteLlmConnection(slug)
@@ -541,6 +569,13 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
   // Set global default LLM connection
   server.handle(RPC_CHANNELS.llmConnections.SET_DEFAULT, async (_ctx, slug: string): Promise<{ success: boolean; error?: string }> => {
     try {
+      const gatewayManaged = getLlmConnection(ORIGINCOWORKS_GATEWAY_LLM_SLUG)
+      if (gatewayManaged?.managedByGateway && slug !== ORIGINCOWORKS_GATEWAY_LLM_SLUG) {
+        return {
+          success: false,
+          error: 'Default LLM connection is locked to the gateway proxy.',
+        }
+      }
       const success = setDefaultLlmConnection(slug)
       if (success) {
         deps.platform.logger?.info(`Global default LLM connection set to: ${slug}`)
@@ -564,6 +599,13 @@ export function registerLlmConnectionsHandlers(server: RpcServer, deps: HandlerD
         const connection = getLlmConnection(slug)
         if (!connection) {
           return { success: false, error: 'Connection not found' }
+        }
+        const gatewayManaged = getLlmConnection(ORIGINCOWORKS_GATEWAY_LLM_SLUG)
+        if (gatewayManaged?.managedByGateway && slug !== ORIGINCOWORKS_GATEWAY_LLM_SLUG) {
+          return {
+            success: false,
+            error: 'Workspace default LLM connection is locked to the gateway proxy.',
+          }
         }
       }
 

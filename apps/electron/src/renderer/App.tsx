@@ -614,6 +614,14 @@ export default function App() {
 
   const enterMainAppAfterGatewayAuth = useCallback(async () => {
     try {
+      const llmSync = await window.electronAPI.gatewaySyncLlmConfig()
+      if (!llmSync.success) {
+        console.error('[App] Gateway LLM config sync failed:', llmSync.error)
+        setGatewayUser(null)
+        setAppState('reauth')
+        return
+      }
+      await refreshLlmConnections()
       const wsId = await window.electronAPI.getWindowWorkspace()
       setWindowWorkspaceId(wsId)
       const needs = await window.electronAPI.getSetupNeeds()
@@ -635,7 +643,7 @@ export default function App() {
       console.error('[App] Failed to enter main app after gateway auth:', error)
       setAppState('ready')
     }
-  }, [])
+  }, [refreshLlmConnections])
 
   const handleOnboardingComplete = useCallback(async () => {
     try {

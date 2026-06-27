@@ -395,6 +395,10 @@ export interface ElectronAPI {
     | { success: true; user: { id: string; name: string; email: string; role: string } }
     | { success: false; error: string }
   >
+  gatewaySyncLlmConfig(): Promise<
+    | { success: true; slug: string; primaryModel: string }
+    | { success: false; error: string }
+  >
 
   // Onboarding
   getAuthState(): Promise<AuthState>

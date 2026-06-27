@@ -55,8 +55,66 @@ export function assertGatewayUser(value: unknown): asserts value is GatewayUser 
   }
 }
 
-/** Placeholder for future GET /api/desktop/config (M2+); shape documented in gateway-api.md */
-export interface DesktopConfig {
-  primary_model?: string;
-  primary_provider?: string;
+/** One model row from GET /api/desktop/config `models[]`. */
+export interface DesktopConfigModelEntry {
+  id: string;
+  provider: string;
+  label: string;
+  context_window?: number;
+  max_tokens?: number;
+  reasoning?: boolean;
+  api_type?: string;
+}
+
+/** GET /api/desktop/config success body (LLM fields only). */
+export interface DesktopConfigResponse {
+  llm_proxy_url: string;
+  llm_proxy_key: string;
+  embedding_base_url?: string;
+  embedding_api_key?: string;
+  primary_model: string;
+  primary_provider: string;
+  models: DesktopConfigModelEntry[];
+  tools_manifest?: unknown;
+}
+
+/** @deprecated Use DesktopConfigResponse */
+export type DesktopConfig = DesktopConfigResponse;
+
+function isDesktopConfigModelEntry(value: unknown): value is DesktopConfigModelEntry {
+  if (!value || typeof value !== 'object') return false;
+  const m = value as Record<string, unknown>;
+  return (
+    typeof m.id === 'string' &&
+    m.id.length > 0 &&
+    typeof m.provider === 'string' &&
+    typeof m.label === 'string'
+  );
+}
+
+export function assertDesktopConfigResponse(value: unknown): asserts value is DesktopConfigResponse {
+  if (!value || typeof value !== 'object') {
+    throw new Error('desktop config response must be an object');
+  }
+  const o = value as Record<string, unknown>;
+  if (typeof o.llm_proxy_url !== 'string' || !o.llm_proxy_url.trim()) {
+    throw new Error('desktop config missing llm_proxy_url');
+  }
+  if (typeof o.llm_proxy_key !== 'string' || !o.llm_proxy_key.trim()) {
+    throw new Error('desktop config missing llm_proxy_key');
+  }
+  if (typeof o.primary_model !== 'string' || !o.primary_model.trim()) {
+    throw new Error('desktop config missing primary_model');
+  }
+  if (typeof o.primary_provider !== 'string') {
+    throw new Error('desktop config missing primary_provider');
+  }
+  if (!Array.isArray(o.models) || o.models.length === 0) {
+    throw new Error('desktop config models must be a non-empty array');
+  }
+  for (const entry of o.models) {
+    if (!isDesktopConfigModelEntry(entry)) {
+      throw new Error('desktop config models entry must include id, provider, label');
+    }
+  }
 }

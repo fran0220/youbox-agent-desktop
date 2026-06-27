@@ -123,6 +123,11 @@ export class GatewayClient {
     return body;
   }
 
+  /** GET /api/desktop/config — LLM runtime config for the desktop client */
+  async desktopConfig(): Promise<unknown> {
+    return this.requestJson('/api/desktop/config', { method: 'GET', auth: true });
+  }
+
   /** POST /api/auth/logout — invalidates server session (204) */
   async logout(): Promise<void> {
     if (!this.token) {

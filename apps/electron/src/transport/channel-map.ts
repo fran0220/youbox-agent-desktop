@@ -128,6 +128,7 @@ export const CHANNEL_MAP = {
   getSetupNeeds: invoke(RPC_CHANNELS.onboarding.GET_AUTH_STATE, r => r.setupNeeds),
   gatewayGetSession: invoke(RPC_CHANNELS.gateway.GET_SESSION),
   gatewayLogin: invoke(RPC_CHANNELS.gateway.LOGIN),
+  gatewaySyncLlmConfig: invoke(RPC_CHANNELS.gateway.SYNC_LLM_CONFIG),
   startWorkspaceMcpOAuth: invoke(RPC_CHANNELS.onboarding.START_MCP_OAUTH),
   startClaudeOAuth: invoke(RPC_CHANNELS.onboarding.START_CLAUDE_OAUTH),
   exchangeClaudeCode: invoke(RPC_CHANNELS.onboarding.EXCHANGE_CLAUDE_CODE),
