@@ -1808,6 +1808,19 @@ export class SessionManager implements ISessionManager {
       // This ensures credentials saved before LLM connections are available via the new system
       await migrateLegacyCredentials()
 
+      // Gateway session without a managed LLM connection cannot stream (no Pi proxy wiring).
+      const { ensureGatewayManagedLlmConnection } = await import(
+        '../handlers/rpc/gateway-llm-sync.ts'
+      )
+      const gatewayLlmEnsure = await ensureGatewayManagedLlmConnection(this)
+      if (gatewayLlmEnsure.synced) {
+        sessionLog.info('[Gateway] Ensured managed LLM connection on startup', {
+          slug: gatewayLlmEnsure.slug,
+        })
+      } else if (gatewayLlmEnsure.error) {
+        sessionLog.warn('[Gateway] Managed LLM ensure failed on startup:', gatewayLlmEnsure.error)
+      }
+
       // Set up authentication environment variables (critical for SDK to work)
       await this.reinitializeAuth()
 
