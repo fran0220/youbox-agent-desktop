@@ -45,6 +45,14 @@ type HeadersInitType = Headers | Record<string, string> | string[][];
  */
 const DEBUG_SSE_RAW = process.env.CRAFT_DEBUG_SSE_RAW === '1';
 
+/** Log raw SSE diagnostics to interceptor.log and stderr (pi subprocess has no log file tail). */
+function sseRawLog(message: string): void {
+  debugLog(message);
+  if (DEBUG_SSE_RAW) {
+    console.error(`[craft-sse-raw] ${message}`);
+  }
+}
+
 // ============================================================================
 // PROXY CONFIGURATION (from env vars injected by parent process)
 // ============================================================================
@@ -928,7 +936,7 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
   }
 
   function emitSseLine(dataStr: string, controller: TransformStreamDefaultController<Uint8Array>): void {
-    if (DEBUG_SSE_RAW) debugLog(`[SSE RAW OUT openai] ${dataStr.slice(0, 4000)}`);
+    if (DEBUG_SSE_RAW) sseRawLog(`[SSE RAW OUT openai] ${dataStr.slice(0, 4000)}`);
     controller.enqueue(encoder.encode(`data: ${dataStr}\n\n`));
   }
 
@@ -1007,7 +1015,7 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
   }
 
   function processDataLine(dataStr: string, controller: TransformStreamDefaultController<Uint8Array>): void {
-    if (DEBUG_SSE_RAW) debugLog(`[SSE RAW IN  openai] ${dataStr.slice(0, 4000)}`);
+    if (DEBUG_SSE_RAW) sseRawLog(`[SSE RAW IN  openai] ${dataStr.slice(0, 4000)}`);
     if (dataStr === '[DONE]') {
       flushTrackedCalls(controller);
       maybeInjectSyntheticFinishReason(controller);
@@ -1894,6 +1902,59 @@ function findAdapter(url: string): ApiAdapter | undefined {
   return adapters.find(a => a.shouldIntercept(url));
 }
 
+/** True when the URL targets OpenAI-compatible chat completions (xiaomao proxy, etc.). */
+function isOpenAiChatCompletionsUrl(url: string): boolean {
+  try {
+    return new URL(url).pathname.includes('/chat/completions');
+  } catch {
+    return url.includes('/chat/completions');
+  }
+}
+
+/**
+ * Pick an SSE processor from the response alone when possible. Chat-completions
+ * event streams always use the OpenAI strip/synthesis transform even if the
+ * request body was not parsed on the intercept path.
+ */
+function resolveSseProcessorForResponse(
+  url: string,
+  response: Response,
+  adapter: ApiAdapter | undefined,
+): TransformStream<Uint8Array, Uint8Array> | undefined {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!response.body || !contentType.includes('text/event-stream')) {
+    return undefined;
+  }
+  if (adapter) {
+    return adapter.createSseProcessor();
+  }
+  if (isOpenAiChatCompletionsUrl(url)) {
+    debugLog('[openai] Response-driven SSE processor (adapter not matched on request)');
+    return createOpenAiSseStrippingStream();
+  }
+  return undefined;
+}
+
+function attachSseRawUpstreamTap(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  if (!DEBUG_SSE_RAW) return body;
+  const decoder = new TextDecoder();
+  return body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        sseRawLog(`[SSE RAW IN  chunk] ${decoder.decode(chunk, { stream: true }).slice(0, 8000)}`);
+        controller.enqueue(chunk);
+      },
+    }),
+  );
+}
+
+function pipeResponseThroughSseProcessor(
+  response: Response,
+  processor: TransformStream<Uint8Array, Uint8Array>,
+): ReadableStream<Uint8Array> {
+  return attachSseRawUpstreamTap(response.body!).pipeThrough(processor);
+}
+
 // ============================================================================
 // ERROR CAPTURE (shared across all adapters)
 // ============================================================================
@@ -2288,12 +2349,10 @@ async function interceptedFetch(
         debugLog(`[${adapter.name}] Intercepted request to ${url}`);
         const response = await originalFetch(url, finalInit);
 
-        // Process SSE response through adapter's stream processor
-        const contentType = response.headers.get('content-type') ?? '';
-        if (contentType.includes('text/event-stream') && response.body) {
+        const sseProcessor = resolveSseProcessorForResponse(url, response, adapter);
+        if (sseProcessor) {
           debugLog(`[${adapter.name}] Creating SSE processor (${adapter.stripsSseMetadata ? 'strip' : 'capture'})`);
-          const processor = adapter.createSseProcessor();
-          const processedBody = response.body.pipeThrough(processor);
+          const processedBody = pipeResponseThroughSseProcessor(response, sseProcessor);
           const processedResponse = new Response(processedBody, {
             status: response.status,
             statusText: response.statusText,
@@ -2303,6 +2362,7 @@ async function interceptedFetch(
         }
 
         // Non-SSE response — strip metadata from JSON body if present
+        const contentType = response.headers.get('content-type') ?? '';
         if (contentType.includes('application/json') && response.body) {
           const text = await response.text();
           const stripped = stripMetadataFieldsFromRawJson(text);
@@ -2323,25 +2383,23 @@ async function interceptedFetch(
   const proxy = getProxyForUrl(url);
   const proxyInit = proxy ? { ...init, proxy } : init;
   const response = await originalFetch(input, proxyInit);
-  // Still run SSE synthesis when adapter matched but the POST body path was skipped
-  // (e.g. OpenAI SDK body not resolved as string, or validation threw).
-  if (adapter) {
-    const contentType = response.headers.get('content-type') ?? '';
-    if (contentType.includes('text/event-stream') && response.body) {
-      debugLog(`[${adapter.name}] Fallback SSE processor (strip/capture)`);
-      const processor = adapter.createSseProcessor();
-      const processedBody = response.body.pipeThrough(processor);
-      return logResponse(
-        new Response(processedBody, {
-          status: response.status,
-          statusText: response.statusText,
-          headers: response.headers,
-        }),
-        url,
-        startTime,
-        adapter,
-      );
-    }
+  // SSE synthesis when the POST body path was skipped (OpenAI SDK body not resolved,
+  // validation threw) or when only the response content-type identifies a stream.
+  const sseProcessor = resolveSseProcessorForResponse(url, response, adapter);
+  if (sseProcessor) {
+    const label = adapter?.name ?? 'openai';
+    debugLog(`[${label}] Fallback/response-driven SSE processor`);
+    const processedBody = pipeResponseThroughSseProcessor(response, sseProcessor);
+    return logResponse(
+      new Response(processedBody, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      }),
+      url,
+      startTime,
+      adapter ?? openAiAdapter,
+    );
   }
   return logResponse(response, url, startTime, adapter);
 }

@@ -33,7 +33,7 @@ describe('gateway → Pi runtime payload (M4 streaming)', () => {
     const conn = buildGatewayLlmConnectionFromDesktopConfig(desktopConfig, 1);
     expect(conn.slug).toBe(ORIGINCOWORKS_GATEWAY_LLM_SLUG);
     expect(providerTypeToAgentProvider(conn.providerType)).toBe('pi');
-    expect(conn.baseUrl).toBe('https://api.xiaomao.chat');
+    expect(conn.baseUrl).toBe('https://api.xiaomao.chat/v1');
     expect(conn.customEndpoint).toEqual({ api: 'openai-completions' });
     expect(conn.piAuthProvider).toBe('openai');
     expect(conn.defaultModel).toBe('gpt-5.5');
@@ -55,7 +55,7 @@ describe('gateway → Pi runtime payload (M4 streaming)', () => {
       resolvedPaths,
     });
 
-    expect(runtime.baseUrl).toBe('https://api.xiaomao.chat');
+    expect(runtime.baseUrl).toBe('https://api.xiaomao.chat/v1');
     expect(runtime.customEndpoint).toEqual({ api: 'openai-completions' });
     expect(runtime.piAuthProvider).toBe('openai');
     expect(runtime.customModels).toEqual([

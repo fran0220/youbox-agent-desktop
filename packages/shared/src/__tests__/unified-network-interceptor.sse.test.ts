@@ -231,4 +231,16 @@ describe('unified-network-interceptor SSE processors', () => {
     expect(out).not.toMatch(/"finish_reason":"stop"/);
     expect(out).toContain('data: [DONE]');
   });
+
+  it('OpenAI: injects synthetic finish_reason on abrupt stream close without [DONE]', async () => {
+    const sse = [
+      'data: {"choices":[{"index":0,"delta":{"content":"PONG"},"finish_reason":null}]}\n\n',
+    ];
+
+    const out = await runThroughProcessor(createOpenAiSseStrippingStream(), sse);
+
+    expect(out).toContain('"content":"PONG"');
+    expect(out).toMatch(/"finish_reason":"stop"/);
+    expect(out).not.toContain('data: [DONE]');
+  });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import {
   ORIGINCOWORKS_GATEWAY_LLM_SLUG,
   buildGatewayLlmConnectionFromDesktopConfig,
+  normalizeLlmProxyBaseUrl,
 } from '../llm-config.ts';
 import type { DesktopConfigResponse } from '../types.ts';
 
@@ -15,11 +16,23 @@ const sampleConfig: DesktopConfigResponse = {
   ],
 };
 
+describe('normalizeLlmProxyBaseUrl', () => {
+  it('appends /v1 when missing so OpenAI SDK hits /v1/chat/completions', () => {
+    expect(normalizeLlmProxyBaseUrl('https://api.xiaomao.chat')).toBe('https://api.xiaomao.chat/v1');
+    expect(normalizeLlmProxyBaseUrl('https://api.xiaomao.chat/')).toBe('https://api.xiaomao.chat/v1');
+  });
+
+  it('does not double-append /v1', () => {
+    expect(normalizeLlmProxyBaseUrl('https://api.xiaomao.chat/v1')).toBe('https://api.xiaomao.chat/v1');
+    expect(normalizeLlmProxyBaseUrl('https://api.xiaomao.chat/v1/')).toBe('https://api.xiaomao.chat/v1');
+  });
+});
+
 describe('buildGatewayLlmConnectionFromDesktopConfig', () => {
   it('builds pi_compat openai-completions connection with gateway slug', () => {
     const conn = buildGatewayLlmConnectionFromDesktopConfig(sampleConfig, 1);
     expect(conn.slug).toBe(ORIGINCOWORKS_GATEWAY_LLM_SLUG);
-    expect(conn.baseUrl).toBe('https://api.xiaomao.chat');
+    expect(conn.baseUrl).toBe('https://api.xiaomao.chat/v1');
     expect(conn.defaultModel).toBe('gpt-5.5');
     expect(conn.customEndpoint).toEqual({ api: 'openai-completions' });
     expect(conn.providerType).toBe('pi_compat');

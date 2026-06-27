@@ -20,6 +20,18 @@ import type { DesktopConfigResponse } from './types.ts';
 /** Stable slug for the gateway-provisioned LLM connection. */
 export const ORIGINCOWORKS_GATEWAY_LLM_SLUG = 'origincoworks-gateway';
 
+/**
+ * OpenAI SDK appends `/chat/completions` to baseUrl. xiaomao (new-api) serves
+ * the API at `/v1/chat/completions`; bare host URLs would hit `/chat/completions`
+ * and return the SPA HTML shell instead of SSE.
+ */
+export function normalizeLlmProxyBaseUrl(proxyUrl: string): string {
+  const trimmed = proxyUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) return trimmed;
+  if (/\/v1$/i.test(trimmed)) return trimmed;
+  return `${trimmed}/v1`;
+}
+
 export function isGatewayManagedLlmSlug(slug: string): boolean {
   return slug === ORIGINCOWORKS_GATEWAY_LLM_SLUG;
 }
@@ -33,10 +45,11 @@ export function buildGatewayLlmConnectionFromDesktopConfig(
   if (!defaultModel) {
     throw new Error('gateway desktop config has no primary_model and no models');
   }
-  const baseUrl = config.llm_proxy_url?.trim().replace(/\/+$/, '');
-  if (!baseUrl) {
+  const rawProxy = config.llm_proxy_url?.trim();
+  if (!rawProxy) {
     throw new Error('gateway desktop config missing llm_proxy_url');
   }
+  const baseUrl = normalizeLlmProxyBaseUrl(rawProxy);
 
   return {
     slug: ORIGINCOWORKS_GATEWAY_LLM_SLUG,
