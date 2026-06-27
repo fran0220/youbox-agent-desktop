@@ -1,5 +1,15 @@
 preload = ["./packages/shared/src/unified-network-interceptor.ts"]
 
+# Packaged Electron output (electron-builder `directories.output: release`) copies the
+# full app tree including *.test.ts; without ignores, `bun test` discovers duplicates.
+[test]
+pathIgnorePatterns = [
+  "apps/electron/release/**",
+  "apps/electron/dist/**",
+  "dist/**",
+  "node_modules/**",
+]
+
 # Use the hoisted linker so transitive deps resolve at top-level node_modules.
 # Vite + esbuild bundling expects this layout; bun's default isolated linker
 # leaves only declared deps at the workspace root, which breaks renderer imports
