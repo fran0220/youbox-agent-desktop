@@ -57,6 +57,7 @@ import {
   buildMcpServers,
   getPlatformKey,
 } from './build/common';
+import { DEFAULT_DATA_DIR_NAME } from '../packages/shared/src/config/paths.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -709,8 +710,34 @@ echo ""
 // Docker
 // ---------------------------------------------------------------------------
 
+/** Named volume + mount path must match headless default data dir (see getConfigDir). */
+export function buildDockerComposeYaml(): string {
+  const dataMount = `/root/${DEFAULT_DATA_DIR_NAME}`;
+  return `version: "3.8"
+services:
+  craft-server:
+    build: .
+    ports:
+      - "9100:9100"
+    environment:
+      - CRAFT_SERVER_TOKEN=\${CRAFT_SERVER_TOKEN:?Set CRAFT_SERVER_TOKEN}
+      - CRAFT_RPC_PORT=9100
+      # TLS — uncomment to enable wss://
+      # - CRAFT_RPC_TLS_CERT=/certs/cert.pem
+      # - CRAFT_RPC_TLS_KEY=/certs/key.pem
+    volumes:
+      - origincoworks-data:${dataMount}
+      # TLS — mount cert directory
+      # - ./certs:/certs:ro
+    restart: unless-stopped
+
+volumes:
+  origincoworks-data:
+`;
+}
+
 function createDockerFiles(config: ServerBuildConfig): void {
-  const { outputDir, version } = config;
+  const { outputDir } = config;
 
   const dockerfile = `FROM oven/bun:1.3-slim
 
@@ -738,29 +765,7 @@ EXPOSE 9100
 ENTRYPOINT ["/app/bin/craft-server"]
 `;
   writeFileSync(join(outputDir, 'Dockerfile'), dockerfile);
-
-  const dockerCompose = `version: "3.8"
-services:
-  craft-server:
-    build: .
-    ports:
-      - "9100:9100"
-    environment:
-      - CRAFT_SERVER_TOKEN=\${CRAFT_SERVER_TOKEN:?Set CRAFT_SERVER_TOKEN}
-      - CRAFT_RPC_PORT=9100
-      # TLS — uncomment to enable wss://
-      # - CRAFT_RPC_TLS_CERT=/certs/cert.pem
-      # - CRAFT_RPC_TLS_KEY=/certs/key.pem
-    volumes:
-      - craft-data:/root/.craft-agent
-      # TLS — mount cert directory
-      # - ./certs:/certs:ro
-    restart: unless-stopped
-
-volumes:
-  craft-data:
-`;
-  writeFileSync(join(outputDir, 'docker-compose.yml'), dockerCompose);
+  writeFileSync(join(outputDir, 'docker-compose.yml'), buildDockerComposeYaml());
 }
 
 // ---------------------------------------------------------------------------
@@ -899,4 +904,6 @@ async function main(): Promise<void> {
   console.log(`  CRAFT_SERVER_TOKEN=<secret> ${outputDir}/start.sh`);
 }
 
-main();
+if (import.meta.main) {
+  main();
+}
