@@ -1,6 +1,7 @@
 import { debug } from "../utils/debug";
+import { PRODUCT_VERSIONS_URL } from '../product-identity.ts';
 
-const VERSIONS_URL = 'https://agents.craft.do/electron';
+const VERSIONS_URL = PRODUCT_VERSIONS_URL;
 
 export async function getLatestVersion(): Promise<string | null> {
     try {

@@ -15,8 +15,11 @@ export const DEFAULT_DEEPLINK_SCHEME = 'origincoworks';
 /** macOS / electron-builder bundle identifier. */
 export const PRODUCT_BUNDLE_ID = 'com.origincoworks.next';
 
-/** Product documentation base URL (no craft.do). */
+/** Product documentation base URL (no craft.do). Feeds every "Learn more" / help link. */
 export const PRODUCT_DOCS_URL = 'https://origincoworks.local/docs';
+
+/** Runtime desktop version manifest feed (no craft.do). Empty until a release feed is hosted. */
+export const PRODUCT_VERSIONS_URL = 'https://origincoworks.local/electron';
 
 /** MCP endpoint for bundled product docs server (placeholder until hosted). */
 export const PRODUCT_DOCS_MCP_URL = 'https://origincoworks.local/docs/mcp';
