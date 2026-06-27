@@ -1,7 +1,7 @@
 /**
  * Secure Storage Backend
  *
- * Stores credentials in an encrypted file at ~/.craft-agent/credentials.enc
+ * Stores credentials in an encrypted file at ~/.origincoworks-next/credentials.enc
  * Uses AES-256-GCM for authenticated encryption.
  *
  * Encryption key is derived from OS-native hardware UUID using PBKDF2:
@@ -39,10 +39,11 @@ import { join, dirname } from 'path';
 import type { CredentialBackend } from './types.ts';
 import type { CredentialId, StoredCredential } from '../types.ts';
 import { credentialIdToAccount, accountToCredentialId } from '../types.ts';
+import { getConfigDir } from '../../config/paths.ts';
 
-// File location
-const CREDENTIALS_DIR = join(homedir(), '.craft-agent');
-const CREDENTIALS_FILE = join(CREDENTIALS_DIR, 'credentials.enc');
+function credentialsFilePath(): string {
+  return join(getConfigDir(), 'credentials.enc');
+}
 
 // File format constants
 const MAGIC_BYTES = Buffer.from('CRAFT01\0');
@@ -199,11 +200,11 @@ export class SecureStorageBackend implements CredentialBackend {
     // Return cached store if available
     if (this.cachedStore) return this.cachedStore;
 
-    if (!existsSync(CREDENTIALS_FILE)) return null;
+    if (!existsSync(credentialsFilePath())) return null;
 
     let fileData: Buffer;
     try {
-      fileData = readFileSync(CREDENTIALS_FILE);
+      fileData = readFileSync(credentialsFilePath());
     } catch {
       return null;
     }
@@ -280,8 +281,9 @@ export class SecureStorageBackend implements CredentialBackend {
 
   private saveStoreSync(store: CredentialStore): void {
     // Ensure directory exists
-    if (!existsSync(CREDENTIALS_DIR)) {
-      mkdirSync(CREDENTIALS_DIR, { recursive: true, mode: 0o700 });
+    const credDir = dirname(credentialsFilePath());
+    if (!existsSync(credDir)) {
+      mkdirSync(credDir, { recursive: true, mode: 0o700 });
     }
 
     // Use existing salt or generate new one
@@ -312,7 +314,7 @@ export class SecureStorageBackend implements CredentialBackend {
     const fileData = Buffer.concat([header, iv, authTag, ciphertext]);
 
     // Write with restrictive permissions (owner read/write only)
-    writeFileSync(CREDENTIALS_FILE, fileData, { mode: 0o600 });
+    writeFileSync(credentialsFilePath(), fileData, { mode: 0o600 });
     this.cachedStore = store;
   }
 
@@ -350,8 +352,8 @@ export class SecureStorageBackend implements CredentialBackend {
   private handleCorruptedFile(): void {
     // Delete corrupted file - user will need to re-enter credentials
     try {
-      if (existsSync(CREDENTIALS_FILE)) {
-        unlinkSync(CREDENTIALS_FILE);
+      if (existsSync(credentialsFilePath())) {
+        unlinkSync(credentialsFilePath());
       }
     } catch {
       // Ignore deletion errors

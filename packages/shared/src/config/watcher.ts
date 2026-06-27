@@ -20,7 +20,7 @@ import { watch, existsSync, readdirSync, statSync, readFileSync, mkdirSync } fro
 import { join, dirname, basename, relative } from 'path';
 import { platform } from 'os';
 import type { FSWatcher } from 'fs';
-import { CONFIG_DIR } from './paths.ts';
+import { getConfigDir } from './paths.ts';
 import { debug } from '../utils/debug.ts';
 import { expandPath } from '../utils/paths.ts';
 import { readJsonFileSync } from '../utils/files.ts';
@@ -75,8 +75,8 @@ export function _getActiveWatchers(): ReadonlyMap<string, string> {
 // Constants
 // ============================================================
 
-const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
-const PREFERENCES_FILE = join(CONFIG_DIR, 'preferences.json');
+const configFilePath = () => join(getConfigDir(), 'config.json');
+const preferencesFilePath = () => join(getConfigDir(), 'preferences.json');
 
 // Debounce delay in milliseconds
 const DEBOUNCE_MS = 100;
@@ -180,12 +180,12 @@ export interface ConfigWatcherCallbacks {
  * Load preferences from file
  */
 export function loadPreferences(): UserPreferences | null {
-  if (!existsSync(PREFERENCES_FILE)) {
+  if (!existsSync(preferencesFilePath())) {
     return null;
   }
 
   try {
-    return readJsonFileSync<UserPreferences>(PREFERENCES_FILE);
+    return readJsonFileSync<UserPreferences>(preferencesFilePath());
   } catch (error) {
     debug('[ConfigWatcher] Error loading preferences', error);
     return null;
@@ -364,13 +364,14 @@ export class ConfigWatcher {
    */
   private watchGlobalConfigs(): void {
     // Ensure config directory exists
-    if (!existsSync(CONFIG_DIR)) {
-      mkdirSync(CONFIG_DIR, { recursive: true });
+    const configDir = getConfigDir();
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
     }
 
     try {
       // Watch the config directory for changes to config.json, preferences.json, and theme.json
-      const watcher = watch(CONFIG_DIR, (eventType, filename) => {
+      const watcher = watch(configDir, (eventType, filename) => {
         if (!filename) return;
 
         if (filename === 'config.json') {
@@ -383,7 +384,7 @@ export class ConfigWatcher {
       });
 
       this.watchers.push(watcher);
-      debug('[ConfigWatcher] Watching global configs:', CONFIG_DIR);
+      debug('[ConfigWatcher] Watching global configs:', configDir);
     } catch (error) {
       debug('[ConfigWatcher] Error watching global configs:', error);
     }

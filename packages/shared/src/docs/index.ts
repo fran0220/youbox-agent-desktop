@@ -9,13 +9,12 @@
  */
 
 import { join } from 'path';
-import { homedir } from 'os';
 import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from 'fs';
+import { getConfigDir } from '../config/paths.ts';
 import { getBundledAssetsDir } from '../utils/paths.ts';
 import { debug } from '../utils/debug.ts';
 
-const CONFIG_DIR = join(homedir(), '.craft-agent');
-const DOCS_DIR = join(CONFIG_DIR, 'docs');
+
 
 // Track if docs have been initialized this session (prevents re-init on hot reload)
 let docsInitialized = false;
@@ -80,21 +79,21 @@ function getBundledDocs(): Record<string, string> {
  * Get the docs directory path
  */
 export function getDocsDir(): string {
-  return DOCS_DIR;
+  return join(getConfigDir(), 'docs');
 }
 
 /**
  * Get path to a specific doc file
  */
 export function getDocPath(filename: string): string {
-  return join(DOCS_DIR, filename);
+  return join(getDocsDir(), filename);
 }
 
 // App root path reference for prompt/display text only.
 // IMPORTANT: This is intentionally a human-readable, non-instance-aware path.
 // Do NOT use APP_ROOT for real filesystem reads/writes.
 // For runtime filesystem paths, use CONFIG_DIR from config/paths.ts.
-export const APP_ROOT = '~/.craft-agent';
+export const APP_ROOT = '~/.origincoworks-next';
 
 /**
  * Documentation file references for use in error messages and tool descriptions.
@@ -128,15 +127,16 @@ export const DOC_REFS = {
  * Check if docs directory exists
  */
 export function docsExist(): boolean {
-  return existsSync(DOCS_DIR);
+  return existsSync(getDocsDir());
 }
 
 /**
  * List available doc files
  */
 export function listDocs(): string[] {
-  if (!existsSync(DOCS_DIR)) return [];
-  return readdirSync(DOCS_DIR).filter(f => f.endsWith('.md'));
+  const docsDir = getDocsDir();
+  if (!existsSync(docsDir)) return [];
+  return readdirSync(docsDir).filter(f => f.endsWith('.md'));
 }
 
 /**
@@ -150,8 +150,9 @@ export function initializeDocs(): void {
   }
   docsInitialized = true;
 
-  if (!existsSync(DOCS_DIR)) {
-    mkdirSync(DOCS_DIR, { recursive: true });
+  const docsDir = getDocsDir();
+  if (!existsSync(docsDir)) {
+    mkdirSync(docsDir, { recursive: true });
   }
 
   // Load bundled docs lazily (after setBundledAssetsRoot has been called)
@@ -161,7 +162,7 @@ export function initializeDocs(): void {
   // This ensures consistent behavior between debug and release modes —
   // docs are always up-to-date with the running version.
   for (const [filename, content] of Object.entries(bundledDocs)) {
-    const docPath = join(DOCS_DIR, filename);
+    const docPath = join(docsDir, filename);
     writeFileSync(docPath, content, 'utf-8');
   }
 

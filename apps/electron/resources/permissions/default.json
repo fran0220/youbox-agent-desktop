@@ -945,5 +945,8 @@
     }
   ],
   "allowedApiEndpoints": [],
-  "allowedWritePaths": []
+  "allowedWritePaths": [
+    "~/.origincoworks-next/**",
+    "~/.craft-agent/**"
+  ]
 }

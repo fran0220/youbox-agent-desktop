@@ -15,7 +15,7 @@ import { initializeDocs } from '../docs/index.ts';
 import { expandPath, toPortablePath, getBundledAssetsDir } from '../utils/paths.ts';
 import { debug } from '../utils/debug.ts';
 import { readJsonFileSync } from '../utils/files.ts';
-import { CONFIG_DIR } from './paths.ts';
+import { CONFIG_DIR, getConfigDir } from './paths.ts';
 import type { StoredAttachment, StoredMessage } from '@craft-agent/core/types';
 import type { Plan } from '../agent/plan-types.ts';
 import type { PermissionMode } from '../agent/mode-manager.ts';
@@ -97,8 +97,12 @@ export interface StoredConfig {
   migrationsApplied?: string[];
 }
 
-const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
-const CONFIG_DEFAULTS_FILE = join(CONFIG_DIR, 'config-defaults.json');
+function configFilePath(): string {
+  return join(getConfigDir(), 'config.json');
+}
+function configDefaultsFilePath(): string {
+  return join(getConfigDir(), 'config-defaults.json');
+}
 
 // Track if config-defaults have been synced this session (prevents re-sync on hot reload)
 let configDefaultsSynced = false;
@@ -142,8 +146,8 @@ function syncConfigDefaults(): void {
   const bundledDir = getBundledAssetsDir('.');
   if (!bundledDir) {
     debug('[config] No bundled assets dir found - using fallback config-defaults');
-    if (!existsSync(CONFIG_DEFAULTS_FILE)) {
-      writeFileSync(CONFIG_DEFAULTS_FILE, JSON.stringify(FALLBACK_CONFIG_DEFAULTS, null, 2), 'utf-8');
+    if (!existsSync(configDefaultsFilePath())) {
+      writeFileSync(configDefaultsFilePath(), JSON.stringify(FALLBACK_CONFIG_DEFAULTS, null, 2), 'utf-8');
     }
     return;
   }
@@ -151,15 +155,15 @@ function syncConfigDefaults(): void {
   const bundledFile = join(bundledDir, 'config-defaults.json');
   if (!existsSync(bundledFile)) {
     debug('[config] Bundled config-defaults.json not found at: ' + bundledFile + ' - using fallback');
-    if (!existsSync(CONFIG_DEFAULTS_FILE)) {
-      writeFileSync(CONFIG_DEFAULTS_FILE, JSON.stringify(FALLBACK_CONFIG_DEFAULTS, null, 2), 'utf-8');
+    if (!existsSync(configDefaultsFilePath())) {
+      writeFileSync(configDefaultsFilePath(), JSON.stringify(FALLBACK_CONFIG_DEFAULTS, null, 2), 'utf-8');
     }
     return;
   }
 
   // Sync from bundled file (same pattern as docs)
   const content = readFileSync(bundledFile, 'utf-8');
-  writeFileSync(CONFIG_DEFAULTS_FILE, content, 'utf-8');
+  writeFileSync(configDefaultsFilePath(), content, 'utf-8');
   debug('[config] Synced config-defaults.json from bundled assets');
 }
 
@@ -168,11 +172,11 @@ function syncConfigDefaults(): void {
  * This file is synced from bundled assets on every launch.
  */
 export function loadConfigDefaults(): ConfigDefaults {
-  if (!existsSync(CONFIG_DEFAULTS_FILE)) {
-    throw new Error('config-defaults.json not found at ' + CONFIG_DEFAULTS_FILE + '. Ensure ensureConfigDir() was called at startup.');
+  if (!existsSync(configDefaultsFilePath())) {
+    throw new Error('config-defaults.json not found at ' + configDefaultsFilePath() + '. Ensure ensureConfigDir() was called at startup.');
   }
 
-  const defaults = readJsonFileSync<ConfigDefaults>(CONFIG_DEFAULTS_FILE);
+  const defaults = readJsonFileSync<ConfigDefaults>(configDefaultsFilePath());
 
   const parsedPermissionMode =
     typeof defaults.workspaceDefaults?.permissionMode === 'string'
@@ -221,21 +225,21 @@ const CONFIG_BACKUP_DATE_RE = /^config\.json\.bak-\d{4}-\d{2}-\d{2}$/;
  */
 export function backupConfigFile(): void {
   try {
-    if (!existsSync(CONFIG_FILE)) return;
+    if (!existsSync(configFilePath())) return;
 
     const now = new Date();
     const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const dated = join(CONFIG_DIR, `config.json.bak-${stamp}`);
+    const dated = join(getConfigDir(), `config.json.bak-${stamp}`);
     // One backup per day, never overwritten: the first snapshot of the day is taken
     // before any mutation, so it holds the good pre-reset state. A second startup that
     // day (e.g. after a reset already nuked the registry) must NOT clobber it.
     if (existsSync(dated)) return;
-    writeFileSync(dated, readFileSync(CONFIG_FILE, 'utf-8'), 'utf-8');
+    writeFileSync(dated, readFileSync(configFilePath(), 'utf-8'), 'utf-8');
 
     // ISO date in the name → lexical sort is chronological; drop all but the newest few.
-    const backups = readdirSync(CONFIG_DIR).filter(f => CONFIG_BACKUP_DATE_RE.test(f)).sort();
+    const backups = readdirSync(getConfigDir()).filter(f => CONFIG_BACKUP_DATE_RE.test(f)).sort();
     for (const stale of backups.slice(0, Math.max(0, backups.length - MAX_CONFIG_BACKUPS))) {
-      try { rmSync(join(CONFIG_DIR, stale)); } catch { /* ignore individual cleanup errors */ }
+      try { rmSync(join(getConfigDir(), stale)); } catch { /* ignore individual cleanup errors */ }
     }
   } catch (error) {
     debug('[config] backupConfigFile failed:', error instanceof Error ? error.message : error);
@@ -245,8 +249,8 @@ export function backupConfigFile(): void {
 export function ensureConfigDir(): void {
   if (configDirInitialized) return;
 
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true });
+  if (!existsSync(getConfigDir())) {
+    mkdirSync(getConfigDir(), { recursive: true });
   }
 
   // Snapshot an existing config.json (dated, keep last 3) before anything can
@@ -266,10 +270,10 @@ export function ensureConfigDir(): void {
 
 export function loadStoredConfig(): StoredConfig | null {
   try {
-    if (!existsSync(CONFIG_FILE)) {
+    if (!existsSync(configFilePath())) {
       return null;
     }
-    const config = readJsonFileSync<StoredConfig>(CONFIG_FILE);
+    const config = readJsonFileSync<StoredConfig>(configFilePath());
 
     // Must have workspaces array
     if (!Array.isArray(config.workspaces)) {
@@ -323,7 +327,7 @@ export function saveConfig(config: StoredConfig): void {
     })),
   };
 
-  writeFileSync(CONFIG_FILE, JSON.stringify(storageConfig, null, 2), 'utf-8');
+  writeFileSync(configFilePath(), JSON.stringify(storageConfig, null, 2), 'utf-8');
 }
 
 // Legacy updateApiKey() removed - use setupLlmConnection IPC handler instead.
@@ -629,7 +633,7 @@ export function clearGitBashPath(): void {
 // Permission settings are now stored per-workspace in workspace config.json (defaults.permissionMode, defaults.cyclablePermissionModes)
 
 export function getConfigPath(): string {
-  return CONFIG_FILE;
+  return configFilePath();
 }
 
 /**
@@ -638,18 +642,18 @@ export function getConfigPath(): string {
  */
 export async function clearAllConfig(): Promise<void> {
   // Delete config file
-  if (existsSync(CONFIG_FILE)) {
-    rmSync(CONFIG_FILE);
+  if (existsSync(configFilePath())) {
+    rmSync(configFilePath());
   }
 
   // Delete credentials file
-  const credentialsFile = join(CONFIG_DIR, 'credentials.enc');
+  const credentialsFile = join(getConfigDir(), 'credentials.enc');
   if (existsSync(credentialsFile)) {
     rmSync(credentialsFile);
   }
 
   // Optionally: Delete workspace data (conversations)
-  const workspacesDir = join(CONFIG_DIR, 'workspaces');
+  const workspacesDir = join(getConfigDir(), 'workspaces');
   if (existsSync(workspacesDir)) {
     rmSync(workspacesDir, { recursive: true });
   }
@@ -893,7 +897,7 @@ export async function removeWorkspace(workspaceId: string): Promise<boolean> {
   await manager.deleteWorkspaceCredentials(workspaceId);
 
   // Delete workspace data directory (sessions, plans, etc.)
-  const workspaceDataDir = join(WORKSPACES_DIR, workspaceId);
+  const workspaceDataDir = join(workspacesDataDir(), workspaceId);
   if (existsSync(workspaceDataDir)) {
     try {
       rmSync(workspaceDataDir, { recursive: true });
@@ -912,10 +916,12 @@ export async function removeWorkspace(workspaceId: string): Promise<boolean> {
 // Workspace Conversation Persistence
 // ============================================
 
-const WORKSPACES_DIR = join(CONFIG_DIR, 'workspaces');
+function workspacesDataDir(): string {
+  return join(getConfigDir(), 'workspaces');
+}
 
 function ensureWorkspaceDir(workspaceId: string): string {
-  const dir = join(WORKSPACES_DIR, workspaceId);
+  const dir = join(workspacesDataDir(), workspaceId);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
@@ -990,7 +996,7 @@ export function saveWorkspaceConversation(
 
 // Load workspace conversation
 export function loadWorkspaceConversation(workspaceId: string): WorkspaceConversation | null {
-  const filePath = join(WORKSPACES_DIR, workspaceId, 'conversation.json');
+  const filePath = join(workspacesDataDir(), workspaceId, 'conversation.json');
 
   try {
     if (!existsSync(filePath)) {
@@ -1004,12 +1010,12 @@ export function loadWorkspaceConversation(workspaceId: string): WorkspaceConvers
 
 // Get workspace data directory path
 export function getWorkspaceDataPath(workspaceId: string): string {
-  return join(WORKSPACES_DIR, workspaceId);
+  return join(workspacesDataDir(), workspaceId);
 }
 
 // Clear workspace conversation
 export function clearWorkspaceConversation(workspaceId: string): void {
-  const filePath = join(WORKSPACES_DIR, workspaceId, 'conversation.json');
+  const filePath = join(workspacesDataDir(), workspaceId, 'conversation.json');
   if (existsSync(filePath)) {
     writeFileSync(filePath, '{}', 'utf-8');
   }
@@ -1039,7 +1045,7 @@ export function saveWorkspacePlan(workspaceId: string, plan: Plan): void {
  * Returns null if no plan exists.
  */
 export function loadWorkspacePlan(workspaceId: string): Plan | null {
-  const filePath = join(WORKSPACES_DIR, workspaceId, 'plan.json');
+  const filePath = join(workspacesDataDir(), workspaceId, 'plan.json');
 
   try {
     if (!existsSync(filePath)) {
@@ -1056,7 +1062,7 @@ export function loadWorkspacePlan(workspaceId: string): Plan | null {
  * Called when user runs /clear or cancels a plan.
  */
 export function clearWorkspacePlan(workspaceId: string): void {
-  const filePath = join(WORKSPACES_DIR, workspaceId, 'plan.json');
+  const filePath = join(workspacesDataDir(), workspaceId, 'plan.json');
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
@@ -1072,7 +1078,7 @@ export function clearWorkspacePlan(workspaceId: string): void {
 //    that never existed on disk. Hydrate reconstructs directly from the stored bytes.
 // ============================================
 
-const DRAFTS_FILE = join(CONFIG_DIR, 'drafts.json');
+const DRAFTS_FILE = join(getConfigDir(), 'drafts.json');
 
 export interface DraftAttachmentContent {
   type: 'image' | 'pdf' | 'text' | 'office' | 'audio' | 'unknown';
@@ -1240,8 +1246,8 @@ export function getAllSessionDrafts(): Record<string, SessionDraft> {
 
 import type { ThemeOverrides, ThemeFile, PresetTheme } from './theme.ts';
 
-const APP_THEME_FILE = join(CONFIG_DIR, 'theme.json');
-const APP_THEMES_DIR = join(CONFIG_DIR, 'themes');
+const APP_THEME_FILE = join(getConfigDir(), 'theme.json');
+const APP_THEMES_DIR = join(getConfigDir(), 'themes');
 
 /**
  * Get the path to the app-level theme override file (~/.craft-agent/theme.json).
@@ -2971,7 +2977,7 @@ const TOOL_ICONS_DIR_NAME = 'tool-icons';
  * Returns the path to the tool-icons directory: ~/.craft-agent/tool-icons/
  */
 export function getToolIconsDir(): string {
-  return join(CONFIG_DIR, TOOL_ICONS_DIR_NAME);
+  return join(getConfigDir(), TOOL_ICONS_DIR_NAME);
 }
 
 /**

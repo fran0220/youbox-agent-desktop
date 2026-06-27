@@ -29,12 +29,14 @@ export { expandPath, normalizePath, pathStartsWith, toPortablePath };
  * Known configuration file patterns that may need validation before writing.
  * These files have specific formats (JSON, TOML, YAML) that can break apps if malformed.
  */
+const APP_DATA_DIR = '(?:\\.craft-agent|\\.origincoworks-next)';
+
 const CONFIG_FILE_PATTERNS = [
-  // Craft Agent configs
-  /\.craft-agent\/.*\/(config|permissions|theme|guide|labels|statuses)\.json$/,
-  /\.craft-agent\/config\.json$/,
-  /\.craft-agent\/preferences\.json$/,
-  /\.craft-agent\/.*\/SKILL\.md$/,
+  // App data dir configs (legacy .craft-agent and OriginCoworks .origincoworks-next)
+  new RegExp(`${APP_DATA_DIR}\\/.*\\/(config|permissions|theme|guide|labels|statuses)\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/config\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/preferences\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/.*\\/SKILL\\.md$`),
   // Common config files
   /package\.json$/,
   /tsconfig\.json$/,

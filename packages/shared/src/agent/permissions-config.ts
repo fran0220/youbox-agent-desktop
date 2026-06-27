@@ -12,11 +12,10 @@
  */
 
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
-import { homedir } from 'os';
 import { join } from 'path';
 import { debug } from '../utils/debug.ts';
 import { readJsonFileSync, safeJsonParse } from '../utils/files.ts';
-import { CONFIG_DIR } from '../config/paths.ts';
+import { getConfigDir } from '../config/paths.ts';
 import { getBundledAssetsDir } from '../utils/paths.ts';
 import { getSourcePath } from '../sources/storage.ts';
 import { isValidPermissionsFile } from '../config/validators.ts';
@@ -46,8 +45,7 @@ let permissionsInitialized = false;
  * Reads env var dynamically so tests can override via CRAFT_CONFIG_DIR.
  */
 export function getAppPermissionsDir(): string {
-  const configDir = process.env.CRAFT_CONFIG_DIR || join(homedir(), '.craft-agent');
-  return join(configDir, 'permissions');
+  return join(getConfigDir(), 'permissions');
 }
 
 /**
@@ -695,7 +693,7 @@ class PermissionsConfigCache {
       permissionPaths: {
         workspacePath: getWorkspacePermissionsPath(context.workspaceRootPath),
         appDefaultPath: join(getAppPermissionsDir(), 'default.json'),
-        docsPath: join(CONFIG_DIR, 'docs', 'permissions.md'),
+        docsPath: join(getConfigDir(), 'docs', 'permissions.md'),
       },
     };
 

@@ -8,13 +8,14 @@
  */
 
 import { join } from 'path';
-import { homedir } from 'os';
 import { existsSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from 'fs';
+import { getConfigDir } from '../config/paths.ts';
 import { getBundledAssetsDir } from '../utils/paths.ts';
 import { debug } from '../utils/debug.ts';
 
-const CONFIG_DIR = join(homedir(), '.craft-agent');
-const RELEASE_NOTES_DIR = join(CONFIG_DIR, 'release-notes');
+function getReleaseNotesDir(): string {
+  return join(getConfigDir(), 'release-notes');
+}
 
 let releaseNotesInitialized = false;
 
@@ -36,7 +37,7 @@ function loadBundledReleaseNotes(): Record<string, string> {
   // but initializeReleaseNotes() copies files to the config dir at startup)
   let dir = assetsDir;
   if (!existsSync(dir)) {
-    dir = RELEASE_NOTES_DIR;
+    dir = getReleaseNotesDir();
   }
 
   let files: string[];
@@ -76,13 +77,14 @@ export function initializeReleaseNotes(): void {
   if (releaseNotesInitialized) return;
   releaseNotesInitialized = true;
 
-  if (!existsSync(RELEASE_NOTES_DIR)) {
-    mkdirSync(RELEASE_NOTES_DIR, { recursive: true });
+  const releaseNotesDir = getReleaseNotesDir();
+  if (!existsSync(releaseNotesDir)) {
+    mkdirSync(releaseNotesDir, { recursive: true });
   }
 
   const bundledNotes = getBundledReleaseNotes();
   for (const [filename, content] of Object.entries(bundledNotes)) {
-    const notePath = join(RELEASE_NOTES_DIR, filename);
+    const notePath = join(releaseNotesDir, filename);
     writeFileSync(notePath, content, 'utf-8');
   }
 

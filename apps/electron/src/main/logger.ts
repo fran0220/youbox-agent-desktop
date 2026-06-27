@@ -1,7 +1,7 @@
 import log from 'electron-log/main'
 import { appendFileSync, existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { homedir } from 'node:os'
+import { getConfigDir } from '@craft-agent/shared/config'
 import type {
   MessagingLogContext,
   MessagingLogMeta,
@@ -81,23 +81,29 @@ export const searchLog = log.scope('search')
  * Kept outside the Electron-managed logs folder so messaging issues can be
  * inspected independently at a stable path across debug and production builds.
  */
-export const messagingGatewayLogPath = join(homedir(), '.craft-agent', 'logs', 'messaging-gateway.log')
-const messagingGatewayBackupPath = `${messagingGatewayLogPath}.1`
+function messagingGatewayLogPath(): string {
+  return join(getConfigDir(), 'logs', 'messaging-gateway.log')
+}
+function messagingGatewayBackupPath(): string {
+  return `${messagingGatewayLogPath()}.1`
+}
 const MESSAGING_LOG_MAX_BYTES = 5 * 1024 * 1024 // 5MB
 
 function ensureMessagingLogDir(): void {
-  mkdirSync(dirname(messagingGatewayLogPath), { recursive: true })
+  mkdirSync(dirname(messagingGatewayLogPath()), { recursive: true })
 }
 
 function rotateMessagingLogIfNeeded(nextLineBytes: number): void {
-  if (!existsSync(messagingGatewayLogPath)) return
+  const logPath = messagingGatewayLogPath()
+  if (!existsSync(logPath)) return
   try {
-    const currentSize = statSync(messagingGatewayLogPath).size
+    const currentSize = statSync(logPath).size
     if (currentSize + nextLineBytes <= MESSAGING_LOG_MAX_BYTES) return
-    if (existsSync(messagingGatewayBackupPath)) {
-      rmSync(messagingGatewayBackupPath, { force: true })
+    const backupPath = messagingGatewayBackupPath()
+    if (existsSync(backupPath)) {
+      rmSync(backupPath, { force: true })
     }
-    renameSync(messagingGatewayLogPath, messagingGatewayBackupPath)
+    renameSync(logPath, backupPath)
   } catch (error) {
     mainLog.warn('[messaging-gateway] failed to rotate dedicated log file', normalizeLogValue(error))
   }
@@ -157,7 +163,7 @@ function writeMessagingGatewayLog(
   try {
     ensureMessagingLogDir()
     rotateMessagingLogIfNeeded(Buffer.byteLength(line))
-    appendFileSync(messagingGatewayLogPath, line, 'utf8')
+    appendFileSync(messagingGatewayLogPath(), line, 'utf8')
   } catch (error) {
     mainLog.warn('[messaging-gateway] failed to write dedicated log entry', {
       error: normalizeLogValue(error),
@@ -210,19 +216,25 @@ export const messagingGatewayLog: MessagingLogger = new StructuredMessagingGatew
  * dedicated, always-on rotating log records the update lifecycle at a stable
  * path regardless of debug mode, mirroring the messaging-gateway log above.
  */
-export const autoUpdateLogPath = join(homedir(), '.craft-agent', 'logs', 'auto-update.log')
-const autoUpdateBackupPath = `${autoUpdateLogPath}.1`
+function autoUpdateLogPath(): string {
+  return join(getConfigDir(), 'logs', 'auto-update.log')
+}
+function autoUpdateBackupPath(): string {
+  return `${autoUpdateLogPath()}.1`
+}
 const AUTO_UPDATE_LOG_MAX_BYTES = 2 * 1024 * 1024 // 2MB
 
 function rotateAutoUpdateLogIfNeeded(nextLineBytes: number): void {
-  if (!existsSync(autoUpdateLogPath)) return
+  const logPath = autoUpdateLogPath()
+  if (!existsSync(logPath)) return
   try {
-    const currentSize = statSync(autoUpdateLogPath).size
+    const currentSize = statSync(logPath).size
     if (currentSize + nextLineBytes <= AUTO_UPDATE_LOG_MAX_BYTES) return
-    if (existsSync(autoUpdateBackupPath)) {
-      rmSync(autoUpdateBackupPath, { force: true })
+    const backupPath = autoUpdateBackupPath()
+    if (existsSync(backupPath)) {
+      rmSync(backupPath, { force: true })
     }
-    renameSync(autoUpdateLogPath, autoUpdateBackupPath)
+    renameSync(logPath, backupPath)
   } catch (error) {
     mainLog.warn('[auto-update] failed to rotate dedicated log file', normalizeLogValue(error))
   }
@@ -239,9 +251,9 @@ function writeAutoUpdateLog(level: 'info' | 'warn' | 'error', message: string, m
 
   const line = JSON.stringify(entry) + '\n'
   try {
-    mkdirSync(dirname(autoUpdateLogPath), { recursive: true })
+    mkdirSync(dirname(autoUpdateLogPath()), { recursive: true })
     rotateAutoUpdateLogIfNeeded(Buffer.byteLength(line))
-    appendFileSync(autoUpdateLogPath, line, 'utf8')
+    appendFileSync(autoUpdateLogPath(), line, 'utf8')
   } catch (error) {
     mainLog.warn('[auto-update] failed to write dedicated log entry', normalizeLogValue(error))
   }
@@ -265,7 +277,7 @@ export const autoUpdateLog = {
 }
 
 export function getAutoUpdateLogFilePath(): string {
-  return autoUpdateLogPath
+  return autoUpdateLogPath()
 }
 
 /**
@@ -278,7 +290,7 @@ export function getLogFilePath(): string | undefined {
 }
 
 export function getMessagingGatewayLogFilePath(): string {
-  return messagingGatewayLogPath
+  return messagingGatewayLogPath()
 }
 
 export default log

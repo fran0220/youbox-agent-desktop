@@ -3,7 +3,7 @@
  *
  * CRUD operations for workspaces.
  * Workspaces can be stored anywhere on disk via rootPath.
- * Default location: ~/.craft-agent/workspaces/
+ * Default location: ~/.origincoworks-next/workspaces/
  */
 
 import {
@@ -16,8 +16,8 @@ import {
   statSync,
 } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
 import { randomUUID } from 'crypto';
+import { getConfigDir } from '../config/paths.ts';
 import { expandPath, toPortablePath } from '../utils/paths.ts';
 import { atomicWriteFileSync, readJsonFileSync } from '../utils/files.ts';
 import { getDefaultStatusConfig, saveStatusConfig, ensureDefaultIconFiles } from '../statuses/storage.ts';
@@ -32,26 +32,25 @@ import type {
   WorkspaceSummary,
 } from './types.ts';
 
-const CONFIG_DIR = join(homedir(), '.craft-agent');
-const DEFAULT_WORKSPACES_DIR = join(CONFIG_DIR, 'workspaces');
+
 
 // ============================================================
 // Path Utilities
 // ============================================================
 
 /**
- * Get the default workspaces directory (~/.craft-agent/workspaces/)
+ * Get the default workspaces directory (~/.origincoworks-next/workspaces/)
  */
 export function getDefaultWorkspacesDir(): string {
-  return DEFAULT_WORKSPACES_DIR;
+  return join(getConfigDir(), 'workspaces');
 }
 
 /**
  * Ensure default workspaces directory exists
  */
 export function ensureDefaultWorkspacesDir(): void {
-  if (!existsSync(DEFAULT_WORKSPACES_DIR)) {
-    mkdirSync(DEFAULT_WORKSPACES_DIR, { recursive: true });
+  if (!existsSync(getDefaultWorkspacesDir())) {
+    mkdirSync(getDefaultWorkspacesDir(), { recursive: true });
   }
 }
 
@@ -61,7 +60,7 @@ export function ensureDefaultWorkspacesDir(): void {
  * @returns Absolute path to workspace root in default location
  */
 export function getWorkspacePath(workspaceId: string): string {
-  return join(DEFAULT_WORKSPACES_DIR, workspaceId);
+  return join(getDefaultWorkspacesDir(), workspaceId);
 }
 
 /**
@@ -394,16 +393,16 @@ export function renameWorkspaceFolder(rootPath: string, newName: string): boolea
 export function discoverWorkspacesInDefaultLocation(): string[] {
   const discovered: string[] = [];
 
-  if (!existsSync(DEFAULT_WORKSPACES_DIR)) {
+  if (!existsSync(getDefaultWorkspacesDir())) {
     return discovered;
   }
 
   try {
-    const entries = readdirSync(DEFAULT_WORKSPACES_DIR, { withFileTypes: true });
+    const entries = readdirSync(getDefaultWorkspacesDir(), { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
 
-      const rootPath = join(DEFAULT_WORKSPACES_DIR, entry.name);
+      const rootPath = join(getDefaultWorkspacesDir(), entry.name);
       if (isValidWorkspace(rootPath)) {
         discovered.push(rootPath);
       }
@@ -529,4 +528,4 @@ export function ensurePluginManifest(rootPath: string, workspaceName: string): v
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 }
 
-export { CONFIG_DIR, DEFAULT_WORKSPACES_DIR };
+export { CONFIG_DIR } from '../config/paths.ts';

@@ -36,7 +36,6 @@ export {
   renameWorkspaceFolder,
   // Auto-discovery
   discoverWorkspacesInDefaultLocation,
-  // Constants
+  // Constants (CONFIG_DIR resolves at call time via getConfigDir)
   CONFIG_DIR,
-  DEFAULT_WORKSPACES_DIR,
 } from './storage.ts';

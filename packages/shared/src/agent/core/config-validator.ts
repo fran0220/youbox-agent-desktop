@@ -29,24 +29,18 @@ const CONFIG_FILE_PATTERNS: { pattern: RegExp; type: ConfigFileType }[] = [
 /**
  * Craft Agent specific config files that have known schemas.
  */
+const APP_DATA_DIR = '(?:\\.craft-agent|\\.origincoworks-next)';
+
 const CRAFT_AGENT_CONFIG_PATTERNS = [
-  // Main config
-  /\.craft-agent\/config\.json$/,
-  // Preferences
-  /\.craft-agent\/preferences\.json$/,
-  // Source configs
-  /\.craft-agent\/workspaces\/[^/]+\/sources\/[^/]+\/config\.json$/,
-  // Permissions
-  /\.craft-agent\/workspaces\/[^/]+\/permissions\.json$/,
-  /\.craft-agent\/permissions\/[^/]+\.json$/,
-  // Theme
-  /\.craft-agent\/workspaces\/[^/]+\/theme\.json$/,
-  // Statuses
-  /\.craft-agent\/workspaces\/[^/]+\/statuses\/config\.json$/,
-  // Labels
-  /\.craft-agent\/workspaces\/[^/]+\/labels\.json$/,
-  // Tool icons
-  /\.craft-agent\/tool-icons\/tool-icons\.json$/,
+  new RegExp(`${APP_DATA_DIR}\\/config\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/preferences\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/workspaces\\/[^/]+\\/sources\\/[^/]+\\/config\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/workspaces\\/[^/]+\\/permissions\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/permissions\\/[^/]+\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/workspaces\\/[^/]+\\/theme\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/workspaces\\/[^/]+\\/statuses\\/config\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/workspaces\\/[^/]+\\/labels\\.json$`),
+  new RegExp(`${APP_DATA_DIR}\\/tool-icons\\/tool-icons\\.json$`),
 ];
 
 /**
