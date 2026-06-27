@@ -79,6 +79,9 @@ interface UseOnboardingReturn {
   // Skip setup ("Setup later")
   handleSkipSetup: () => void
 
+  // Gateway login
+  handleSubmitGatewayLogin: (data: { username: string; password: string }) => void
+
   // Completion
   handleFinish: () => void
   handleCancel: () => void
@@ -196,7 +199,7 @@ export function apiSetupMethodToConnectionSetup(
 export function useOnboarding({
   onComplete,
   initialSetupNeeds,
-  initialStep = 'provider-select',
+  initialStep = 'gateway-login',
   initialApiSetupMethod,
   onDismiss,
   onConfigSaved,
@@ -226,8 +229,10 @@ export function useOnboarding({
           ...s,
           gitBashStatus: status,
           isCheckingGitBash: false,
-          // Redirect to git-bash step when missing on Windows
-          ...(status.platform === 'win32' && !status.found ? { step: 'git-bash' as const } : {}),
+          // Redirect to git-bash step when missing on Windows (not during gateway login)
+          ...(status.platform === 'win32' && !status.found && s.step !== 'gateway-login'
+            ? { step: 'git-bash' as const }
+            : {}),
         }))
       } catch (error) {
         console.error('[Onboarding] Failed to check Git Bash:', error)
@@ -311,9 +316,35 @@ export function useOnboarding({
     }
   }, [state.apiSetupMethod, onConfigSaved, editingSlug, existingSlugs])
 
+  const handleSubmitGatewayLogin = useCallback(async (data: { username: string; password: string }) => {
+    setState(s => ({ ...s, loginStatus: 'waiting', errorMessage: undefined }))
+    try {
+      const result = await window.electronAPI.gatewayLogin(data.username, data.password)
+      if (result.success) {
+        setState(s => ({ ...s, loginStatus: 'success' }))
+        onComplete()
+      } else {
+        setState(s => ({
+          ...s,
+          loginStatus: 'error',
+          errorMessage: result.error,
+        }))
+      }
+    } catch (error) {
+      setState(s => ({
+        ...s,
+        loginStatus: 'error',
+        errorMessage: error instanceof Error ? error.message : 'Sign in failed',
+      }))
+    }
+  }, [onComplete])
+
   // Continue to next step
   const handleContinue = useCallback(async () => {
     switch (state.step) {
+      case 'gateway-login':
+        break
+
       case 'provider-select':
         // Handled by handleSelectProvider (card click navigates directly)
         break
@@ -848,6 +879,7 @@ export function useOnboarding({
     handleRecheckGitBash,
     handleClearError,
     handleSkipSetup,
+    handleSubmitGatewayLogin,
     handleFinish,
     handleCancel,
     jumpToCredentials,

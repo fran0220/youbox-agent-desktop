@@ -606,25 +606,34 @@ export default function App() {
     }
   }, [resolveDefaultConnectionSlug, windowWorkspaceId])
 
-  // Handle onboarding completion
-  const handleOnboardingComplete = useCallback(async () => {
+  const enterMainAppAfterGatewayAuth = useCallback(async () => {
     try {
-      // Reload workspaces after onboarding
+      const wsId = await window.electronAPI.getWindowWorkspace()
+      setWindowWorkspaceId(wsId)
+      const needs = await window.electronAPI.getSetupNeeds()
+      setSetupNeeds(needs)
       const ws = await window.electronAPI.getWorkspaces()
       if (ws.length > 0) {
-        // Switch to workspace in-place (no window close/reopen)
         await window.electronAPI.switchWorkspace(ws[0].id)
         setWindowWorkspaceId(ws[0].id)
         setWorkspaces(ws)
       } else {
         setWorkspaces(ws)
       }
+      if (!wsId && ws.length === 0) {
+        setAppState('workspace-picker')
+      } else {
+        setAppState('ready')
+      }
     } catch (error) {
-      console.error('[App] Failed to load workspaces after onboarding:', error)
-      // Still transition to ready — the app can recover via reconnect
+      console.error('[App] Failed to enter main app after gateway auth:', error)
+      setAppState('ready')
     }
-    setAppState('ready')
   }, [])
+
+  const handleOnboardingComplete = useCallback(async () => {
+    await enterMainAppAfterGatewayAuth()
+  }, [enterMainAppAfterGatewayAuth])
 
   // Onboarding hook — onConfigSaved fires immediately when billing is saved,
   // ensuring connection state updates before the wizard closes.
@@ -651,38 +660,28 @@ export default function App() {
     setShowResetDialog(true)
   }, [])
 
-  // Check auth state and get window's workspace ID on mount
+  // Gateway session gate, then main app (LLM provider onboarding is not required for gateway auth)
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Get this window's workspace ID (passed via URL query param from main process)
         const wsId = await window.electronAPI.getWindowWorkspace()
         setWindowWorkspaceId(wsId)
 
-        const needs = await window.electronAPI.getSetupNeeds()
-        setSetupNeeds(needs)
-
-        if (needs.isFullyConfigured) {
-          // If no workspace is selected (thin client without CRAFT_WORKSPACE_ID),
-          // show workspace picker before entering the main app
-          if (!wsId) {
-            setAppState('workspace-picker')
-          } else {
-            setAppState('ready')
-          }
-        } else {
-          // New user or needs setup - show onboarding
+        const gatewaySession = await window.electronAPI.gatewayGetSession()
+        if (!gatewaySession.authenticated) {
           setAppState('onboarding')
+          return
         }
+
+        await enterMainAppAfterGatewayAuth()
       } catch (error) {
-        console.error('Failed to check auth state:', error)
-        // If check fails, show onboarding to be safe
+        console.error('Failed to check gateway session:', error)
         setAppState('onboarding')
       }
     }
 
     initialize()
-  }, [])
+  }, [enterMainAppAfterGatewayAuth])
 
   // Session selection state
   const [sessionSelection, setSession] = useSession()
@@ -1941,6 +1940,7 @@ export default function App() {
             onUseGitBashPath={onboarding.handleUseGitBashPath}
             onRecheckGitBash={onboarding.handleRecheckGitBash}
             onClearError={onboarding.handleClearError}
+            onSubmitGatewayLogin={onboarding.handleSubmitGatewayLogin}
           />
         </ModalProvider>
       </DismissibleLayerProvider>

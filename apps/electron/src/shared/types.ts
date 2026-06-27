@@ -385,6 +385,16 @@ export interface ElectronAPI {
   // Credential health check (startup validation)
   getCredentialHealth(): Promise<CredentialHealthStatus>
 
+  // Gateway auth (Go backend)
+  gatewayGetSession(): Promise<
+    | { authenticated: false }
+    | { authenticated: true; user: { id: string; name: string; email: string; role: string } }
+  >
+  gatewayLogin(username: string, password: string): Promise<
+    | { success: true; user: { id: string; name: string; email: string; role: string } }
+    | { success: false; error: string }
+  >
+
   // Onboarding
   getAuthState(): Promise<AuthState>
   getSetupNeeds(): Promise<SetupNeeds>

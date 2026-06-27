@@ -6,10 +6,12 @@ import { CredentialsStep, type CredentialStatus } from "./CredentialsStep"
 import { LocalModelStep, type LocalModelSubmitData } from "./LocalModelStep"
 import { CompletionStep } from "./CompletionStep"
 import { GitBashWarning, type GitBashStatus } from "./GitBashWarning"
+import { GatewayLoginStep } from "./GatewayLoginStep"
 import type { ApiKeySubmitData } from "../apisetup"
 import type { CustomEndpointApi } from '@config/llm-connections'
 
 export type OnboardingStep =
+  | 'gateway-login'
   | 'welcome'
   | 'git-bash'
   | 'provider-select'
@@ -66,6 +68,9 @@ interface OnboardingWizardProps {
   // Local model
   onSubmitLocalModel?: (data: LocalModelSubmitData) => void
 
+  // Gateway login
+  onSubmitGatewayLogin?: (data: { username: string; password: string }) => void
+
   // Edit mode (pre-fill existing connection values)
   editInitialValues?: {
     apiKey?: string
@@ -112,12 +117,22 @@ export function OnboardingWizard({
   onSkipSetup,
   // Local model
   onSubmitLocalModel,
+  onSubmitGatewayLogin,
   // Edit mode
   editInitialValues,
   className
 }: OnboardingWizardProps) {
   const renderStep = () => {
     switch (state.step) {
+      case 'gateway-login':
+        return (
+          <GatewayLoginStep
+            loginStatus={state.loginStatus}
+            errorMessage={state.errorMessage}
+            onSubmit={onSubmitGatewayLogin!}
+          />
+        )
+
       case 'welcome':
         return (
           <WelcomeStep

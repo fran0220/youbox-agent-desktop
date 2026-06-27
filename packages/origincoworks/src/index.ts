@@ -11,3 +11,14 @@ export {
   assertLoginResponse,
   isGatewayUser,
 } from './types.ts';
+export {
+  clearGatewaySession,
+  getGatewaySessionState,
+  getStoredGatewayToken,
+  loginGateway,
+  persistGatewaySession,
+  resolveGatewayBaseUrl,
+  sanitizeGatewayLoginError,
+  GATEWAY_SESSION_CREDENTIAL,
+} from './auth.ts';
+export type { GatewayLoginResult, GatewaySessionState } from './auth.ts';

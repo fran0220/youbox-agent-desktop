@@ -201,6 +201,10 @@ export const LOCAL_ONLY_CHANNELS = new Set<string>([
   RPC_CHANNELS.onboarding.VALIDATE_MCP,
   RPC_CHANNELS.onboarding.START_MCP_OAUTH,
   RPC_CHANNELS.onboarding.DEFER_SETUP,
+
+  // gateway — desktop auth against the Go gateway (adapter HTTP only)
+  RPC_CHANNELS.gateway.GET_SESSION,
+  RPC_CHANNELS.gateway.LOGIN,
   RPC_CHANNELS.settings.GET_NETWORK_PROXY,
   RPC_CHANNELS.settings.SET_NETWORK_PROXY,
 

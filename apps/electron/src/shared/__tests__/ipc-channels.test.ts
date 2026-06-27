@@ -93,6 +93,8 @@ const EXPECTED_CHANNELS: string[] = [
   'file:storeAttachment',
   'fs:listDirectory',
   'fs:search',
+  'gateway:getSession',
+  'gateway:login',
   'git:getBranch',
   'gitbash:browse',
   'gitbash:check',

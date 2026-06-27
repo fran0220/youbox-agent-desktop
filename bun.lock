@@ -264,6 +264,9 @@
     "packages/origincoworks": {
       "name": "@craft-agent/origincoworks",
       "version": "0.10.4",
+      "dependencies": {
+        "@craft-agent/shared": "workspace:*",
+      },
       "devDependencies": {
         "typescript": "^5.0.0",
       },
@@ -311,6 +314,7 @@
       "version": "0.10.4",
       "dependencies": {
         "@craft-agent/core": "workspace:*",
+        "@craft-agent/origincoworks": "workspace:*",
         "@craft-agent/shared": "workspace:*",
         "@earendil-works/pi-ai": "0.79.9",
         "jose": "^6.0.0",

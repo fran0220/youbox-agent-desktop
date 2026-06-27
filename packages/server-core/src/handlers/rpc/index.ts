@@ -23,6 +23,7 @@ import { registerSystemCoreHandlers } from './system'
 import { registerTransferHandlers } from './transfer'
 import { registerWorkspaceCoreHandlers } from './workspace'
 import { registerMessagingHandlers } from './messaging'
+import { registerGatewayHandlers } from './gateway'
 
 export function registerCoreRpcHandlers(
   server: RpcServer,
@@ -30,6 +31,7 @@ export function registerCoreRpcHandlers(
   serverCtx?: ServerHandlerContext,
 ): void {
   registerAuthHandlers(server, deps)
+  registerGatewayHandlers(server, deps)
   registerAutomationsHandlers(server, deps)
   registerFilesHandlers(server, deps)
   registerLabelsHandlers(server, deps)

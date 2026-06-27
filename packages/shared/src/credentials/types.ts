@@ -33,7 +33,9 @@ export type CredentialType =
   | 'source_apikey'      // API keys
   | 'source_basic'       // Basic auth (base64 encoded user:pass)
   // Messaging gateway credentials (keyed by workspaceId + platform)
-  | 'messaging_bearer';  // Platform tokens (e.g., Telegram bot token)
+  | 'messaging_bearer'   // Platform tokens (e.g., Telegram bot token)
+  // OriginCoworks Go gateway session (global)
+  | 'gateway_session';
 
 /** Valid credential types for validation */
 const VALID_CREDENTIAL_TYPES: readonly CredentialType[] = [
@@ -49,6 +51,7 @@ const VALID_CREDENTIAL_TYPES: readonly CredentialType[] = [
   'source_apikey',
   'source_basic',
   'messaging_bearer',
+  'gateway_session',
 ] as const;
 
 /** Check if a string is a valid CredentialType */

@@ -160,6 +160,10 @@ export const RPC_CHANNELS = {
     SHOW_LOGOUT_CONFIRMATION: 'auth:showLogoutConfirmation',
     SHOW_DELETE_SESSION_CONFIRMATION: 'auth:showDeleteSessionConfirmation',
   },
+  gateway: {
+    GET_SESSION: 'gateway:getSession',
+    LOGIN: 'gateway:login',
+  },
   credentials: {
     HEALTH_CHECK: 'credentials:healthCheck',
   },
