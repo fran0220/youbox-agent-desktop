@@ -20,6 +20,7 @@ import {
   StyledDropdownMenuSeparator,
 } from './styled-dropdown'
 import { type DocFeature, getDocUrl } from '@craft-agent/shared/docs/doc-links'
+import { buildProductDeepLinkUrl } from '@craft-agent/shared/deeplink-scheme'
 
 interface HeaderMenuProps {
   /** Route string for Open in New Window action */
@@ -34,7 +35,7 @@ export function HeaderMenu({ route, children, helpFeature }: HeaderMenuProps) {
   const { t } = useTranslation()
   const handleOpenInNewWindow = async () => {
     const separator = route.includes('?') ? '&' : '?'
-    const url = `craftagents://${route}${separator}window=focused`
+    const url = buildProductDeepLinkUrl(`${route}${separator}window=focused`)
     try {
       await window.electronAPI?.openUrl(url)
     } catch (error) {

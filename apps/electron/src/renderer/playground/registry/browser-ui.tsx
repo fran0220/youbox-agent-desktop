@@ -12,6 +12,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { BrowserTabStrip } from '@/components/browser/BrowserTabStrip'
 import { EMPTY_STATE_PROMPT_SAMPLES } from '@/components/browser/empty-state-prompts'
 import type { BrowserInstanceInfo } from '../../../shared/types'
+import { buildProductDeepLinkUrl } from '@craft-agent/shared/deeplink-scheme'
 import { BROWSER_LIVE_FX_BORDER, getBrowserLiveFxCornerRadii } from '../../../shared/browser-live-fx'
 import { routes } from '../../../shared/routes'
 import { isLinux, isMac, isWindows } from '@/lib/platform'
@@ -223,7 +224,7 @@ function BrowserAgentEmptyState({
 }) {
   const handlePromptSelect = useCallback(async (prompt: string) => {
     const deepLinkRoute = routes.action.newSession({ input: prompt, send: true })
-    const deepLinkUrl = `craftagents://${deepLinkRoute}`
+    const deepLinkUrl = buildProductDeepLinkUrl(deepLinkRoute)
 
     try {
       if (typeof window !== 'undefined' && window.electronAPI?.openUrl) {

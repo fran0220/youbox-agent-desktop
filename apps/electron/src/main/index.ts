@@ -229,7 +229,7 @@ let pendingDeepLink: string | null = null
 // Supports multi-instance dev: CRAFT_APP_NAME env var (e.g., "OriginCoworks Next [1]")
 app.setName(process.env.CRAFT_APP_NAME || PRODUCT_NAME)
 
-// Register as default protocol client for craftagents:// URLs
+// Register as default protocol client for origincoworks:// URLs
 // This must be done before app.whenReady() on some platforms
 if (process.defaultApp) {
   // Development mode: need to pass the app path
@@ -239,6 +239,14 @@ if (process.defaultApp) {
 } else {
   // Production mode
   app.setAsDefaultProtocolClient(DEEPLINK_SCHEME)
+}
+
+// Cold start on Windows/Linux: deep link may arrive on argv before open-url fires
+for (const arg of process.argv) {
+  if (arg.startsWith(`${DEEPLINK_SCHEME}://`)) {
+    pendingDeepLink = arg
+    break
+  }
 }
 
 // Apply network proxy settings early (Node-level only — Electron sessions require app.whenReady)

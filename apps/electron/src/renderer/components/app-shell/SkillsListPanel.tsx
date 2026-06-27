@@ -10,6 +10,7 @@ import { SkillMenu } from './SkillMenu'
 import { SendResourceToWorkspaceDialog } from './SendResourceToWorkspaceDialog'
 import { EditPopover, getEditConfig } from '@/components/ui/EditPopover'
 import { useActiveWorkspace, useAppShellContext } from '@/context/AppShellContext'
+import { buildProductDeepLinkUrl } from '@craft-agent/shared/deeplink-scheme'
 import { getFileManagerName } from '@/lib/platform'
 import type { LoadedSkill } from '../../../shared/types'
 
@@ -90,7 +91,7 @@ export function SkillsListPanel({
           <SkillMenu
             skillSlug={skill.slug}
             skillName={skill.metadata.name}
-            onOpenInNewWindow={() => window.electronAPI.openUrl(`craftagents://skills/skill/${skill.slug}?window=focused`)}
+            onOpenInNewWindow={() => window.electronAPI.openUrl(buildProductDeepLinkUrl(`skills/skill/${skill.slug}?window=focused`))}
             onShowInFinder={async () => {
               if (!canRevealLocally) return
               try {

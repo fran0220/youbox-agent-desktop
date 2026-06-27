@@ -9,6 +9,8 @@
  * useful error message instead of a generic "Invalid URL".
  */
 
+import { resolveDeeplinkScheme } from '../deeplink-scheme.ts'
+
 export type UrlClassification =
   | { kind: 'dangerous'; scheme?: string; reason: string }
   | { kind: 'internal-deeplink' }
@@ -30,8 +32,6 @@ const DANGEROUS_SCHEMES: ReadonlyMap<string, string> = new Map([
   ],
 ])
 
-const INTERNAL_DEEPLINK_SCHEME = 'craftagents:'
-
 export function classifyExternalUrl(rawUrl: string): UrlClassification {
   if (typeof rawUrl !== 'string' || rawUrl.trim() === '') {
     return { kind: 'dangerous', reason: 'URL is empty or whitespace-only.' }
@@ -51,7 +51,8 @@ export function classifyExternalUrl(rawUrl: string): UrlClassification {
     return { kind: 'dangerous', scheme: protocol, reason: blockedReason }
   }
 
-  if (protocol === INTERNAL_DEEPLINK_SCHEME) {
+  const internalScheme = `${resolveDeeplinkScheme()}:`.toLowerCase()
+  if (protocol === internalScheme) {
     return { kind: 'internal-deeplink' }
   }
 

@@ -22,6 +22,7 @@ import { StyledDropdownMenuContent, StyledDropdownMenuItem, StyledDropdownMenuSe
 import { useAppShellContext, usePendingPermission, usePendingCredential, useSessionOptionsFor, useSession as useSessionData } from '@/context/AppShellContext'
 import { rendererPerf } from '@/lib/perf'
 import { routes } from '@/lib/navigate'
+import { buildProductDeepLinkUrl } from '@craft-agent/shared/deeplink-scheme'
 import { coerceInputText } from '@/lib/input-text'
 import { deriveSessionMessagesLoadState, formatSessionLoadFailure } from '@/lib/session-load'
 import { ensureSessionMessagesLoadedAtom, forceSessionMessagesReloadAtom, loadedSessionsAtom, sessionMetaMapAtom } from '@/atoms/sessions'
@@ -469,7 +470,7 @@ const ChatPage = React.memo(function ChatPage({ sessionId }: ChatPageProps) {
   const handleOpenInNewWindow = React.useCallback(async () => {
     const route = routes.view.allSessions(sessionId)
     const separator = route.includes('?') ? '&' : '?'
-    const url = `craftagents://${route}${separator}window=focused`
+    const url = buildProductDeepLinkUrl(`${route}${separator}window=focused`)
     try {
       await window.electronAPI?.openUrl(url)
     } catch (error) {

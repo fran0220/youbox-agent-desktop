@@ -5,6 +5,7 @@ import { execSync } from 'child_process'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
 import { getWorkspaceByNameOrId, getGitBashPath, setGitBashPath, clearGitBashPath } from '@craft-agent/shared/config'
 import { classifyExternalUrl, formatBlockedUrlError } from '@craft-agent/shared/utils/url-safety'
+import { isProductDeepLinkProtocol } from '@craft-agent/shared/deeplink-scheme'
 import { isUsableGitBashPath, validateGitBashPath } from '@craft-agent/server-core/services'
 import { validateFilePath, getWorkspaceAllowedDirs } from '@craft-agent/server-core/handlers'
 import type { RpcServer } from '@craft-agent/server-core/transport'
@@ -67,8 +68,8 @@ function collectDeepLinkParams(parsed: URL, pathId?: string): Record<string, str
   return Object.keys(params).length > 0 ? params : undefined
 }
 
-function parseInternalCraftAgentsDeepLink(parsed: URL): ParsedInternalDeepLink | null {
-  if (parsed.protocol !== 'craftagents:') return null
+function parseInternalProductDeepLink(parsed: URL): ParsedInternalDeepLink | null {
+  if (!isProductDeepLinkProtocol(parsed.protocol)) return null
 
   const host = parsed.hostname
   const pathParts = parsed.pathname.split('/').filter(Boolean)
@@ -277,7 +278,7 @@ export function registerSystemCoreHandlers(server: RpcServer, deps: HandlerDeps)
     deps.platform.logger.info('[renderer]', ...args)
   })
 
-  // Shell operations - open URL in external browser (or handle craftagents:// internally)
+  // Shell operations - open URL in external browser (or handle origincoworks:// internally)
   server.handle(RPC_CHANNELS.shell.OPEN_URL, async (ctx, url: string) => {
     deps.platform.logger.info('[OPEN_URL] Received request:', url)
     try {
@@ -289,7 +290,7 @@ export function registerSystemCoreHandlers(server: RpcServer, deps: HandlerDeps)
       const parsed = new URL(url)
 
       if (classification.kind === 'internal-deeplink') {
-        const deepLink = parseInternalCraftAgentsDeepLink(parsed)
+        const deepLink = parseInternalProductDeepLink(parsed)
 
         if (deepLink?.handledNoop) {
           deps.platform.logger.info('[OPEN_URL] Ignoring auth-callback deep link in OPEN_URL handler')
@@ -301,14 +302,14 @@ export function registerSystemCoreHandlers(server: RpcServer, deps: HandlerDeps)
             ? { to: 'workspace' as const, workspaceId: deepLink.workspaceId }
             : { to: 'client' as const, clientId: ctx.clientId }
 
-          deps.platform.logger.info('[OPEN_URL] Routing craftagents:// URL internally via deeplink:navigate')
+          deps.platform.logger.info('[OPEN_URL] Routing product deep link internally via deeplink:navigate')
           server.push(RPC_CHANNELS.deeplink.NAVIGATE, target, deepLink.navigation)
           return
         }
 
         // For links requiring window management (e.g. window=focused/full), or
         // unknown deep-link shapes, fall back to the client protocol handler.
-        deps.platform.logger.info('[OPEN_URL] Falling back to client openExternal for craftagents:// URL')
+        deps.platform.logger.info('[OPEN_URL] Falling back to client openExternal for product deep link')
         const deepLinkResult = await requestClientOpenExternal(server, ctx.clientId, url)
         if (!deepLinkResult.opened) {
           deps.platform.logger.error(`[OPEN_URL] Client capability failed: ${deepLinkResult.error}`)

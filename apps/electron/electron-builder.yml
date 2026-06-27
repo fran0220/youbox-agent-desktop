@@ -2,6 +2,11 @@ appId: com.origincoworks.next
 productName: OriginCoworks Next
 copyright: Copyright © 2026 OriginCoworks
 
+protocols:
+  - name: OriginCoworks Next
+    schemes:
+      - origincoworks
+
 electronVersion: "39.2.7"
 
 # Hook to compile macOS 26+ Liquid Glass icon after packaging
