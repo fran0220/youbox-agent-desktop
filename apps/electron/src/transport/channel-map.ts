@@ -120,6 +120,7 @@ export const CHANNEL_MAP = {
   showLogoutConfirmation: invoke(RPC_CHANNELS.auth.SHOW_LOGOUT_CONFIRMATION),
   showDeleteSessionConfirmation: invoke(RPC_CHANNELS.auth.SHOW_DELETE_SESSION_CONFIRMATION),
   logout: invoke(RPC_CHANNELS.auth.LOGOUT),
+  gatewayLogout: invoke(RPC_CHANNELS.gateway.LOGOUT),
   getCredentialHealth: invoke(RPC_CHANNELS.credentials.HEALTH_CHECK),
 
   // Onboarding

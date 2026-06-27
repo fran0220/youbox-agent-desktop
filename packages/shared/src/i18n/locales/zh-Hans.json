@@ -739,6 +739,8 @@
   "settings.about.title": "关于",
   "settings.about.updateReady": "更新就绪",
   "settings.about.version": "版本",
+  "settings.account.signOut": "退出登录",
+  "settings.account.signOutFailed": "无法退出登录，请重试。",
   "settings.ai.addConnection": "+ 添加连接",
   "settings.ai.connection": "连接",
   "settings.ai.connectionDesc": "新聊天的 API 连接",

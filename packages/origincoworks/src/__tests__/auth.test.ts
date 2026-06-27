@@ -10,6 +10,7 @@ import {
   clearGatewaySession,
   persistGatewaySession,
   getGatewaySessionState,
+  logoutGateway,
   resolveGatewayBaseUrl,
   GATEWAY_SESSION_CREDENTIAL,
 } from '../auth.ts';
@@ -152,10 +153,11 @@ describe('getGatewaySessionState', () => {
   let configDir: string;
   const prevConfig = process.env.CRAFT_CONFIG_DIR;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     configDir = mkdtempSync(join(tmpdir(), 'ocn-session-'));
     process.env.CRAFT_CONFIG_DIR = configDir;
     GatewayClient.setFetchForTests(undefined);
+    await clearGatewaySession();
   });
 
   afterEach(() => {
@@ -167,7 +169,7 @@ describe('getGatewaySessionState', () => {
 
   it('returns unauthenticated when no token stored', async () => {
     const state = await getGatewaySessionState('http://127.0.0.1:8847');
-    expect(state).toEqual({ authenticated: false });
+    expect(state).toEqual({ authenticated: false, reason: 'no_token' });
   });
 
   it('returns user when token valid and attaches bearer on /me', async () => {
@@ -211,8 +213,54 @@ describe('getGatewaySessionState', () => {
     });
 
     const state = await getGatewaySessionState('http://127.0.0.1:8847');
-    expect(state).toEqual({ authenticated: false });
+    expect(state).toEqual({ authenticated: false, reason: 'invalid_token' });
     expect(await getStoredGatewayToken()).toBeNull();
+  });
+});
+
+describe('logoutGateway', () => {
+  let configDir: string;
+  const prevConfig = process.env.CRAFT_CONFIG_DIR;
+
+  beforeEach(() => {
+    configDir = mkdtempSync(join(tmpdir(), 'ocn-logout-'));
+    process.env.CRAFT_CONFIG_DIR = configDir;
+    GatewayClient.setFetchForTests(undefined);
+  });
+
+  afterEach(() => {
+    if (prevConfig === undefined) delete process.env.CRAFT_CONFIG_DIR;
+    else process.env.CRAFT_CONFIG_DIR = prevConfig;
+    GatewayClient.setFetchForTests(undefined);
+    rmSync(configDir, { recursive: true, force: true });
+  });
+
+  it('revokes server session and clears local token', async () => {
+    await persistGatewaySession(TOKEN);
+    let logoutAuth: string | null = null;
+    GatewayClient.setFetchForTests(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith('/api/auth/logout')) {
+        const headers = new Headers(init?.headers);
+        logoutAuth = headers.get('Authorization');
+        return new Response(null, { status: 204 });
+      }
+      return new Response('not found', { status: 404 });
+    });
+
+    await logoutGateway('http://127.0.0.1:8847');
+    expect(logoutAuth).toBe(`Bearer ${TOKEN}`);
+    expect(await getStoredGatewayToken()).toBeNull();
+  });
+
+  it('clears local token when no token stored', async () => {
+    let called = false;
+    GatewayClient.setFetchForTests(async () => {
+      called = true;
+      return new Response(null, { status: 204 });
+    });
+    await logoutGateway('http://127.0.0.1:8847');
+    expect(called).toBe(false);
   });
 });
 

@@ -163,6 +163,7 @@ export const RPC_CHANNELS = {
   gateway: {
     GET_SESSION: 'gateway:getSession',
     LOGIN: 'gateway:login',
+    LOGOUT: 'gateway:logout',
   },
   credentials: {
     HEALTH_CHECK: 'credentials:healthCheck',

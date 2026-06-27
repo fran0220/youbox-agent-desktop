@@ -122,4 +122,26 @@ export class GatewayClient {
     assertGatewayUser(body);
     return body;
   }
+
+  /** POST /api/auth/logout — invalidates server session (204) */
+  async logout(): Promise<void> {
+    if (!this.token) {
+      return;
+    }
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${this.token}`);
+    const res = await this.resolveFetch()(this.url('/api/auth/logout'), {
+      method: 'POST',
+      headers,
+    });
+    if (res.status === 204 || res.ok) {
+      return;
+    }
+    const body = await this.readJson(res);
+    const errMsg =
+      body && typeof body === 'object' && body !== null && 'error' in body
+        ? String((body as { error: unknown }).error)
+        : `gateway logout failed: ${res.status}`;
+    throw new GatewayHttpError(errMsg, res.status, body);
+  }
 }

@@ -59,14 +59,16 @@ export async function persistGatewaySession(token: string): Promise<void> {
   await manager.set(GATEWAY_SESSION_CREDENTIAL, { value: token });
 }
 
+export type GatewaySessionUnauthenticatedReason = 'no_token' | 'invalid_token';
+
 export type GatewaySessionState =
-  | { authenticated: false }
+  | { authenticated: false; reason: GatewaySessionUnauthenticatedReason }
   | { authenticated: true; user: GatewayUser };
 
 export async function getGatewaySessionState(baseUrl?: string): Promise<GatewaySessionState> {
   const token = await getStoredGatewayToken();
   if (!token) {
-    return { authenticated: false };
+    return { authenticated: false, reason: 'no_token' };
   }
   const client = new GatewayClient(baseUrl ?? resolveGatewayBaseUrl(), token);
   try {
@@ -75,10 +77,27 @@ export async function getGatewaySessionState(baseUrl?: string): Promise<GatewayS
   } catch (err) {
     if (err instanceof GatewayHttpError && (err.status === 401 || err.status === 403)) {
       await clearGatewaySession();
-      return { authenticated: false };
+      return { authenticated: false, reason: 'invalid_token' };
     }
     throw err;
   }
+}
+
+export async function logoutGateway(baseUrl?: string): Promise<void> {
+  const token = await getStoredGatewayToken();
+  const resolvedBase = baseUrl ?? resolveGatewayBaseUrl();
+  if (token) {
+    const client = new GatewayClient(resolvedBase, token);
+    try {
+      await client.logout();
+    } catch (err) {
+      if (!(err instanceof GatewayHttpError)) {
+        throw err;
+      }
+      // Best-effort revoke — still clear local session if server already invalidated
+    }
+  }
+  await clearGatewaySession();
 }
 
 export type GatewayLoginResult =

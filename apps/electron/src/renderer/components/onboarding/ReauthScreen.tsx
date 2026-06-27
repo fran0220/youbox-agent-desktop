@@ -1,102 +1,72 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { AlertCircle, RefreshCw } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@craft-agent/ui"
-import { OriginCoworksSymbol } from "@/components/icons/OriginCoworksSymbol"
-import { StepFormLayout } from "./primitives"
+import { GatewayLoginStep } from "./GatewayLoginStep"
+import type { LoginStatus } from "./OnboardingWizard"
 
 interface ReauthScreenProps {
-  onLogin: () => Promise<void>
+  onSubmitGatewayLogin: (data: { username: string; password: string }) => Promise<void>
   onReset: () => void
 }
 
 /**
- * ReauthScreen - Simple re-login screen for expired sessions
- *
- * Shown when the user has existing workspaces/config but the Craft token
- * is missing or expired. Much simpler than full onboarding - just re-authenticate.
+ * Gateway re-login after an expired or revoked server session.
+ * Local workspaces and config are preserved.
  */
-export function ReauthScreen({ onLogin, onReset }: ReauthScreenProps) {
+export function ReauthScreen({ onSubmitGatewayLogin, onReset }: ReauthScreenProps) {
   const { t } = useTranslation()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loginStatus, setLoginStatus] = useState<LoginStatus>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | undefined>()
 
-  const handleLogin = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      await onLogin()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
-      setIsLoading(false)
-    }
-  }
+  const handleSubmit = useCallback(
+    async (data: { username: string; password: string }) => {
+      setLoginStatus('waiting')
+      setErrorMessage(undefined)
+      try {
+        await onSubmitGatewayLogin(data)
+        setLoginStatus('success')
+      } catch (err) {
+        setLoginStatus('error')
+        setErrorMessage(err instanceof Error ? err.message : 'Sign in failed')
+      }
+    },
+    [onSubmitGatewayLogin],
+  )
 
   return (
-    <div className="flex min-h-screen flex-col bg-foreground-2">
-      {/* Draggable title bar region for transparent window (macOS) */}
+    <div className="relative flex min-h-screen flex-col bg-foreground-2">
       <div className="titlebar-drag-region fixed top-0 left-0 right-0 h-[50px] z-titlebar" />
 
-      {/* Main content */}
-      <main className="flex flex-1 items-center justify-center p-8">
-        <StepFormLayout
-          iconElement={
-            <div className="flex size-16 items-center justify-center rounded-full bg-info/10">
-              <AlertCircle className="size-8 text-info" />
-            </div>
-          }
-          title={t("onboarding.reauth.title")}
-          description={
-            <>
-              {t("onboarding.reauth.expired")}
-              <br />
-              {t("onboarding.reauth.loginAgain")}
-              <br />
-              <span className="text-muted-foreground/70 text-xs mt-2 block">
-                {t("onboarding.reauth.preserved")}
-              </span>
-            </>
-          }
-          actions={
-            <div className="flex flex-col gap-3 w-full">
-              <Button
-                onClick={handleLogin}
-                disabled={isLoading}
-                className="w-full max-w-[320px] bg-background shadow-minimal text-foreground hover:bg-foreground/5 rounded-lg"
-                size="lg"
-              >
-                {isLoading ? (
-                  <>
-                    <Spinner className="mr-2" />
-                    {t("onboarding.reauth.loggingIn")}
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="mr-2 size-4" />
-                    {t("onboarding.reauth.loginWithCraft")}
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={onReset}
-                disabled={isLoading}
-                className="w-full max-w-[320px] bg-foreground-2 shadow-minimal text-foreground hover:bg-foreground/5 rounded-lg"
-                size="sm"
-              >
-                {t("onboarding.reauth.resetApp")}
-              </Button>
-            </div>
-          }
+      <div
+        className="mx-auto mt-20 flex max-w-md items-start gap-3 rounded-lg border border-info/20 bg-info/5 px-4 py-3 text-sm text-foreground/80"
+        role="status"
+      >
+        <AlertCircle className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
+        <div>
+          <p className="font-medium text-foreground">{t("onboarding.reauth.title")}</p>
+          <p className="mt-1 text-muted-foreground">{t("onboarding.reauth.expired")}</p>
+          <p className="mt-1 text-xs text-muted-foreground/80">{t("onboarding.reauth.preserved")}</p>
+        </div>
+      </div>
+
+      <GatewayLoginStep
+        loginStatus={loginStatus}
+        errorMessage={errorMessage}
+        onSubmit={handleSubmit}
+      />
+
+      <div className="absolute bottom-8 left-0 right-0 flex justify-center px-8">
+        <Button
+          variant="ghost"
+          onClick={onReset}
+          disabled={loginStatus === 'waiting'}
+          className="max-w-[320px] w-full bg-foreground-2 shadow-minimal text-foreground hover:bg-foreground/5 rounded-lg"
+          size="sm"
         >
-          {error && (
-            <div className="mt-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-              <p className="text-sm text-destructive">{error}</p>
-            </div>
-          )}
-        </StepFormLayout>
-      </main>
+          {t("onboarding.reauth.resetApp")}
+        </Button>
+      </div>
     </div>
   )
 }

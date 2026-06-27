@@ -3,6 +3,7 @@ import type { RpcServer } from '@craft-agent/server-core/transport';
 import {
   getGatewaySessionState,
   loginGateway,
+  logoutGateway,
   resolveGatewayBaseUrl,
 } from '@craft-agent/origincoworks/auth';
 import type { HandlerDeps } from '../handler-deps';
@@ -10,6 +11,7 @@ import type { HandlerDeps } from '../handler-deps';
 export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.GET_SESSION,
   RPC_CHANNELS.gateway.LOGIN,
+  RPC_CHANNELS.gateway.LOGOUT,
 ] as const;
 
 export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): void {
@@ -22,7 +24,20 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gateway session check failed';
       log.error('[Gateway] getSession failed:', message);
-      return { authenticated: false as const };
+      return { authenticated: false as const, reason: 'no_token' as const };
+    }
+  });
+
+  server.handle(RPC_CHANNELS.gateway.LOGOUT, async () => {
+    const baseUrl = resolveGatewayBaseUrl();
+    try {
+      await logoutGateway(baseUrl);
+      log.info('[Gateway] User signed out (server session revoked when possible)');
+      return { success: true as const };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gateway logout failed';
+      log.error('[Gateway] logout failed:', message);
+      throw err;
     }
   });
 

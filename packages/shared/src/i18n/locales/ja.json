@@ -739,6 +739,8 @@
   "settings.about.title": "このアプリについて",
   "settings.about.updateReady": "アップデート準備完了",
   "settings.about.version": "バージョン",
+  "settings.account.signOut": "サインアウト",
+  "settings.account.signOutFailed": "サインアウトできませんでした。もう一度お試しください。",
   "settings.ai.addConnection": "+ 接続を追加",
   "settings.ai.connection": "接続",
   "settings.ai.connectionDesc": "新規チャットのAPI接続",

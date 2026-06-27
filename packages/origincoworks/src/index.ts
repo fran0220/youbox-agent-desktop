@@ -16,9 +16,14 @@ export {
   getGatewaySessionState,
   getStoredGatewayToken,
   loginGateway,
+  logoutGateway,
   persistGatewaySession,
   resolveGatewayBaseUrl,
   sanitizeGatewayLoginError,
   GATEWAY_SESSION_CREDENTIAL,
 } from './auth.ts';
-export type { GatewayLoginResult, GatewaySessionState } from './auth.ts';
+export type {
+  GatewayLoginResult,
+  GatewaySessionState,
+  GatewaySessionUnauthenticatedReason,
+} from './auth.ts';

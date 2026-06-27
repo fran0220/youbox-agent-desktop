@@ -739,6 +739,8 @@
   "settings.about.title": "Acerca de",
   "settings.about.updateReady": "Actualización lista",
   "settings.about.version": "Versión",
+  "settings.account.signOut": "Cerrar sesión",
+  "settings.account.signOutFailed": "No se pudo cerrar sesión. Inténtalo de nuevo.",
   "settings.ai.addConnection": "+ Añadir conexión",
   "settings.ai.connection": "Conexión",
   "settings.ai.connectionDesc": "Conexión API para nuevos chats",

@@ -380,16 +380,17 @@ export interface ElectronAPI {
   // Auth
   showLogoutConfirmation(): Promise<boolean>
   showDeleteSessionConfirmation(name: string): Promise<boolean>
-  logout(): Promise<void>
+  logout(options?: { fullReset?: boolean }): Promise<void>
 
   // Credential health check (startup validation)
   getCredentialHealth(): Promise<CredentialHealthStatus>
 
   // Gateway auth (Go backend)
   gatewayGetSession(): Promise<
-    | { authenticated: false }
+    | { authenticated: false; reason: 'no_token' | 'invalid_token' }
     | { authenticated: true; user: { id: string; name: string; email: string; role: string } }
   >
+  gatewayLogout(): Promise<{ success: boolean }>
   gatewayLogin(username: string, password: string): Promise<
     | { success: true; user: { id: string; name: string; email: string; role: string } }
     | { success: false; error: string }

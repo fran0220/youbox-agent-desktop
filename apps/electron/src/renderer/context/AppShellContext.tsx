@@ -118,6 +118,8 @@ export interface AppShellContextType {
   onOpenKeyboardShortcuts: () => void
   onOpenStoredUserPreferences: () => void
   onReset: () => void
+  /** Sign out of the gateway (revoke server session + clear gateway_session token) */
+  onGatewayLogout?: () => void | Promise<void>
 
   // Unified session options callback
   onSessionOptionsChange: (sessionId: string, updates: SessionOptionUpdates) => void

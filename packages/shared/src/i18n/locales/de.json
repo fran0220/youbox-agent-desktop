@@ -739,6 +739,8 @@
   "settings.about.title": "Über",
   "settings.about.updateReady": "Update bereit",
   "settings.about.version": "Version",
+  "settings.account.signOut": "Abmelden",
+  "settings.account.signOutFailed": "Abmelden fehlgeschlagen. Bitte erneut versuchen.",
   "settings.ai.addConnection": "+ Verbindung hinzufügen",
   "settings.ai.connection": "Verbindung",
   "settings.ai.connectionDesc": "API-Verbindung für neue Chats",

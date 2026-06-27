@@ -62,6 +62,7 @@ interface TopBarProps {
   isCompact?: boolean
   /** Signed-in gateway user shown in the top bar */
   gatewayUser?: { name: string; email: string } | null
+  onGatewayLogout?: () => void | Promise<void>
 }
 
 export function TopBar({
@@ -88,6 +89,7 @@ export function TopBar({
   onAddBrowserPanel,
   isCompact,
   gatewayUser,
+  onGatewayLogout,
 }: TopBarProps) {
   const { t } = useTranslation()
   const [maxVisibleBrowserBadges, setMaxVisibleBrowserBadges] = useState(3)
@@ -229,13 +231,28 @@ export function TopBar({
       {!isCompact && (
       <div ref={rightSlotRef} className="flex min-w-0 shrink-0 items-center justify-end gap-1" style={{ paddingRight: 12 }}>
         {gatewayUser ? (
-          <span
-            className="titlebar-no-drag hidden max-w-[200px] truncate text-xs text-foreground/60 sm:inline"
-            title={gatewayUser.email}
-            data-testid="gateway-user-identity"
-          >
-            {gatewayUser.name}
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="titlebar-no-drag hidden max-w-[200px] truncate rounded-md px-2 py-1 text-xs text-foreground/60 hover:bg-foreground/5 sm:inline"
+                title={gatewayUser.email}
+                data-testid="gateway-user-identity"
+              >
+                {gatewayUser.name}
+              </button>
+            </DropdownMenuTrigger>
+            <StyledDropdownMenuContent align="end" minWidth="min-w-48">
+              <StyledDropdownMenuItem
+                onClick={() => {
+                  void onGatewayLogout?.()
+                }}
+              >
+                <Icons.LogOut className="h-3.5 w-3.5" />
+                {t("settings.account.signOut")}
+              </StyledDropdownMenuItem>
+            </StyledDropdownMenuContent>
+          </DropdownMenu>
         ) : null}
         <div className="min-w-0">
           <BrowserTabStrip activeSessionId={activeSessionId} maxVisibleBadges={maxVisibleBrowserBadges} />

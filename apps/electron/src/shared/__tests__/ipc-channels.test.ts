@@ -95,6 +95,7 @@ const EXPECTED_CHANNELS: string[] = [
   'fs:search',
   'gateway:getSession',
   'gateway:login',
+  'gateway:logout',
   'git:getBranch',
   'gitbash:browse',
   'gitbash:check',

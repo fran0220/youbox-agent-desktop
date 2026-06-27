@@ -657,17 +657,17 @@ export default function App() {
     initialSetupNeeds: setupNeeds || undefined,
   })
 
-  // Reauth login handler - placeholder (reauth is not currently used)
-  const handleReauthLogin = useCallback(async () => {
-    // Re-check setup needs
-    const needs = await window.electronAPI.getSetupNeeds()
-    if (needs.isFullyConfigured) {
-      setAppState('ready')
-    } else {
-      setSetupNeeds(needs)
-      setAppState('onboarding')
-    }
-  }, [])
+  const handleReauthGatewayLogin = useCallback(
+    async (data: { username: string; password: string }) => {
+      const result = await window.electronAPI.gatewayLogin(data.username, data.password)
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      setGatewayUser(result.user)
+      await enterMainAppAfterGatewayAuth()
+    },
+    [enterMainAppAfterGatewayAuth],
+  )
 
   // Reauth reset handler - open reset confirmation dialog
   const handleReauthReset = useCallback(() => {
@@ -684,7 +684,9 @@ export default function App() {
         const gatewaySession = await window.electronAPI.gatewayGetSession()
         if (!gatewaySession.authenticated) {
           setGatewayUser(null)
-          setAppState('onboarding')
+          setAppState(
+            gatewaySession.reason === 'invalid_token' ? 'reauth' : 'onboarding',
+          )
           return
         }
 
@@ -715,6 +717,29 @@ export default function App() {
     onNavigateToSession: handleNavigateToSession,
     enabled: notificationsEnabled,
   })
+
+  // Re-validate gateway session while in the main app (expired token → reauth, not a crash)
+  useEffect(() => {
+    if (appState !== 'ready') return
+
+    const verifyGatewaySession = async () => {
+      try {
+        const session = await window.electronAPI.gatewayGetSession()
+        if (!session.authenticated && session.reason === 'invalid_token') {
+          setGatewayUser(null)
+          setAppState('reauth')
+        }
+      } catch (error) {
+        console.error('[App] Gateway session check failed:', error)
+      }
+    }
+
+    const onFocus = () => {
+      void verifyGatewaySession()
+    }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [appState])
 
   // Load workspaces, sessions, model, notifications setting, and drafts when app is ready
   useEffect(() => {
@@ -1687,10 +1712,31 @@ export default function App() {
     setShowResetDialog(true)
   }, [])
 
+  const returnToGatewayLogin = useCallback(async () => {
+    setGatewayUser(null)
+    setSessionsLoaded(false)
+    setSessionLoadError(null)
+    setSplashExiting(false)
+    setSplashHidden(false)
+    initializeSessions([])
+    onboarding.reset()
+    setAppState('onboarding')
+  }, [initializeSessions, onboarding])
+
+  const handleGatewayLogout = useCallback(async () => {
+    try {
+      await window.electronAPI.gatewayLogout()
+      await returnToGatewayLogin()
+    } catch (error) {
+      console.error('[App] Gateway logout failed:', error)
+      toast.error(t('settings.account.signOutFailed'))
+    }
+  }, [returnToGatewayLogin, t])
+
   // Execute reset after user confirms in dialog
   const executeReset = useCallback(async () => {
     try {
-      await window.electronAPI.logout()
+      await window.electronAPI.logout({ fullReset: true })
       // Reset all state
       // Clear session atoms - initialize with empty array clears all per-session atoms
       initializeSessions([])
@@ -1829,6 +1875,7 @@ export default function App() {
     onOpenKeyboardShortcuts: handleOpenKeyboardShortcuts,
     onOpenStoredUserPreferences: handleOpenStoredUserPreferences,
     onReset: handleReset,
+    onGatewayLogout: handleGatewayLogout,
     // Session options
     onSessionOptionsChange: handleSessionOptionsChange,
     onInputChange: handleInputChange,
@@ -1872,6 +1919,7 @@ export default function App() {
     handleOpenKeyboardShortcuts,
     handleOpenStoredUserPreferences,
     handleReset,
+    handleGatewayLogout,
     handleSessionOptionsChange,
     handleInputChange,
     handleAttachmentsChange,
@@ -1918,7 +1966,7 @@ export default function App() {
         <ModalProvider>
           <WindowCloseHandler />
           <ReauthScreen
-            onLogin={handleReauthLogin}
+            onSubmitGatewayLogin={handleReauthGatewayLogin}
             onReset={handleReauthReset}
           />
           <ResetConfirmationDialog

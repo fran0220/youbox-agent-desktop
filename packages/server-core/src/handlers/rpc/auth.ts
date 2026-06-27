@@ -3,6 +3,7 @@ import { join } from 'path'
 import { getConfigDir } from '@craft-agent/shared/config'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
+import { logoutGateway } from '@craft-agent/origincoworks/auth'
 import type { RpcServer } from '@craft-agent/server-core/transport'
 import type { HandlerDeps } from '../handler-deps'
 import { requestClientConfirmDialog } from '@craft-agent/server-core/transport'
@@ -47,9 +48,16 @@ export function registerAuthHandlers(server: RpcServer, deps: HandlerDeps): void
     return result.response === 1
   })
 
-  // Logout - clear all credentials and config
-  server.handle(RPC_CHANNELS.auth.LOGOUT, async () => {
+  // Logout — revoke gateway session + clear gateway token; legacy full reset when requested
+  server.handle(RPC_CHANNELS.auth.LOGOUT, async (_ctx, options?: { fullReset?: boolean }) => {
     try {
+      await logoutGateway()
+
+      if (!options?.fullReset) {
+        deps.platform.logger.info('Gateway logout complete — local gateway session cleared')
+        return
+      }
+
       const manager = getCredentialManager()
 
       // List and delete all stored credentials
@@ -64,7 +72,7 @@ export function registerAuthHandlers(server: RpcServer, deps: HandlerDeps): void
         // Ignore if file doesn't exist
       })
 
-      deps.platform.logger.info('Logout complete - cleared all credentials and config')
+      deps.platform.logger.info('Full logout complete - cleared all credentials and config')
     } catch (error) {
       deps.platform.logger.error('Logout error:', error)
       throw error

@@ -2184,6 +2184,7 @@ function AppShellContent({
           onWorkspaceCreated={() => onRefreshWorkspaces?.()}
           onWorkspaceRemoved={() => onRefreshWorkspaces?.()}
           gatewayUser={contextValue.gatewayUser ?? null}
+          onGatewayLogout={contextValue.onGatewayLogout}
           activeSessionId={effectiveSessionId}
           onNewChat={() => handleNewChat()}
           onNewWindow={() => window.electronAPI.menuNewWindow()}
