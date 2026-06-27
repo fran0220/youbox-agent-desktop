@@ -60,6 +60,8 @@ interface TopBarProps {
   onAddBrowserPanel: () => void
   /** When true, hides controls that don't apply in compact/mobile layout */
   isCompact?: boolean
+  /** Signed-in gateway user shown in the top bar */
+  gatewayUser?: { name: string; email: string } | null
 }
 
 export function TopBar({
@@ -85,6 +87,7 @@ export function TopBar({
   onAddSessionPanel,
   onAddBrowserPanel,
   isCompact,
+  gatewayUser,
 }: TopBarProps) {
   const { t } = useTranslation()
   const [maxVisibleBrowserBadges, setMaxVisibleBrowserBadges] = useState(3)
@@ -225,6 +228,15 @@ export function TopBar({
       {/* === RIGHT: Browser strip + add + help === */}
       {!isCompact && (
       <div ref={rightSlotRef} className="flex min-w-0 shrink-0 items-center justify-end gap-1" style={{ paddingRight: 12 }}>
+        {gatewayUser ? (
+          <span
+            className="titlebar-no-drag hidden max-w-[200px] truncate text-xs text-foreground/60 sm:inline"
+            title={gatewayUser.email}
+            data-testid="gateway-user-identity"
+          >
+            {gatewayUser.name}
+          </span>
+        ) : null}
         <div className="min-w-0">
           <BrowserTabStrip activeSessionId={activeSessionId} maxVisibleBadges={maxVisibleBrowserBadges} />
         </div>

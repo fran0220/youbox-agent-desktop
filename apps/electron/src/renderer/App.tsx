@@ -235,6 +235,12 @@ export default function App() {
   // App state: loading -> check auth -> onboarding or ready
   const [appState, setAppState] = useState<AppState>('loading')
   const [setupNeeds, setSetupNeeds] = useState<SetupNeeds | null>(null)
+  const [gatewayUser, setGatewayUser] = useState<{
+    id: string
+    name: string
+    email: string
+    role: string
+  } | null>(null)
 
   // Per-session Jotai atom setters for isolated updates
   // NOTE: No sessionsAtom - we don't store a Session[] array anywhere to prevent memory leaks
@@ -632,6 +638,14 @@ export default function App() {
   }, [])
 
   const handleOnboardingComplete = useCallback(async () => {
+    try {
+      const gatewaySession = await window.electronAPI.gatewayGetSession()
+      if (gatewaySession.authenticated) {
+        setGatewayUser(gatewaySession.user)
+      }
+    } catch {
+      setGatewayUser(null)
+    }
     await enterMainAppAfterGatewayAuth()
   }, [enterMainAppAfterGatewayAuth])
 
@@ -669,10 +683,12 @@ export default function App() {
 
         const gatewaySession = await window.electronAPI.gatewayGetSession()
         if (!gatewaySession.authenticated) {
+          setGatewayUser(null)
           setAppState('onboarding')
           return
         }
 
+        setGatewayUser(gatewaySession.user)
         await enterMainAppAfterGatewayAuth()
       } catch (error) {
         console.error('Failed to check gateway session:', error)
@@ -1777,6 +1793,7 @@ export default function App() {
     workspaces,
     activeWorkspaceId: windowWorkspaceId,
     activeWorkspaceSlug: windowWorkspaceSlug,
+    gatewayUser,
     llmConnections,
     workspaceDefaultLlmConnection,
     refreshLlmConnections,
@@ -1823,6 +1840,7 @@ export default function App() {
     workspaces,
     windowWorkspaceId,
     windowWorkspaceSlug,
+    gatewayUser,
     llmConnections,
     workspaceDefaultLlmConnection,
     refreshLlmConnections,

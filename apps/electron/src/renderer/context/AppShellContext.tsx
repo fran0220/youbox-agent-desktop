@@ -39,6 +39,8 @@ export interface AppShellContextType {
   activeWorkspaceId: string | null
   /** Workspace slug for SDK skill qualification (derived from workspace path) */
   activeWorkspaceSlug: string | null
+  /** Gateway-authenticated user (OriginCoworks Go backend), when signed in */
+  gatewayUser?: { id: string; name: string; email: string; role: string } | null
   /** All LLM connections with authentication status */
   llmConnections: LlmConnectionWithStatus[]
   /** Default LLM connection slug for the current workspace */

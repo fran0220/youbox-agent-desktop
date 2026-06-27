@@ -322,7 +322,7 @@ export function useOnboarding({
       const result = await window.electronAPI.gatewayLogin(data.username, data.password)
       if (result.success) {
         setState(s => ({ ...s, loginStatus: 'success' }))
-        onComplete()
+        await onComplete()
       } else {
         setState(s => ({
           ...s,
