@@ -868,6 +868,62 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
   let lineBuffer = '';
   /** Track whether we're currently buffering tool_call argument deltas */
   let bufferingToolCalls = false;
+  /** True once finish_reason was emitted on the outbound SSE stream (pi-ai requires this). */
+  let emittedFinishReason = false;
+  /** True once we saw assistant content or tool_call deltas (guards synthetic finish injection). */
+  let sawAnyContent = false;
+
+  function noteChunkSignals(choices: Array<{
+    delta?: {
+      content?: string | null;
+      tool_calls?: unknown[];
+      reasoning_content?: string;
+      reasoning?: string;
+      reasoning_text?: string;
+    };
+    finish_reason?: string | null;
+  }>): void {
+    for (const choice of choices) {
+      const delta = choice?.delta;
+      if (!delta) continue;
+      if (typeof delta.content === 'string' && delta.content.length > 0) {
+        sawAnyContent = true;
+      }
+      if (delta.tool_calls && delta.tool_calls.length > 0) {
+        sawAnyContent = true;
+      }
+      for (const field of ['reasoning_content', 'reasoning', 'reasoning_text'] as const) {
+        const v = delta[field];
+        if (typeof v === 'string' && v.length > 0) {
+          sawAnyContent = true;
+        }
+      }
+    }
+  }
+
+  function maybeInjectSyntheticFinishReason(controller: TransformStreamDefaultController<Uint8Array>): void {
+    if (emittedFinishReason || !sawAnyContent) return;
+    const synthetic = JSON.stringify({
+      choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+    });
+    emitSseLine(synthetic, controller);
+    emittedFinishReason = true;
+  }
+
+  function emitFinishReasonFromChoices(
+    choices: Array<{ index?: number; finish_reason?: string | null }>,
+    controller: TransformStreamDefaultController<Uint8Array>,
+  ): void {
+    for (const choice of choices) {
+      if (!choice?.finish_reason || emittedFinishReason) continue;
+      const idx = choice.index ?? 0;
+      const line = JSON.stringify({
+        choices: [{ index: idx, delta: {}, finish_reason: choice.finish_reason }],
+      });
+      emitSseLine(line, controller);
+      emittedFinishReason = true;
+    }
+  }
 
   function emitSseLine(dataStr: string, controller: TransformStreamDefaultController<Uint8Array>): void {
     if (DEBUG_SSE_RAW) debugLog(`[SSE RAW OUT openai] ${dataStr.slice(0, 4000)}`);
@@ -952,6 +1008,7 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
     if (DEBUG_SSE_RAW) debugLog(`[SSE RAW IN  openai] ${dataStr.slice(0, 4000)}`);
     if (dataStr === '[DONE]') {
       flushTrackedCalls(controller);
+      maybeInjectSyntheticFinishReason(controller);
       emitSseLine(dataStr, controller);
       return;
     }
@@ -984,6 +1041,8 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
       emitSseLine(dataStr, controller);
       return;
     }
+
+    noteChunkSignals(choices);
 
     let handledToolCalls = false;
 
@@ -1084,8 +1143,19 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
     }
 
     // Suppress all upstream tool_call delta payloads. Consolidated events
-    // are emitted on flush.
+    // are emitted on flush at finish/[DONE]. If finish_reason arrived in the
+    // same chunk as tool_call deltas, flush consolidated calls and emit
+    // finish here — otherwise pi-ai never sees finish_reason.
     if (handledToolCalls) {
+      const finishInChunk = choices.some(
+        choice => choice?.finish_reason === 'tool_calls' || choice?.finish_reason === 'stop',
+      );
+      if (finishInChunk) {
+        if (bufferingToolCalls) {
+          flushTrackedCalls(controller);
+        }
+        emitFinishReasonFromChoices(choices, controller);
+      }
       return;
     }
 
@@ -1096,6 +1166,7 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
         flushTrackedCalls(controller);
       }
       emitSseLine(dataStr, controller);
+      emittedFinishReason = true;
       return;
     }
 
@@ -1132,6 +1203,7 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
       if (trackedCalls.size > 0) {
         flushTrackedCalls(controller);
       }
+      maybeInjectSyntheticFinishReason(controller);
       lineBuffer = '';
     },
   });

@@ -3,7 +3,10 @@
  */
 import {
   addLlmConnection,
+  ensureConfigDir,
   getLlmConnection,
+  loadStoredConfig,
+  saveConfig,
   setDefaultLlmConnection,
   updateLlmConnection,
   type LlmConnection,
@@ -77,6 +80,15 @@ export async function applyGatewayLlmConfigFromSession(
   }
 
   const connection = buildGatewayLlmConnectionFromDesktopConfig(desktopConfig);
+  ensureConfigDir();
+  if (!loadStoredConfig()) {
+    saveConfig({
+      workspaces: [],
+      activeWorkspaceId: null,
+      activeSessionId: null,
+    });
+  }
+
   const existing = getLlmConnection(ORIGINCOWORKS_GATEWAY_LLM_SLUG);
   const manager = getCredentialManager();
 

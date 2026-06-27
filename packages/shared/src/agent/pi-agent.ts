@@ -416,7 +416,8 @@ export class PiAgent extends BaseAgent {
     const args = [piServerPath];
     const interceptorPath = runtime.paths?.interceptor;
     if (interceptorPath) {
-      args.unshift('--require', interceptorPath);
+      const preloadFlag = interceptorPath.endsWith('.ts') ? '--preload' : '--require';
+      args.unshift(preloadFlag, interceptorPath);
     }
 
     // Resolve credentials before spawning so we can derive AWS env vars

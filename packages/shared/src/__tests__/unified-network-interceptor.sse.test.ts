@@ -189,4 +189,46 @@ describe('unified-network-interceptor SSE processors', () => {
       expect(result).toBe('{}');
     });
   });
+
+  it('OpenAI: injects synthetic finish_reason when stream had content but no finish_reason', async () => {
+    const sse = [
+      'data: {"choices":[{"index":0,"delta":{"content":"PONG"},"finish_reason":null}]}\n\n',
+      'data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}\n\n',
+      'data: [DONE]\n\n',
+    ];
+
+    const out = await runThroughProcessor(createOpenAiSseStrippingStream(), sse);
+
+    expect(out).toContain('"content":"PONG"');
+    expect(out).toMatch(/"finish_reason":"stop"/);
+    expect(out).toContain('data: [DONE]');
+    const finishIdx = out.indexOf('"finish_reason":"stop"');
+    const doneIdx = out.indexOf('data: [DONE]');
+    expect(finishIdx).toBeGreaterThan(-1);
+    expect(doneIdx).toBeGreaterThan(finishIdx);
+  });
+
+  it('OpenAI: emits finish_reason when it arrives in the same chunk as tool_call deltas', async () => {
+    const sse = [
+      'data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_x","type":"function","function":{"name":"toolA","arguments":"{\\"a\\":1}"}}]},"finish_reason":"tool_calls"}]}\n\n',
+      'data: [DONE]\n\n',
+    ];
+
+    const out = await runThroughProcessor(createOpenAiSseStrippingStream(), sse);
+
+    expect(out).toMatch(/"finish_reason":"tool_calls"/);
+    expect(out).toContain('data: [DONE]');
+  });
+
+  it('OpenAI: does not inject synthetic finish_reason when stream had no content', async () => {
+    const sse = [
+      'data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":0,"total_tokens":1}}\n\n',
+      'data: [DONE]\n\n',
+    ];
+
+    const out = await runThroughProcessor(createOpenAiSseStrippingStream(), sse);
+
+    expect(out).not.toMatch(/"finish_reason":"stop"/);
+    expect(out).toContain('data: [DONE]');
+  });
 });
