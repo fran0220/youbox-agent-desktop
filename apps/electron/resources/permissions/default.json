@@ -946,7 +946,6 @@
   ],
   "allowedApiEndpoints": [],
   "allowedWritePaths": [
-    "~/.origincoworks-next/**",
-    "~/.craft-agent/**"
+    "~/.origincoworks-next/**"
   ]
 }
