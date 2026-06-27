@@ -43,10 +43,8 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
 
   server.handle(
     RPC_CHANNELS.gateway.LOGIN,
-    async (_ctx, payload: { username: string; password: string }) => {
-      const username = payload?.username ?? '';
-      const password = payload?.password ?? '';
-      const result = await loginGateway(username, password, resolveGatewayBaseUrl());
+    async (_ctx, username: string, password: string) => {
+      const result = await loginGateway(username ?? '', password ?? '', resolveGatewayBaseUrl());
       if (result.success) {
         log.info('[Gateway] User signed in:', result.user.name);
       } else {
