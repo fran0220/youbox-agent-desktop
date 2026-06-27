@@ -872,6 +872,8 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
   let emittedFinishReason = false;
   /** True once we saw assistant content or tool_call deltas (guards synthetic finish injection). */
   let sawAnyContent = false;
+  /** Upstream reported completion tokens on a usage-only chunk (xiaomao trailing usage). */
+  let sawCompletionUsage = false;
 
   function noteChunkSignals(choices: Array<{
     delta?: {
@@ -902,7 +904,7 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
   }
 
   function maybeInjectSyntheticFinishReason(controller: TransformStreamDefaultController<Uint8Array>): void {
-    if (emittedFinishReason || !sawAnyContent) return;
+    if (emittedFinishReason || (!sawAnyContent && !sawCompletionUsage)) return;
     const synthetic = JSON.stringify({
       choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
     });
@@ -1038,6 +1040,15 @@ export function createOpenAiSseStrippingStream(): TransformStream<Uint8Array, Ui
     }> | undefined;
 
     if (!choices || choices.length === 0) {
+      // xiaomao and other relays often send a trailing usage chunk with choices:[]
+      // and no finish_reason; pi-ai requires finish_reason on a prior chunk.
+      const usage = data.usage as { completion_tokens?: number } | undefined;
+      if (typeof usage?.completion_tokens === 'number' && usage.completion_tokens > 0) {
+        sawCompletionUsage = true;
+      }
+      if (data.usage && (sawAnyContent || sawCompletionUsage)) {
+        maybeInjectSyntheticFinishReason(controller);
+      }
       emitSseLine(dataStr, controller);
       return;
     }
@@ -2312,7 +2323,27 @@ async function interceptedFetch(
   const proxy = getProxyForUrl(url);
   const proxyInit = proxy ? { ...init, proxy } : init;
   const response = await originalFetch(input, proxyInit);
-  return logResponse(response, url, startTime);
+  // Still run SSE synthesis when adapter matched but the POST body path was skipped
+  // (e.g. OpenAI SDK body not resolved as string, or validation threw).
+  if (adapter) {
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('text/event-stream') && response.body) {
+      debugLog(`[${adapter.name}] Fallback SSE processor (strip/capture)`);
+      const processor = adapter.createSseProcessor();
+      const processedBody = response.body.pipeThrough(processor);
+      return logResponse(
+        new Response(processedBody, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        }),
+        url,
+        startTime,
+        adapter,
+      );
+    }
+  }
+  return logResponse(response, url, startTime, adapter);
 }
 
 // Create proxy to handle both function calls and static properties (e.g., fetch.preconnect in Bun)
@@ -2330,8 +2361,19 @@ const fetchProxy = new Proxy(interceptedFetch, {
   },
 });
 
+const CRAFT_INTERCEPTOR_INSTALLED = '__craftInterceptor';
+(fetchProxy as unknown as Record<string, unknown>)[CRAFT_INTERCEPTOR_INSTALLED] = true;
+
 // Auto-install in runtime subprocesses. Tests can disable this side effect.
 if (process.env.CRAFT_INTERCEPTOR_DISABLE_AUTO_INSTALL !== '1') {
-  (globalThis as unknown as { fetch: unknown }).fetch = fetchProxy;
-  debugLog('Unified fetch interceptor installed');
+  const existingFetch = globalThis.fetch as unknown as Record<string, unknown> | undefined;
+  if (existingFetch?.[CRAFT_INTERCEPTOR_INSTALLED]) {
+    debugLog('Unified fetch interceptor already installed (idempotent skip)');
+  } else {
+    (globalThis as unknown as { fetch: unknown }).fetch = fetchProxy;
+    debugLog('Unified fetch interceptor installed');
+    if (process.env.CRAFT_DEBUG === '1') {
+      console.error('[craft-interceptor] globalThis.fetch patched (__craftInterceptor)');
+    }
+  }
 }

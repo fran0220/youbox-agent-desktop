@@ -14,6 +14,9 @@
  * separate process, avoiding bundling issues in the Electron main process.
  */
 
+// Patch globalThis.fetch before any OpenAI client construction (Pi SDK reads fetch at client init).
+import '../../shared/src/unified-network-interceptor.ts';
+
 import http from 'node:http';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';

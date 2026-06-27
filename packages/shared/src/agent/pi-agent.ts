@@ -416,8 +416,8 @@ export class PiAgent extends BaseAgent {
     const args = [piServerPath];
     const interceptorPath = runtime.paths?.interceptor;
     if (interceptorPath) {
-      const preloadFlag = interceptorPath.endsWith('.ts') ? '--preload' : '--require';
-      args.unshift(preloadFlag, interceptorPath);
+      // Bun honors --preload for both .ts and .cjs; Node --require does not preload .ts.
+      args.unshift('--preload', interceptorPath);
     }
 
     // Resolve credentials before spawning so we can derive AWS env vars
