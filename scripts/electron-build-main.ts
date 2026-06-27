@@ -8,6 +8,7 @@ import { existsSync, readFileSync, statSync, mkdirSync } from "fs";
 import { join } from "path";
 
 const ROOT_DIR = join(import.meta.dir, "..");
+const ORIGINCOWORKS_DIR = join(ROOT_DIR, "packages/origincoworks");
 const DIST_DIR = join(ROOT_DIR, "apps/electron/dist");
 const OUTPUT_FILE = join(DIST_DIR, "main.cjs");
 const INTERCEPTOR_SOURCE = join(ROOT_DIR, "packages/shared/src/unified-network-interceptor.ts");
@@ -123,6 +124,19 @@ async function verifyJsFile(filePath: string): Promise<{ valid: boolean; error?:
 
 // Verify Session Tools Core package exists (raw TypeScript, bundled by consumers)
 // No build step needed - it exports TypeScript directly like other packages
+function verifyOrigincoworksAdapter(): void {
+  console.log("🔍 Verifying OriginCoworks adapter package...");
+
+  const entry = join(ORIGINCOWORKS_DIR, "src/index.ts");
+  const gatewayClient = join(ORIGINCOWORKS_DIR, "src/gateway-client.ts");
+  if (!existsSync(entry) || !existsSync(gatewayClient)) {
+    console.error("❌ @craft-agent/origincoworks sources not found under", ORIGINCOWORKS_DIR);
+    process.exit(1);
+  }
+
+  console.log("✅ OriginCoworks adapter verified");
+}
+
 function verifySessionToolsCore(): void {
   console.log("🔍 Verifying Session Tools Core...");
 
@@ -317,6 +331,8 @@ async function main(): Promise<void> {
   if (!existsSync(DIST_DIR)) {
     mkdirSync(DIST_DIR, { recursive: true });
   }
+
+  verifyOrigincoworksAdapter();
 
   // Verify session tools core exists (shared utilities for session-scoped tools)
   verifySessionToolsCore();
