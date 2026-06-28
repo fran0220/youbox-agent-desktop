@@ -5,8 +5,10 @@ import { getStoredGatewayToken, resolveGatewayBaseUrl } from '@craft-agent/origi
 import { getCachedGatewayPolicy } from '@craft-agent/origincoworks/policy';
 import type { GatewayPolicySnapshot } from '@craft-agent/shared/agent/gateway-policy';
 
-export async function resolveGatewayPolicyForRuntime(): Promise<GatewayPolicySnapshot | undefined> {
+export async function resolveGatewayPolicyForRuntime(
+  workspaceSlug?: string,
+): Promise<GatewayPolicySnapshot | undefined> {
   const token = await getStoredGatewayToken();
   if (!token) return undefined;
-  return getCachedGatewayPolicy(resolveGatewayBaseUrl(), token);
+  return getCachedGatewayPolicy(resolveGatewayBaseUrl(), token, workspaceSlug);
 }

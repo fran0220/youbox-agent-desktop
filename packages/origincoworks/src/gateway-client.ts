@@ -133,8 +133,13 @@ export class GatewayClient {
   }
 
   /** GET /api/desktop/policy — role, trust, and capability flags for pre-tool-use gating */
-  async desktopPolicy(): Promise<unknown> {
-    return this.requestJson('/api/desktop/policy', { method: 'GET', auth: true });
+  async desktopPolicy(workspaceSlug?: string): Promise<unknown> {
+    const slug = workspaceSlug?.trim();
+    const path =
+      slug && slug.length > 0
+        ? `/api/desktop/policy?workspace_slug=${encodeURIComponent(slug)}`
+        : '/api/desktop/policy';
+    return this.requestJson(path, { method: 'GET', auth: true });
   }
 
   /** POST /api/desktop/audit — persist a client-originated audit row (204) */

@@ -65,4 +65,42 @@ describe('policy.ts', () => {
     const policy = await getCachedGatewayPolicy('http://127.0.0.1:8847', 'a'.repeat(64));
     expect(policy?.role).toBe('admin');
   });
+
+  it('mapDesktopPolicyResponse parses workspace_trusted', () => {
+    const snap = mapDesktopPolicyResponse({
+      role: 'admin',
+      flags: {
+        allow_bash: true,
+        allow_file_write: true,
+        allow_mcp: true,
+        allow_api_mutations: true,
+      },
+      workspace_trust_default: true,
+      workspace_trusted: false,
+      require_high_risk_confirmation: true,
+      require_admin_escalation_approval: true,
+    });
+    expect(snap.workspace_trusted).toBe(false);
+  });
+
+  it('getCachedGatewayPolicy passes workspace_slug query', async () => {
+    let seenUrl = '';
+    GatewayClient.setFetchForTests(async (input) => {
+      seenUrl = String(input);
+      return new Response(
+        JSON.stringify({
+          role: 'admin',
+          flags: { allow_bash: true, allow_file_write: true, allow_mcp: true, allow_api_mutations: true },
+          workspace_trust_default: true,
+          workspace_trusted: false,
+          require_high_risk_confirmation: true,
+          require_admin_escalation_approval: true,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    const policy = await getCachedGatewayPolicy('http://127.0.0.1:8847', 'b'.repeat(64), 'my-ws');
+    expect(seenUrl).toContain('workspace_slug=my-ws');
+    expect(policy?.workspace_trusted).toBe(false);
+  });
 });

@@ -57,6 +57,12 @@ export interface WorkspaceConfig {
    */
   localMcpServers?: LocalMcpConfig;
 
+  /**
+   * When false, gateway workspace-trust policy blocks write-like tools regardless of permission mode.
+   * When unset, trust falls back to gateway policy workspace_trust_default / per-request workspace_trusted.
+   */
+  gatewayTrusted?: boolean;
+
   createdAt: number;
   updatedAt: number;
 }

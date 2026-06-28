@@ -98,6 +98,7 @@ import { loadStatusConfig } from '@craft-agent/shared/statuses/storage'
 import { AutomationSystem, createPromptHistoryEntry, appendAutomationHistoryEntry, type AutomationSystemMetadataSnapshot } from '@craft-agent/shared/automations'
 import { buildBackendRuntimeSignature, buildRestartRequiredSignature, filterAttachmentsForModelInput } from './runtime-config'
 import { resolveGatewayPolicyForRuntime } from '../gateway-policy-context.ts'
+import { resolveWorkspaceTrustedForAgent } from '../resolve-workspace-trusted.ts'
 import { createGatewayAuditSink } from '../gateway-audit-sink.ts'
 import { getGatewaySessionState } from '@craft-agent/origincoworks/auth'
 
@@ -3338,7 +3339,11 @@ export class SessionManager implements ISessionManager {
       // Construct backend via factory
       // ============================================================
 
-      const gatewayPolicy = await resolveGatewayPolicyForRuntime()
+      const gatewayPolicy = await resolveGatewayPolicyForRuntime(managed.workspace.slug)
+      const workspaceTrusted = resolveWorkspaceTrustedForAgent({
+        policy: gatewayPolicy,
+        workspaceRootPath: managed.workspace.rootPath,
+      })
       const gatewaySession = await getGatewaySessionState()
       const gatewayUserId =
         gatewaySession.authenticated === true ? gatewaySession.user.id : undefined
@@ -3349,6 +3354,7 @@ export class SessionManager implements ISessionManager {
         coreConfig: {
         workspace: managed.workspace,
         gatewayPolicy,
+        workspaceTrusted,
         gatewayUserId,
         auditSink: createGatewayAuditSink(),
         miniModel,

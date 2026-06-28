@@ -14,6 +14,8 @@ export interface GatewayPolicySnapshot {
   role: string;
   flags: GatewayPolicyFlags;
   workspace_trust_default: boolean;
+  /** Effective trust for the requested workspace (from GET /api/desktop/policy?workspace_slug=) */
+  workspace_trusted?: boolean;
   require_high_risk_confirmation: boolean;
   require_admin_escalation_approval: boolean;
 }
@@ -83,7 +85,8 @@ export function evaluateGatewayPolicy(ctx: GatewayPolicyEvaluateInput): GatewayP
     return { allowed: true };
   }
 
-  const workspaceTrusted = ctx.workspaceTrusted ?? policy.workspace_trust_default;
+  const workspaceTrusted =
+    ctx.workspaceTrusted ?? policy.workspace_trusted ?? policy.workspace_trust_default;
 
   if (!workspaceTrusted && isWriteLikeTool(ctx.toolName)) {
     return {

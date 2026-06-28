@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/fran0220/jacoworks/gateway/internal/auth"
 )
@@ -36,8 +37,9 @@ func desktopPolicyFlagsForRole(role string) desktopPolicyFlags {
 }
 
 // buildDesktopPolicyResponse returns role/trust/policy data for GET /api/desktop/policy.
-func buildDesktopPolicyResponse(role string) map[string]interface{} {
+func buildDesktopPolicyResponse(role string, trustCfg desktopWorkspaceTrustConfig, workspaceSlug string) map[string]interface{} {
 	flags := desktopPolicyFlagsForRole(role)
+	trusted := resolveWorkspaceTrusted(trustCfg, workspaceSlug)
 	return map[string]interface{}{
 		"role": role,
 		"flags": map[string]bool{
@@ -46,19 +48,21 @@ func buildDesktopPolicyResponse(role string) map[string]interface{} {
 			"allow_mcp":           flags.AllowMcp,
 			"allow_api_mutations": flags.AllowAPIMutations,
 		},
-		"workspace_trust_default":           true,
+		"workspace_trust_default":           trustCfg.TrustDefault,
+		"workspace_trusted":                 trusted,
 		"require_high_risk_confirmation":    true,
 		"require_admin_escalation_approval": true,
 	}
 }
 
-func desktopPolicyHandler() http.HandlerFunc {
+func desktopPolicyHandler(trustCfg desktopWorkspaceTrustConfig) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user := auth.GetUser(r.Context())
 		if user == nil {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 			return
 		}
-		writeJSON(w, http.StatusOK, buildDesktopPolicyResponse(user.Role))
+		workspaceSlug := strings.TrimSpace(r.URL.Query().Get("workspace_slug"))
+		writeJSON(w, http.StatusOK, buildDesktopPolicyResponse(user.Role, trustCfg, workspaceSlug))
 	}
 }

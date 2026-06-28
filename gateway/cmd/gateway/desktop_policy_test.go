@@ -12,7 +12,7 @@ import (
 
 func TestBuildDesktopPolicyResponse_AdminAllowsAll(t *testing.T) {
 	t.Parallel()
-	body := buildDesktopPolicyResponse("admin")
+	body := buildDesktopPolicyResponse("admin", loadDesktopWorkspaceTrustConfig(), "")
 	flags, ok := body["flags"].(map[string]bool)
 	if !ok {
 		t.Fatalf("flags type: %T", body["flags"])
@@ -29,7 +29,7 @@ func TestBuildDesktopPolicyResponse_AdminAllowsAll(t *testing.T) {
 
 func TestBuildDesktopPolicyResponse_ViewerRestricts(t *testing.T) {
 	t.Parallel()
-	body := buildDesktopPolicyResponse("viewer")
+	body := buildDesktopPolicyResponse("viewer", loadDesktopWorkspaceTrustConfig(), "")
 	flags := body["flags"].(map[string]bool)
 	if flags["allow_bash"] || flags["allow_file_write"] {
 		t.Fatal("viewer role should deny bash and file writes")
@@ -43,7 +43,7 @@ func TestDesktopPolicyHandler_ReturnsRole(t *testing.T) {
 	ctx := context.WithValue(req.Context(), auth.UserContextKey, user)
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
-	desktopPolicyHandler()(rr, req)
+	desktopPolicyHandler(loadDesktopWorkspaceTrustConfig())(rr, req)
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status %d body %s", rr.Code, rr.Body.String())
 	}
@@ -53,5 +53,39 @@ func TestDesktopPolicyHandler_ReturnsRole(t *testing.T) {
 	}
 	if parsed["role"] != "admin" {
 		t.Fatalf("role %v", parsed["role"])
+	}
+}
+
+func TestResolveWorkspaceTrusted_UntrustedSlugList(t *testing.T) {
+	t.Parallel()
+	cfg := desktopWorkspaceTrustConfig{
+		TrustDefault: true,
+		UntrustedSlugs: map[string]struct{}{
+			"untrusted-ws": {},
+		},
+	}
+	if resolveWorkspaceTrusted(cfg, "untrusted-ws") {
+		t.Fatal("listed slug should be untrusted")
+	}
+	if !resolveWorkspaceTrusted(cfg, "trusted-ws") {
+		t.Fatal("other slug should follow trust default")
+	}
+}
+
+func TestBuildDesktopPolicyResponse_WorkspaceTrustedField(t *testing.T) {
+	t.Parallel()
+	cfg := desktopWorkspaceTrustConfig{
+		TrustDefault: true,
+		UntrustedSlugs: map[string]struct{}{
+			"blocked": {},
+		},
+	}
+	trustedBody := buildDesktopPolicyResponse("admin", cfg, "ok-ws")
+	if trustedBody["workspace_trusted"] != true {
+		t.Fatalf("expected trusted workspace_trusted true, got %v", trustedBody["workspace_trusted"])
+	}
+	untrustedBody := buildDesktopPolicyResponse("admin", cfg, "blocked")
+	if untrustedBody["workspace_trusted"] != false {
+		t.Fatalf("expected untrusted workspace_trusted false, got %v", untrustedBody["workspace_trusted"])
 	}
 }
