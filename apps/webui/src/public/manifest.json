@@ -1,7 +1,7 @@
 {
-  "name": "Craft Agents",
-  "short_name": "Craft Agents",
-  "description": "AI agent interface",
+  "name": "OriginCoworks Next",
+  "short_name": "OriginCoworks",
+  "description": "OriginCoworks Next — AI agent interface",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#1F1F24",

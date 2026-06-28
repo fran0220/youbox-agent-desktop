@@ -8,6 +8,7 @@
 import { describe, test, expect } from 'bun:test'
 import type { LlmConnection } from '@craft-agent/shared/config/llm-connections'
 import {
+  CONNECTION_GROUP_KEYS,
   formatTokenCount,
   groupConnectionsByProvider,
   stripPiPrefixForDisplay,
@@ -102,7 +103,7 @@ describe('groupConnectionsByProvider', () => {
     const a = conn('a', 'anthropic')
     const b = conn('b', 'anthropic')
     const result = groupConnectionsByProvider([a, b])
-    expect(result).toEqual([['Anthropic', [a, b]]])
+    expect(result).toEqual([[CONNECTION_GROUP_KEYS.anthropic, [a, b]]])
   })
 
   test('preserves intra-group order', () => {
@@ -117,19 +118,22 @@ describe('groupConnectionsByProvider', () => {
     const piConn = conn('pi-1', 'pi')
     const anth = conn('anthropic-1', 'anthropic')
     const result = groupConnectionsByProvider([piConn, anth])
-    expect(result.map(([k]) => k)).toEqual(['Anthropic', 'Craft Agents Backend'])
+    expect(result.map(([k]) => k)).toEqual([
+      CONNECTION_GROUP_KEYS.anthropic,
+      CONNECTION_GROUP_KEYS.origincoworksBackend,
+    ])
   })
 
   test('"pi_compat" with localhost baseUrl goes to "Local"', () => {
     const local = conn('ollama', 'pi_compat', { baseUrl: 'http://localhost:11434' })
     const result = groupConnectionsByProvider([local])
-    expect(result).toEqual([['Local', [local]]])
+    expect(result).toEqual([[CONNECTION_GROUP_KEYS.local, [local]]])
   })
 
   test('"pi_compat" with remote baseUrl goes to "Craft Agents Backend"', () => {
     const remote = conn('openrouter', 'pi_compat', { baseUrl: 'https://openrouter.ai/api/v1' })
     const result = groupConnectionsByProvider([remote])
-    expect(result).toEqual([['Craft Agents Backend', [remote]]])
+    expect(result).toEqual([[CONNECTION_GROUP_KEYS.origincoworksBackend, [remote]]])
   })
 
   test('drops empty groups from the output', () => {
@@ -137,7 +141,7 @@ describe('groupConnectionsByProvider', () => {
     const result = groupConnectionsByProvider([a])
     // Only "Anthropic" appears; "Local" and "Craft Agents Backend" are dropped.
     expect(result.length).toBe(1)
-    expect(result[0][0]).toBe('Anthropic')
+    expect(result[0][0]).toBe(CONNECTION_GROUP_KEYS.anthropic)
   })
 
   test('full mixed input — anthropic + local + remote pi_compat + pi', () => {
@@ -147,9 +151,9 @@ describe('groupConnectionsByProvider', () => {
     const pi = conn('p', 'pi')
     const result = groupConnectionsByProvider([anth, local, remote, pi])
     expect(result.map(([k, conns]) => [k, conns.map(c => c.slug)])).toEqual([
-      ['Anthropic', ['a']],
-      ['Local', ['ollama']],
-      ['Craft Agents Backend', ['or', 'p']],
+      [CONNECTION_GROUP_KEYS.anthropic, ['a']],
+      [CONNECTION_GROUP_KEYS.local, ['ollama']],
+      [CONNECTION_GROUP_KEYS.origincoworksBackend, ['or', 'p']],
     ])
   })
 })

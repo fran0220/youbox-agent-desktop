@@ -2132,11 +2132,11 @@ export function FreeFormInput({
                 })()
               ) : pickerMode === 'switcher' ? (
                 /* Hierarchical view: Provider → Connection → Models (empty session with multiple connections — lets the user switch BEFORE the first message locks the connection) */
-                connectionsByProvider.map(([providerName, connections], index) => (
-                  <React.Fragment key={providerName}>
+                connectionsByProvider.map(([groupKey, connections], index) => (
+                  <React.Fragment key={groupKey}>
                     {/* Provider group label */}
                     <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide select-none">
-                      {providerName}
+                      {t(`chat.modelPicker.group.${groupKey}`)}
                     </div>
                     {connections.map((conn) => {
                       const isCurrentConnection = effectiveConnection === conn.slug

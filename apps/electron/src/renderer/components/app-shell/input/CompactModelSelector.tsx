@@ -234,10 +234,10 @@ export function CompactModelSelector({
               onToggleVision={toggleVision}
             />
           ) : pickerMode === 'switcher' ? (
-            connectionsByProvider.map(([providerName, connections]) => (
-              <React.Fragment key={providerName}>
+            connectionsByProvider.map(([groupKey, connections]) => (
+              <React.Fragment key={groupKey}>
                 <div className="px-3 pt-3 pb-1 text-xs font-medium text-foreground/60 uppercase tracking-wide select-none">
-                  {providerName}
+                  {t(`chat.modelPicker.group.${groupKey}`)}
                 </div>
                 {connections.map(conn => {
                   const isCurrentConnection = effectiveConnection === conn.slug
