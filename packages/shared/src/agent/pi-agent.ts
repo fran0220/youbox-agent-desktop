@@ -1215,6 +1215,8 @@ export class PiAgent extends BaseAgent {
       permissionManager: this.permissionManager,
       prerequisiteManager: this.prerequisiteManager,
       rtkContext,
+      gatewayPolicy: this.config.gatewayPolicy,
+      workspaceTrusted: this.config.workspaceTrusted,
       onDebug: (msg) => this.debug(`PreToolUse(sessionId=${sessionId}): ${msg}`),
     });
 
@@ -1288,6 +1290,8 @@ export class PiAgent extends BaseAgent {
           permissionManager: this.permissionManager,
           prerequisiteManager: this.prerequisiteManager,
           rtkContext,
+          gatewayPolicy: this.config.gatewayPolicy,
+          workspaceTrusted: this.config.workspaceTrusted,
           onDebug: (msg) => this.debug(`PreToolUse(sessionId=${sessionId}): ${msg}`),
         });
 

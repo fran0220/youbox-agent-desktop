@@ -97,6 +97,7 @@ import { ensureLabelsExist } from '@craft-agent/shared/labels/crud'
 import { loadStatusConfig } from '@craft-agent/shared/statuses/storage'
 import { AutomationSystem, createPromptHistoryEntry, appendAutomationHistoryEntry, type AutomationSystemMetadataSnapshot } from '@craft-agent/shared/automations'
 import { buildBackendRuntimeSignature, buildRestartRequiredSignature, filterAttachmentsForModelInput } from './runtime-config'
+import { resolveGatewayPolicyForRuntime } from '../gateway-policy-context.ts'
 
 // Import from server-core domain utilities
 import { sanitizeForTitle, shouldActivateBrowserOverlay, normalizeBrowserToolName, rollbackFailedBranchCreation, releaseBrowserOwnershipOnForcedStop } from '@craft-agent/server-core/domain'
@@ -3335,11 +3336,14 @@ export class SessionManager implements ISessionManager {
       // Construct backend via factory
       // ============================================================
 
+      const gatewayPolicy = await resolveGatewayPolicyForRuntime()
+
       managed.agent = createBackendFromResolvedContext({
         context: backendContext,
         hostRuntime: buildBackendHostRuntimeContext(),
         coreConfig: {
         workspace: managed.workspace,
+        gatewayPolicy,
         miniModel,
         thinkingLevel: managed.thinkingLevel,
         session: sessionConfig,

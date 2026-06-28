@@ -10,6 +10,7 @@
  *
  * Pipeline steps:
  * 1. Permission mode check: Block tools disallowed by current mode
+ * 1b. Gateway role / workspace-trust policy (above local modes)
  * 2. Source blocking: Block tools from inactive MCP sources
  * 3. Prerequisite check: Block source tools until guide.md is read
  * 4. call_llm detection: Intercept mcp__session__call_llm
@@ -48,6 +49,11 @@ import {
 import { permissionsConfigCache, type PermissionsContext } from '../permissions-config.ts';
 import type { PrerequisiteCheckResult } from './prerequisite-manager.ts';
 import { rewriteBashWithRtk } from './rtk-rewrite.ts';
+import {
+  evaluateGatewayPolicy,
+  shouldPromptHighRiskInAllowAll,
+  type GatewayPolicySnapshot,
+} from '../gateway-policy.ts';
 
 // ============================================================
 // TYPES
@@ -582,7 +588,7 @@ export function getConfigDomainBashRedirect(
 export type PreToolUseCheckResult =
   | { type: 'allow' }
   | { type: 'modify'; input: Record<string, unknown> }
-  | { type: 'block'; reason: string; source?: 'prerequisite' }
+  | { type: 'block'; reason: string; source?: 'prerequisite' | 'gateway_role' | 'workspace_trust' }
   | {
       type: 'prompt';
       promptType: 'bash' | 'file_write' | 'mcp_mutation' | 'api_mutation' | 'admin_approval';
@@ -638,6 +644,10 @@ export interface PreToolUseInput {
   backendMetadata?: { intent?: string; displayName?: string };
   /** RTK Bash-rewrite context (undefined when toggle is off or rtk binary missing) */
   rtkContext?: import('./rtk-rewrite.ts').RtkContext;
+  /** Gateway role/trust policy from GET /api/desktop/policy */
+  gatewayPolicy?: GatewayPolicySnapshot;
+  /** When false, gateway workspace-trust gate blocks writes/bash */
+  workspaceTrusted?: boolean;
   /** Debug callback */
   onDebug?: (message: string) => void;
 }
@@ -749,6 +759,21 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
     const reasonWithContext = withPermissionModeContext(modeResult.reason, sessionId, effectivePermissionMode);
     onDebug?.(`Permission mode ${effectivePermissionMode}: blocking ${toolName} — ${reasonWithContext}`);
     return { type: 'block', reason: reasonWithContext };
+  }
+
+  // ============================================================
+  // 1b. GATEWAY ROLE / WORKSPACE-TRUST POLICY
+  // ============================================================
+  const gatewayResult = evaluateGatewayPolicy({
+    toolName,
+    input,
+    permissionMode: effectivePermissionMode,
+    policy: ctx.gatewayPolicy,
+    workspaceTrusted: ctx.workspaceTrusted,
+  });
+  if (!gatewayResult.allowed) {
+    onDebug?.(`Gateway policy (${gatewayResult.source}): blocking ${toolName} — ${gatewayResult.reason}`);
+    return { type: 'block', reason: gatewayResult.reason, source: gatewayResult.source };
   }
 
   // ============================================================
@@ -870,6 +895,28 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
       currentInput = rtkResult.input;
       wasModified = true;
     }
+  }
+
+  // ============================================================
+  // 5h. ALLOW-ALL HIGH-RISK CONFIRMATION
+  // ============================================================
+  if (
+    shouldPromptHighRiskInAllowAll({
+      toolName,
+      input,
+      permissionMode: effectivePermissionMode,
+      policy: ctx.gatewayPolicy,
+      permissionManager,
+    })
+  ) {
+    const command = typeof input.command === 'string' ? input.command : '';
+    onDebug?.(`Allow-all high-risk confirmation required for: ${command}`);
+    return {
+      type: 'prompt',
+      promptType: 'bash',
+      description: `High-risk command requires confirmation: ${command}`,
+      command,
+    };
   }
 
   // ============================================================

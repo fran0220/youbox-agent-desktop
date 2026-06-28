@@ -46,6 +46,7 @@ export interface BackendRuntimeUpdate {
   };
 }
 import type { AutomationSystem } from '../../automations/index.ts';
+import type { GatewayPolicySnapshot } from '../gateway-policy.ts';
 
 /**
  * Provider identifier for AI backends.
@@ -285,6 +286,12 @@ export interface CoreBackendConfig {
     apiServers: Record<string, unknown>;
     enabledSlugs: string[];
   };
+
+  /** Gateway role/trust policy (GET /api/desktop/policy), applied in runPreToolUseChecks */
+  gatewayPolicy?: GatewayPolicySnapshot;
+
+  /** Workspace trust flag for gateway policy gate; defaults from policy when unset */
+  workspaceTrusted?: boolean;
 }
 
 // ============================================================

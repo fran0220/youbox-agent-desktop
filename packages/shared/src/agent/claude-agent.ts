@@ -1131,6 +1131,8 @@ export class ClaudeAgent extends BaseAgent {
                 permissionManager: this.permissionManager,
                 prerequisiteManager: this.prerequisiteManager,
                 rtkContext,
+                gatewayPolicy: this.config.gatewayPolicy,
+                workspaceTrusted: this.config.workspaceTrusted,
                 onDebug: (msg) => this.onDebug?.(msg),
               });
 

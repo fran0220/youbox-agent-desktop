@@ -196,6 +196,7 @@ func main() {
 
 	// Authenticated: desktop LLM config (non-LLM secrets redacted)
 	mux.Handle("GET /api/desktop/config", authMiddleware.Authenticate(http.HandlerFunc(desktopConfigHandler(cfg, s))))
+	mux.Handle("GET /api/desktop/policy", authMiddleware.Authenticate(http.HandlerFunc(desktopPolicyHandler())))
 
 	// Authenticated: memory sync & management
 	mux.Handle("POST /api/memory/sync", authMiddleware.Authenticate(http.HandlerFunc(memorySyncHandler(s))))

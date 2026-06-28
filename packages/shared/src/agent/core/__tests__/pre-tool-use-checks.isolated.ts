@@ -728,16 +728,52 @@ describe('runPreToolUseChecks', () => {
       }
     });
 
-    it('does not prompt in allow-all mode', () => {
+    it('does not prompt in allow-all mode for non-high-risk bash', () => {
+      mockEffectivePermissionMode = 'allow-all';
+
+      const result = runPreToolUseChecks(createInput({
+        toolName: 'Bash',
+        input: { command: 'echo safe-allow-all' },
+        permissionMode: 'allow-all',
+        gatewayPolicy: {
+          role: 'admin',
+          flags: {
+            allow_bash: true,
+            allow_file_write: true,
+            allow_mcp: true,
+            allow_api_mutations: true,
+          },
+          workspace_trust_default: true,
+          require_high_risk_confirmation: false,
+          require_admin_escalation_approval: true,
+        },
+      }));
+
+      expect(result.type).toBe('allow');
+    });
+
+    it('prompts in allow-all mode for high-risk bash when policy requires confirmation', () => {
       mockEffectivePermissionMode = 'allow-all';
 
       const result = runPreToolUseChecks(createInput({
         toolName: 'Bash',
         input: { command: 'rm -rf /' },
         permissionMode: 'allow-all',
+        gatewayPolicy: {
+          role: 'admin',
+          flags: {
+            allow_bash: true,
+            allow_file_write: true,
+            allow_mcp: true,
+            allow_api_mutations: true,
+          },
+          workspace_trust_default: true,
+          require_high_risk_confirmation: true,
+          require_admin_escalation_approval: true,
+        },
       }));
 
-      expect(result.type).toBe('allow');
+      expect(result.type).toBe('prompt');
     });
 
     it('does not prompt in safe mode (blocked at step 1 instead)', () => {

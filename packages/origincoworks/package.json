@@ -13,7 +13,8 @@
     "./types": "./src/types.ts",
     "./desktop-config": "./src/desktop-config.ts",
     "./model-config": "./src/model-config.ts",
-    "./llm-config": "./src/llm-config.ts"
+    "./llm-config": "./src/llm-config.ts",
+    "./policy": "./src/policy.ts"
   },
   "dependencies": {
     "@craft-agent/shared": "workspace:*"

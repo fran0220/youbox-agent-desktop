@@ -128,6 +128,11 @@ export class GatewayClient {
     return this.requestJson('/api/desktop/config', { method: 'GET', auth: true });
   }
 
+  /** GET /api/desktop/policy — role, trust, and capability flags for pre-tool-use gating */
+  async desktopPolicy(): Promise<unknown> {
+    return this.requestJson('/api/desktop/policy', { method: 'GET', auth: true });
+  }
+
   /** POST /api/auth/logout — invalidates server session (204) */
   async logout(): Promise<void> {
     if (!this.token) {

@@ -23,6 +23,16 @@ export {
   isGatewayManagedLlmSlug,
 } from './llm-config.ts';
 export type { ApplyGatewayLlmConfigDeps } from './llm-config.ts';
+export type { GatewayPolicySnapshot, GatewayPolicyFlags } from './policy.ts';
+export {
+  mapDesktopPolicyResponse,
+  fetchDesktopPolicy,
+  getCachedGatewayPolicy,
+  clearGatewayPolicyCacheForTests,
+  evaluateGatewayPolicy,
+  isHighRiskBashCommand,
+  shouldPromptHighRiskInAllowAll,
+} from './policy.ts';
 export {
   clearGatewaySession,
   getGatewaySessionState,
