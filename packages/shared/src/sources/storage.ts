@@ -21,6 +21,7 @@ import { validateSourceConfig } from '../config/validators.ts';
 import { debug } from '../utils/debug.ts';
 import { readJsonFileSync } from '../utils/files.ts';
 import { getBuiltinSources, isBuiltinSource, getDocsSource } from './builtin-sources.ts';
+import { getMemoryBuiltinSource } from './memory-source.ts';
 import { expandPath, toPortablePath } from '../utils/paths.ts';
 import { getWorkspaceSourcesPath } from '../workspaces/storage.ts';
 // Circular import (credential-manager imports from this file) is safe here:
@@ -400,6 +401,10 @@ export function getEnabledSources(workspaceRootPath: string): LoadedSource[] {
 export function isSourceUsable(source: LoadedSource): boolean {
   if (!source.config.enabled) return false;
 
+  if (source.config.type === 'memory') {
+    return true;
+  }
+
   // Get auth type from MCP or API config
   const authType = source.config.mcp?.authType || source.config.api?.authType;
 
@@ -421,9 +426,10 @@ export function getSourcesBySlugs(workspaceRootPath: string, slugs: string[]): L
   for (const slug of slugs) {
     // Check builtin sources first (they don't exist on disk)
     if (isBuiltinSource(slug)) {
-      // Currently only craft-agents-docs is a builtin source
       if (slug === 'craft-agents-docs') {
         sources.push(getDocsSource(workspaceId, workspaceRootPath));
+      } else if (slug === 'memory') {
+        sources.push(getMemoryBuiltinSource(workspaceId, workspaceRootPath));
       }
       continue;
     }
@@ -532,6 +538,11 @@ export async function createSource(
     case 'local':
       if (input.local) {
         config.local = input.local;
+      }
+      break;
+    case 'memory':
+      if (input.memory) {
+        config.memory = input.memory;
       }
       break;
   }

@@ -307,6 +307,14 @@ export class SourceCredentialManager {
 
     let type: CredentialId['type'];
 
+    if (source.config.type === 'memory') {
+      return {
+        type: 'source_apikey',
+        workspaceId: source.workspaceId,
+        sourceId: source.config.slug,
+      };
+    }
+
     if (source.config.type === 'mcp') {
       type = mcp?.authType === 'bearer' ? 'source_bearer' : 'source_oauth';
     } else if (source.config.type === 'api') {
@@ -1327,6 +1335,10 @@ function substituteTokenInHeaders(
  * - API sources with bearer/basic/header/query auth → needs auth if not authenticated
  */
 export function sourceNeedsAuthentication(source: LoadedSource): boolean {
+  if (source.config.type === 'memory') {
+    return false;
+  }
+
   const mcp = source.config.mcp;
   const api = source.config.api;
 

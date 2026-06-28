@@ -13,7 +13,7 @@
 /**
  * Source types - how we connect to the source
  */
-export type SourceType = 'mcp' | 'api' | 'local';
+export type SourceType = 'mcp' | 'api' | 'local' | 'memory';
 
 /**
  * MCP source authentication types (for individual source connections)
@@ -407,6 +407,15 @@ export interface LocalSourceConfig {
 }
 
 /**
+ * Gateway-backed memory source (virtual; no folder on disk).
+ * Optional marker for persisted configs; builtin @memory omits this block.
+ */
+export interface MemorySourceConfig {
+  /** Reserved for future gateway sync options */
+  gatewayBacked?: boolean;
+}
+
+/**
  * Source connection status
  * - 'connected': Source is connected and working
  * - 'needs_auth': Source requires authentication
@@ -454,6 +463,7 @@ export interface FolderSourceConfig {
   mcp?: McpSourceConfig;
   api?: ApiSourceConfig;
   local?: LocalSourceConfig;
+  memory?: MemorySourceConfig;
 
   // Icon: emoji or URL
   // Config is the source of truth. Local icon files are auto-discovered only when icon is undefined.
@@ -537,6 +547,7 @@ export interface CreateSourceInput {
   mcp?: McpSourceConfig;
   api?: ApiSourceConfig;
   local?: LocalSourceConfig;
+  memory?: MemorySourceConfig;
   icon?: string; // Emoji or URL (auto-downloaded)
   enabled?: boolean;
 }

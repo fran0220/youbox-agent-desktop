@@ -12,6 +12,7 @@
 
 import type { LoadedSource, FolderSourceConfig } from './types.ts';
 import { PRODUCT_DOCS_MCP_URL } from '../product-identity.ts';
+import { getMemoryBuiltinSource, isMemorySourceSlug } from './memory-source.ts';
 
 /**
  * Get all built-in sources for a workspace.
@@ -23,8 +24,8 @@ import { PRODUCT_DOCS_MCP_URL } from '../product-identity.ts';
  * @param _workspaceRootPath - Absolute path to workspace root folder (unused)
  * @returns Empty array (no built-in sources)
  */
-export function getBuiltinSources(_workspaceId: string, _workspaceRootPath: string): LoadedSource[] {
-  return [];
+export function getBuiltinSources(workspaceId: string, workspaceRootPath: string): LoadedSource[] {
+  return [getMemoryBuiltinSource(workspaceId, workspaceRootPath)];
 }
 
 /**
@@ -73,6 +74,6 @@ export function getDocsSource(workspaceId: string, workspaceRootPath: string): L
  * @param _slug - Source slug to check (unused)
  * @returns false (no built-in sources)
  */
-export function isBuiltinSource(_slug: string): boolean {
-  return false;
+export function isBuiltinSource(slug: string): boolean {
+  return isMemorySourceSlug(slug);
 }

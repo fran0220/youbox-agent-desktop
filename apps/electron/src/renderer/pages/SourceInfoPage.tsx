@@ -65,6 +65,7 @@ function getSourceUrl(source: LoadedSource): string | null {
   if (type === 'mcp' && mcp?.url) return mcp.url
   if (type === 'api' && api?.baseUrl) return api.baseUrl
   if (type === 'local' && local?.path) return local.path
+  if (type === 'memory') return 'gateway://user_memory'
 
   return null
 }

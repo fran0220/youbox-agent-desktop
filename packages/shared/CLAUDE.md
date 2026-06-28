@@ -21,7 +21,7 @@ cd packages/shared && bun run tsc --noEmit
 
 ## Hard rules
 - Permission modes are fixed: `safe`, `ask`, `allow-all`.
-- Source types are fixed: `mcp`, `api`, `local`.
+- Source types are fixed: `mcp`, `api`, `local`, `memory`.
 - Keep credential handling in `src/credentials/` pathways (no ad-hoc secret storage).
 - Keep user-facing tool contracts backward-compatible where possible.
 

@@ -217,7 +217,7 @@ export interface ValidationResult {
 /**
  * Source type discriminator
  */
-export type SourceType = 'mcp' | 'api' | 'local';
+export type SourceType = 'mcp' | 'api' | 'local' | 'memory';
 
 /**
  * MCP transport type
@@ -314,6 +314,7 @@ export interface SourceConfig {
   mcp?: McpSourceConfig;
   api?: ApiSourceConfig;
   local?: LocalSourceConfig;
+  memory?: { gatewayBacked?: boolean };
   isAuthenticated?: boolean;
   lastTestedAt?: number; // millisecond timestamp
   createdAt?: number;

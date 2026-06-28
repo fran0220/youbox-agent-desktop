@@ -18,6 +18,7 @@ const SOURCE_TYPE_CONFIG: Record<string, { labelKey: string; colorClass: string 
   mcp: { labelKey: 'sourcesList.typeMcp', colorClass: 'bg-accent/10 text-accent' },
   api: { labelKey: 'sourcesList.typeApi', colorClass: 'bg-success/10 text-success' },
   local: { labelKey: 'sourcesList.typeLocal', colorClass: 'bg-info/10 text-info' },
+  memory: { labelKey: 'sourcesList.typeMemory', colorClass: 'bg-warning/10 text-warning' },
 }
 
 const SOURCE_STATUS_CONFIG: Record<string, { labelKey: string; colorClass: string } | null> = {
@@ -32,6 +33,7 @@ const SOURCE_TYPE_FILTER_LABEL_KEYS: Record<string, string> = {
   api: 'sourcesList.filterApi',
   mcp: 'sourcesList.filterMcp',
   local: 'sourcesList.filterLocalFolder',
+  memory: 'sourcesList.filterMemory',
 }
 
 export interface SourcesListPanelProps {

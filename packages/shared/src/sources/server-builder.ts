@@ -327,6 +327,11 @@ export class SourceServerBuilder {
       if (!isSourceUsable(source)) continue;
 
       try {
+        if (source.config.type === 'memory') {
+          debug(`[SourceServerBuilder] Skipping server build for memory source ${source.config.slug} (virtual gateway source)`);
+          continue;
+        }
+
         if (source.config.type === 'mcp') {
           const config = this.buildMcpServer(source, token ?? null, credential);
           if (config) {

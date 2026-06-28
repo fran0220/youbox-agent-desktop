@@ -15,6 +15,7 @@ export type {
   McpSourceConfig,
   ApiSourceConfig,
   LocalSourceConfig,
+  MemorySourceConfig,
   SourceConnectionStatus,
   FolderSourceConfig,
   SourceGuide,
@@ -64,6 +65,12 @@ export {
   // Parsing utilities
   parseGuideMarkdown,
 } from './storage.ts';
+
+export {
+  MEMORY_SOURCE_SLUG,
+  getMemoryBuiltinSource,
+  isMemorySourceSlug,
+} from './memory-source.ts';
 
 // Credential Manager (unified credential operations)
 export {
