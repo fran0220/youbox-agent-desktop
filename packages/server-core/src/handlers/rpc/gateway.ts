@@ -72,7 +72,7 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
         const classicSync = await syncGatewayClassicSessionsForSession(deps);
         if (!classicSync.success) {
           log.warn('[Gateway] Classic sessions sync after login failed:', classicSync.error);
-        } else if (classicSync.materialized > 0) {
+        } else if (classicSync.summaries > 0 || classicSync.materialized > 0) {
           deps.sessionManager.reloadSessions();
         }
       } else {
@@ -96,7 +96,7 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
 
   server.handle(RPC_CHANNELS.gateway.SYNC_CLASSIC_SESSIONS, async () => {
     const result = await syncGatewayClassicSessionsForSession(deps);
-    if (result.success && result.materialized > 0) {
+    if (result.success && (result.summaries > 0 || result.materialized > 0)) {
       deps.sessionManager.reloadSessions();
     }
     return result;
