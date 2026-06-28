@@ -340,6 +340,12 @@ export interface GroupTurnsOptions {
    * Mirrors the messaging-gateway/renderer.ts lastAssistantText fallback.
    */
   isSessionProcessing?: boolean
+  /**
+   * When true, keep the input message array order (e.g. imported session.jsonl line order)
+   * instead of re-sorting by timestamp. Use for legacy imports where timestamps may be
+   * synthetic or inconsistent but storage order is authoritative.
+   */
+  preserveMessageOrder?: boolean
 }
 
 /**
@@ -358,9 +364,11 @@ export interface GroupTurnsOptions {
  * means final response.
  */
 export function groupMessagesByTurn(messages: Message[], options: GroupTurnsOptions = {}): Turn[] {
-  // Sort by timestamp for correct chronological order
-  // This ensures correct turn grouping even if messages are added out of order during streaming
-  const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp)
+  // Sort by timestamp for correct chronological order during live sessions.
+  // Imported/historical transcripts may use jsonl line order as source of truth.
+  const sortedMessages = options.preserveMessageOrder
+    ? [...messages]
+    : [...messages].sort((a, b) => a.timestamp - b.timestamp)
 
   const turns: Turn[] = []
   let currentTurn: AssistantTurn | null = null

@@ -156,6 +156,7 @@ export function adaptLegacyMessage(
   sessionId: string,
   index: number,
   legacy: ClassicSessionMessage,
+  options?: { chronologicalBaseMs?: number },
 ): StoredMessage | null {
   if (!legacy || typeof legacy !== 'object') return null;
   const role = mapLegacyRole(legacy.role);
@@ -173,7 +174,10 @@ export function adaptLegacyMessage(
   if (!content && role !== 'tool') {
     return null;
   }
-  const timestamp = parseIsoMs(legacy.created_at, Date.now() - 1000 * index);
+  // Legacy rows often omit per-message created_at. Fallback must increase with index so
+  // downstream timestamp sorts match jsonb / jsonl chronological order (oldest first).
+  const baseMs = options?.chronologicalBaseMs ?? Date.now();
+  const timestamp = parseIsoMs(legacy.created_at, baseMs + index * 1000);
   const msg: StoredMessage = {
     id: stableMessageId(sessionId, index, legacy),
     type: role,
@@ -201,12 +205,13 @@ export function adaptLegacyMessage(
 export function adaptLegacyMessages(
   sessionId: string,
   messages: ClassicSessionMessage[] | null | undefined,
+  options?: { chronologicalBaseMs?: number },
 ): StoredMessage[] {
   if (!Array.isArray(messages)) return [];
   const out: StoredMessage[] = [];
   for (let i = 0; i < messages.length; i++) {
     try {
-      const adapted = adaptLegacyMessage(sessionId, i, messages[i]!);
+      const adapted = adaptLegacyMessage(sessionId, i, messages[i]!, options);
       if (adapted) out.push(adapted);
     } catch {
       // Skip individual malformed elements without aborting the whole import.
@@ -221,7 +226,9 @@ export function buildStoredSessionFromClassic(
 ): StoredSession {
   const createdAt = parseIsoMs(classic.created_at, Date.now());
   const updatedAt = parseIsoMs(classic.updated_at, createdAt);
-  const messages = adaptLegacyMessages(classic.id, classic.messages ?? []);
+  const messages = adaptLegacyMessages(classic.id, classic.messages ?? [], {
+    chronologicalBaseMs: createdAt,
+  });
   const lastMessageAt =
     messages.length > 0
       ? Math.max(...messages.map((m) => m.timestamp ?? createdAt))

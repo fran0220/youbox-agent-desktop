@@ -527,6 +527,15 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
   // Reverse pagination: show last N turns initially, load more on scroll up
   const TURNS_PER_PAGE = 20
   const [visibleTurnCount, setVisibleTurnCount] = React.useState(TURNS_PER_PAGE)
+
+  const groupTurnOptions = React.useMemo(
+    () => ({
+      isSessionProcessing: session?.isProcessing,
+      preserveMessageOrder: isImportedReadOnly,
+    }),
+    [session?.isProcessing, isImportedReadOnly],
+  )
+
   // Sticky-bottom: When true, auto-scroll on content changes. Toggled by user scroll behavior.
   const isStickToBottomRef = React.useRef(true)
   // Mirror isFocusedPanel into a ref so the ResizeObserver closure reads the latest value
@@ -680,7 +689,7 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
     if (!searchQuery.trim() || !session?.messages) return []
     const startTime = performance.now()
     const query = searchQuery.toLowerCase()
-    const turns = groupMessagesByTurn(session.messages, { isSessionProcessing: session.isProcessing })
+    const turns = groupMessagesByTurn(session.messages, groupTurnOptions)
     const matches: { matchId: string; turnId: string; turnIndex: number; matchIndexInTurn: number }[] = []
 
     for (let turnIndex = 0; turnIndex < turns.length; turnIndex++) {
@@ -733,7 +742,7 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
       (min, m) => m.turnIndex < min ? m.turnIndex : min,
       matchingOccurrences[0]!.turnIndex
     )
-    const totalTurns = groupMessagesByTurn(session?.messages || [], { isSessionProcessing: session?.isProcessing }).length
+    const totalTurns = groupMessagesByTurn(session?.messages || [], groupTurnOptions).length
 
     // Calculate how many turns we need to show to include all matches
     // totalTurns - visibleTurnCount = startIndex, so we need visibleTurnCount = totalTurns - earliestMatchTurnIndex + buffer
@@ -1402,16 +1411,18 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
   // Memoize turn grouping - avoids O(n) iteration on every render/keystroke
   const allTurns = React.useMemo(() => {
     if (!session) return []
-    return groupMessagesByTurn(session.messages, { isSessionProcessing: session.isProcessing })
-  }, [session?.messages, session?.isProcessing])
+    return groupMessagesByTurn(session.messages, groupTurnOptions)
+  }, [session?.messages, groupTurnOptions])
 
   // Keep ref in sync for scroll handler
   totalTurnCountRef.current = allTurns.length
 
-  // Reverse pagination: only render last N turns for fast initial render
-  const startIndex = Math.max(0, allTurns.length - visibleTurnCount)
+  // Reverse pagination: only render last N turns for fast initial render (writable sessions).
+  // Imported read-only transcripts render the full history (no artificial cap).
+  const effectiveVisibleTurnCount = isImportedReadOnly ? allTurns.length : visibleTurnCount
+  const startIndex = Math.max(0, allTurns.length - effectiveVisibleTurnCount)
   const turns = allTurns.slice(startIndex)
-  const hasMoreAbove = startIndex > 0
+  const hasMoreAbove = !isImportedReadOnly && startIndex > 0
 
   const assistantTurnIndexByMessageId = useMemo(() => {
     const map = new Map<string, number>()

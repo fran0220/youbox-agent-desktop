@@ -35,6 +35,15 @@ describe('session-import adapter', () => {
     expect(messages.map((m) => m.content)).toEqual(['first', 'second', 'third']);
   });
 
+  it('adaptLegacyMessage fallback timestamps increase with index for timestamp sort', () => {
+    const base = 1_700_000_000_000;
+    const m0 = adaptLegacyMessage('s1', 0, { role: 'user', content: 'LINE-1' }, { chronologicalBaseMs: base });
+    const m1 = adaptLegacyMessage('s1', 1, { role: 'assistant', content: 'LINE-2' }, { chronologicalBaseMs: base });
+    const m2 = adaptLegacyMessage('s1', 2, { role: 'user', content: 'LINE-3' }, { chronologicalBaseMs: base });
+    expect(m0!.timestamp).toBeLessThan(m1!.timestamp);
+    expect(m1!.timestamp).toBeLessThan(m2!.timestamp);
+  });
+
   it('buildStoredSessionFromClassic sets provenance and imported status', () => {
     const classic: ClassicChatSession = {
       id: 'legacy-abc',
