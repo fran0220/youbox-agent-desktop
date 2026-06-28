@@ -7,6 +7,8 @@
  * - Rate limiting: per-IP brute-force protection on /api/auth
  */
 
+import { GatewayClient, GatewayHttpError } from '@craft-agent/origincoworks/gateway-client'
+import { resolveGatewayBaseUrl } from '@craft-agent/origincoworks/auth'
 import { SignJWT, jwtVerify } from 'jose'
 
 // ---------------------------------------------------------------------------
@@ -213,4 +215,48 @@ export async function validateSession(
   const token = extractSessionCookie(cookieHeader)
   if (!token) return null
   return verifyJwt(token, secret)
+}
+
+/**
+ * Resolve a browser session cookie to a JWT payload only when the embedded
+ * gateway token is still valid server-side (auth_sessions row exists).
+ * Stateless JWT verification alone is insufficient after logout.
+ */
+export async function resolveWebuiSessionFromCookie(
+  cookieHeader: string | null,
+  secret: string,
+  gatewayBaseUrl?: string,
+): Promise<JwtPayload | null> {
+  const session = await validateSession(cookieHeader, secret)
+  if (!session?.gatewayToken) {
+    return null
+  }
+
+  const client = new GatewayClient(gatewayBaseUrl ?? resolveGatewayBaseUrl(), session.gatewayToken)
+  try {
+    await client.me()
+    return session
+  } catch (err) {
+    if (err instanceof GatewayHttpError && (err.status === 401 || err.status === 403)) {
+      return null
+    }
+    throw err
+  }
+}
+
+/** Best-effort revoke of the gateway auth session for a browser JWT payload. */
+export async function revokeGatewaySessionForPayload(
+  session: JwtPayload,
+  gatewayBaseUrl?: string,
+): Promise<void> {
+  if (!session.gatewayToken) return
+  const client = new GatewayClient(gatewayBaseUrl ?? resolveGatewayBaseUrl(), session.gatewayToken)
+  try {
+    await client.logout()
+  } catch (err) {
+    if (err instanceof GatewayHttpError) {
+      return
+    }
+    throw err
+  }
 }

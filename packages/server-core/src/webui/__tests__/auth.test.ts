@@ -1,9 +1,11 @@
-import { describe, it, expect } from 'bun:test'
+import { afterEach, describe, it, expect } from 'bun:test'
+import { GatewayClient } from '@craft-agent/origincoworks/gateway-client'
 import {
   buildSessionCookie,
   createSessionTokenFromGateway,
   verifyJwt,
   extractSessionCookie,
+  resolveWebuiSessionFromCookie,
 } from '../auth'
 
 const SECRET = 'test-jwt-signing-secret'
@@ -44,5 +46,45 @@ describe('webui auth gateway session', () => {
   it('extractSessionCookie parses craft_session from header', () => {
     expect(extractSessionCookie('craft_session=abc; other=1')).toBe('abc')
     expect(extractSessionCookie(null)).toBeNull()
+  })
+
+  describe('resolveWebuiSessionFromCookie', () => {
+    afterEach(() => {
+      GatewayClient.setFetchForTests(undefined)
+    })
+
+    it('returns payload when gateway /users/me succeeds', async () => {
+      const token = 'e'.repeat(64)
+      GatewayClient.setFetchForTests(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith('/api/users/me') && init?.method === 'GET') {
+          return new Response(
+            JSON.stringify({ id: 'user-1', name: 'octest', email: 'a@b.c', role: 'admin' }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        return new Response('not found', { status: 404 })
+      })
+      const jwt = await createSessionTokenFromGateway('user-1', token, SECRET)
+      const cookie = `craft_session=${jwt}`
+      const session = await resolveWebuiSessionFromCookie(cookie, SECRET, 'http://127.0.0.1:8847')
+      expect(session?.userId).toBe('user-1')
+      expect(session?.gatewayToken).toBe(token)
+    })
+
+    it('returns null when gateway session was revoked (401)', async () => {
+      const token = 'f'.repeat(64)
+      GatewayClient.setFetchForTests(async (input, init) => {
+        const url = String(input)
+        if (url.endsWith('/api/users/me')) {
+          return new Response(JSON.stringify({ error: 'invalid session' }), { status: 401 })
+        }
+        return new Response('not found', { status: 404 })
+      })
+      const jwt = await createSessionTokenFromGateway('user-1', token, SECRET)
+      const cookie = `craft_session=${jwt}`
+      const session = await resolveWebuiSessionFromCookie(cookie, SECRET, 'http://127.0.0.1:8847')
+      expect(session).toBeNull()
+    })
   })
 })

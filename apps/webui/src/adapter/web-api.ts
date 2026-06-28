@@ -214,6 +214,11 @@ export function createWebApi(options: WebApiOptions): {
 
     // Confirmation dialogs — use browser confirm()
     showLogoutConfirmation: () => Promise.resolve(window.confirm(i18n.t('dialog.logoutConfirmation'))),
+
+    gatewayLogout: async () => {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      window.location.href = '/login'
+    },
     showDeleteSessionConfirmation: (name: string) => Promise.resolve(window.confirm(i18n.t('dialog.deleteSessionConfirmation', { name }))),
 
     // Power settings — not applicable

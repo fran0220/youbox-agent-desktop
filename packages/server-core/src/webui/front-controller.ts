@@ -4,7 +4,7 @@ import {
   type WebuiHandler,
   type WebuiHandlerOptions,
 } from './http-server'
-import { validateSession } from './auth'
+import { resolveWebuiSessionFromCookie, revokeGatewaySessionForPayload } from './auth'
 import type { UserBackendPool } from './user-backend-pool'
 
 export interface FrontControllerOptions extends Omit<WebuiHandlerOptions, 'wsPort' | 'wsProtocol' | 'getHealthCheck'> {
@@ -81,7 +81,7 @@ export function createFrontControllerHandler(options: FrontControllerOptions): W
     }
 
     const cookieHeader = req.headers.get('cookie')
-    const session = await validateSession(cookieHeader, secret)
+    const session = await resolveWebuiSessionFromCookie(cookieHeader, secret)
     if (!session?.userId || !session.gatewayToken) {
       if (path === '/api/auth/logout' && req.method === 'POST') {
         return loginHandler.fetch(req)
@@ -94,7 +94,10 @@ export function createFrontControllerHandler(options: FrontControllerOptions): W
     }
 
     if (path === '/api/auth/logout' && req.method === 'POST') {
-      await pool.releaseBackend(session.userId)
+      await revokeGatewaySessionForPayload(session)
+      if (session.userId) {
+        await pool.releaseBackend(session.userId)
+      }
       return loginHandler.fetch(req)
     }
 

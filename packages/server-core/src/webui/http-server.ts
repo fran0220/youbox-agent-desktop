@@ -16,7 +16,8 @@ import { resolveGatewayBaseUrl, sanitizeGatewayLoginError } from '@craft-agent/o
 import {
   RateLimiter,
   createSessionTokenFromGateway,
-  validateSession,
+  resolveWebuiSessionFromCookie,
+  revokeGatewaySessionForPayload,
   buildSessionCookie,
   buildLogoutCookie,
   JWT_EXPIRY_SECONDS,
@@ -285,6 +286,11 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
       const originBlock = assertSameOriginForStateChangingRequest(req)
       if (originBlock) return originBlock
 
+      const logoutSession = await resolveWebuiSessionFromCookie(req.headers.get('cookie'), secret, resolvedGatewayBaseUrl)
+      if (logoutSession) {
+        await revokeGatewaySessionForPayload(logoutSession, resolvedGatewayBaseUrl)
+      }
+
       return new Response(null, {
         status: 204,
         headers: {
@@ -359,7 +365,7 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
       const originBlock = assertSameOriginForStateChangingRequest(req)
       if (originBlock) return originBlock
 
-      const refreshSession = await validateSession(req.headers.get('cookie'), secret)
+      const refreshSession = await resolveWebuiSessionFromCookie(req.headers.get('cookie'), secret, resolvedGatewayBaseUrl)
       if (!refreshSession?.gatewayToken || !refreshSession.userId) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
@@ -381,7 +387,7 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
 
     // ── Config endpoint (requires session cookie) ──
     if (path === '/api/config' && req.method === 'GET') {
-      const configSession = await validateSession(req.headers.get('cookie'), secret)
+      const configSession = await resolveWebuiSessionFromCookie(req.headers.get('cookie'), secret, resolvedGatewayBaseUrl)
       if (!configSession) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
@@ -392,7 +398,7 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
 
     // Return the default workspace ID so the webui can include it in the WS handshake
     if (path === '/api/config/workspaces' && req.method === 'GET') {
-      const configSession = await validateSession(req.headers.get('cookie'), secret)
+      const configSession = await resolveWebuiSessionFromCookie(req.headers.get('cookie'), secret, resolvedGatewayBaseUrl)
       if (!configSession) {
         return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
@@ -405,7 +411,7 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
 
     // ── Everything below requires a valid session cookie ──
     const cookieHeader = req.headers.get('cookie')
-    const session = await validateSession(cookieHeader, secret)
+    const session = await resolveWebuiSessionFromCookie(cookieHeader, secret, resolvedGatewayBaseUrl)
 
     if (!session) {
       const accept = req.headers.get('accept') ?? ''
