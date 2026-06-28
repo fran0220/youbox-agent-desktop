@@ -58,6 +58,7 @@ internal/
 | POST | `/api/desktop/session-metadata` | 桌面端原生会话元数据写回 `chat_sessions`（复用 `UpdateSession` 语义，需认证） |
 | GET | `/api/desktop/policy` | 桌面端角色与能力策略 |
 | POST | `/api/desktop/audit` | 桌面端审计上报（写入 `audit_logs`，需认证，204） |
+| GET | `/api/desktop/release/latest` | 最新桌面发布版本与 `release_assets` 下载地址（需认证） |
 | POST | `/api/memory/sync` | 记忆双向同步 |
 | GET | `/api/memory/stats` | 记忆统计 |
 | DELETE | `/api/memory` | 清空用户记忆 |

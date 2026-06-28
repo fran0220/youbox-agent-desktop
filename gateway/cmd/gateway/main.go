@@ -202,6 +202,7 @@ func main() {
 	desktopTrustCfg := loadDesktopWorkspaceTrustConfig()
 	mux.Handle("GET /api/desktop/policy", authMiddleware.Authenticate(desktopPolicyHandler(desktopTrustCfg)))
 	mux.Handle("POST /api/desktop/audit", authMiddleware.Authenticate(http.HandlerFunc(desktopAuditHandler(auditLogger))))
+	mux.Handle("GET /api/desktop/release/latest", authMiddleware.Authenticate(http.HandlerFunc(desktopReleaseLatestHandler(s))))
 
 	// Authenticated: memory sync & management
 	mux.Handle("POST /api/memory/sync", authMiddleware.Authenticate(http.HandlerFunc(memorySyncHandler(s))))
