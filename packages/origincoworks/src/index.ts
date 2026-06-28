@@ -88,4 +88,10 @@ export {
   writeUserSkillToGateway,
   isGatewayEditableUserSkill,
 } from './skill-writeback.ts';
+export {
+  shouldWriteSessionMetadataToGateway,
+  writeSessionMetadataToGateway,
+} from './session-metadata-writeback.ts';
+export type { SessionMetadataWritebackPayload } from './session-metadata-writeback.ts';
+export { craftSessionIdToGatewayChatSessionId } from './session-gateway-id.ts';
 export type { SkillFilePayload, GatewaySkillSummary } from './skill-writeback.ts';

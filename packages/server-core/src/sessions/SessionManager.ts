@@ -106,6 +106,7 @@ import {
   resolveRequiredSourceEnables,
 } from '@craft-agent/origincoworks/required-sources'
 import { scheduleGatewaySkillWriteback } from '../gateway-skill-writeback.ts'
+import { scheduleGatewaySessionMetadataWriteback } from '../gateway-session-metadata-writeback.ts'
 import { buildMemoryMcpServerForSource } from '../gateway-memory-mcp.ts'
 import { createMemoryDestructiveConfirmHandler } from '../memory-sync-sessions.ts'
 
@@ -933,6 +934,8 @@ interface ManagedSession {
   transferredSessionSummary?: string
   // Whether the transferred-session summary has already been injected.
   transferredSessionSummaryApplied?: boolean
+  /** Legacy gateway chat_sessions id when this session was imported (read-only history). */
+  importedFrom?: string
   // Token refresh manager for OAuth token refresh with rate limiting
   tokenRefreshManager: TokenRefreshManager
   // Metadata for sessions created by automations
@@ -2945,6 +2948,19 @@ export class SessionManager implements ISessionManager {
         sessionName: managed.name,
       })
     }
+
+    scheduleGatewaySessionMetadataWriteback(
+      {
+        sessionId: storedSession.id,
+        title: managed.name || options?.name,
+        model: managed.model,
+        workspacePath: workspaceRootPath,
+        sessionStatus: storedSession.sessionStatus,
+        labels: storedSession.labels,
+        importedFrom: storedSession.importedFrom ?? null,
+      },
+      sessionLog,
+    )
 
     return managedToSession(managed, isBranch ? { messages: managed.messages } : undefined)
   }
@@ -4991,6 +5007,18 @@ export class SessionManager implements ISessionManager {
     if (managed) {
       managed.name = name
       this.persistSession(managed)
+      scheduleGatewaySessionMetadataWriteback(
+        {
+          sessionId,
+          title: name,
+          model: managed.model,
+          workspacePath: managed.workspace.rootPath,
+          sessionStatus: managed.sessionStatus,
+          labels: managed.labels,
+          importedFrom: managed.importedFrom ?? null,
+        },
+        sessionLog,
+      )
       // Notify renderer of the name change
       this.sendEvent({ type: 'title_generated', sessionId, title: name }, managed.workspace.id)
       // Workaround: Bun's fs.watch({ recursive: true }) on Linux doesn't track
@@ -5098,6 +5126,18 @@ export class SessionManager implements ISessionManager {
       if (title) {
         managed.name = title
         this.persistSession(managed)
+        scheduleGatewaySessionMetadataWriteback(
+          {
+            sessionId,
+            title,
+            model: managed.model,
+            workspacePath: managed.workspace.rootPath,
+            sessionStatus: managed.sessionStatus,
+            labels: managed.labels,
+            importedFrom: managed.importedFrom ?? null,
+          },
+          sessionLog,
+        )
         // title_generated will also clear isRegeneratingTitle via the event handler
         this.sendEvent({ type: 'title_generated', sessionId, title }, managed.workspace.id)
         sessionLog.info(`Refreshed title for session ${sessionId}: "${title}"`)
@@ -7985,7 +8025,7 @@ export class SessionManager implements ISessionManager {
     let summary = await this.generateRemoteTransferSummary(managed)
     if (!summary?.trim()) {
       const { buildImportedSessionFallbackSummary } = await import('@craft-agent/origincoworks')
-      summary = buildImportedSessionFallbackSummary(managed.messages) ?? undefined
+      summary = buildImportedSessionFallbackSummary(managed.messages)
     }
     if (!summary?.trim()) {
       throw new Error('Could not summarize the imported session for continuation')

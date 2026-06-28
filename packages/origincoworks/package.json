@@ -24,7 +24,9 @@
     "./memory-tools": "./src/memory-tools.ts",
     "./session-import": "./src/session-import.ts",
     "./imported-session-constants": "./src/imported-session-constants.ts",
-    "./is-imported-session": "./src/is-imported-session.ts"
+    "./is-imported-session": "./src/is-imported-session.ts",
+    "./session-metadata-writeback": "./src/session-metadata-writeback.ts",
+    "./session-gateway-id": "./src/session-gateway-id.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "workspace:*",

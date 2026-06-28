@@ -223,6 +223,21 @@ export class GatewayClient {
     return this.requestJson('/api/desktop/classic-sessions', { method: 'GET', auth: true });
   }
 
+  /** POST /api/desktop/session-metadata — upsert native session title/model/workspace (no messages) */
+  async postDesktopSessionMetadata(body: {
+    id: string;
+    title?: string;
+    model?: string;
+    workspace_path?: string;
+    type?: string;
+  }): Promise<unknown> {
+    return this.requestJson('/api/desktop/session-metadata', {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify(body),
+    });
+  }
+
   /** GET /api/sessions/{id} — full legacy session including messages jsonb */
   async getClassicSession(sessionId: string): Promise<unknown> {
     return this.requestJson(`/api/sessions/${encodeURIComponent(sessionId)}`, {
