@@ -227,6 +227,8 @@ export class PiAgent extends BaseAgent {
   private pendingPermissions: Map<string, {
     resolve: (allowed: boolean) => void;
     toolName: string;
+    command: string;
+    baseCommand: string;
   }> = new Map();
 
   // Pending tool executions (correlation map for subprocess tool_execute_request -> main process -> tool_execute_response)
@@ -1319,11 +1321,19 @@ export class PiAgent extends BaseAgent {
         const permRequestId = `pi-perm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         this.debug(`PreToolUse(sessionId=${sessionId}): Prompting user for ${toolName} - ${checkResult.description}`);
 
+        const command = checkResult.command ?? '';
+        const baseCommand =
+          toolName === 'Bash' && command
+            ? this.permissionManager.getBaseCommand(command)
+            : toolName;
+
         // Wait for user response via pendingPermissions
         const permissionPromise = new Promise<boolean>((resolve) => {
           this.pendingPermissions.set(permRequestId, {
             resolve,
             toolName,
+            command,
+            baseCommand,
           });
         });
 
@@ -2149,9 +2159,22 @@ export class PiAgent extends BaseAgent {
    * Respond to a pending permission request.
    * Permission checking now happens in the main process, so this resolves locally.
    */
-  respondToPermission(requestId: string, allowed: boolean, _alwaysAllow?: boolean): void {
+  respondToPermission(requestId: string, allowed: boolean, alwaysAllow: boolean = false): void {
     const pending = this.pendingPermissions.get(requestId);
     if (pending) {
+      if (alwaysAllow && allowed) {
+        if (['curl', 'wget'].includes(pending.baseCommand)) {
+          const domain = this.permissionManager.extractDomainFromNetworkCommand(pending.command);
+          if (domain) {
+            this.permissionManager.whitelistDomain(domain);
+            this.debug(`Added domain "${domain}" to always-allowed domains`);
+          }
+        } else if (!this.permissionManager.isDangerousCommand(pending.baseCommand)) {
+          this.permissionManager.whitelistCommand(pending.baseCommand);
+          this.debug(`Added "${pending.baseCommand}" to always-allowed commands`);
+        }
+      }
+
       this.pendingPermissions.delete(requestId);
       pending.resolve(allowed);
     }
