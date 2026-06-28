@@ -10,6 +10,7 @@ import {
 import type { HandlerDeps } from '../handler-deps';
 import { syncGatewayLlmConfigForSession } from './gateway-llm-sync.ts';
 import { syncGatewaySkillsForSession } from './gateway-skills-sync.ts';
+import { syncGatewayMemoryForSession } from './gateway-memory-sync.ts';
 
 export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.GET_SESSION,
@@ -17,6 +18,7 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.LOGOUT,
   RPC_CHANNELS.gateway.SYNC_LLM_CONFIG,
   RPC_CHANNELS.gateway.SYNC_SKILLS,
+  RPC_CHANNELS.gateway.SYNC_MEMORY,
 ] as const;
 
 export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): void {
@@ -61,6 +63,10 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
         if (!skillsSync.success) {
           log.warn('[Gateway] Skills sync after login failed:', skillsSync.error);
         }
+        const memorySync = await syncGatewayMemoryForSession(deps);
+        if (!memorySync.success) {
+          log.warn('[Gateway] Memory sync after login failed:', memorySync.error);
+        }
       } else {
         log.info('[Gateway] Sign-in failed for user (no secrets logged)');
       }
@@ -74,5 +80,9 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
 
   server.handle(RPC_CHANNELS.gateway.SYNC_SKILLS, async () => {
     return syncGatewaySkillsForSession(server, deps);
+  });
+
+  server.handle(RPC_CHANNELS.gateway.SYNC_MEMORY, async () => {
+    return syncGatewayMemoryForSession(deps);
   });
 }

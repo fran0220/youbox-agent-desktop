@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -202,7 +203,9 @@ func main() {
 
 	// Authenticated: memory sync & management
 	mux.Handle("POST /api/memory/sync", authMiddleware.Authenticate(http.HandlerFunc(memorySyncHandler(s))))
+	mux.Handle("GET /api/memory/search", authMiddleware.Authenticate(http.HandlerFunc(memorySearchHandler(s))))
 	mux.Handle("GET /api/memory/stats", authMiddleware.Authenticate(http.HandlerFunc(memoryStatsHandler(s))))
+	mux.Handle("DELETE /api/memory/file", authMiddleware.Authenticate(http.HandlerFunc(memoryDeleteFileHandler(s))))
 	mux.Handle("DELETE /api/memory", authMiddleware.Authenticate(http.HandlerFunc(memoryClearHandler(s))))
 
 	// Authenticated: skills sync (legacy — retained for push-skills.sh)
@@ -785,6 +788,62 @@ func updateSettingsHandler(s *store.Store, cfg *config.Config, al *audit.Logger,
 		al.Log(admin.ID, "update_settings", "settings", "", r.RemoteAddr)
 
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	}
+}
+
+func memorySearchHandler(s *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUser(r.Context())
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		q := strings.TrimSpace(r.URL.Query().Get("q"))
+		if q == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "q query parameter is required"})
+			return
+		}
+		limit := 20
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			if n, err := strconv.Atoi(raw); err == nil && n > 0 && n <= 50 {
+				limit = n
+			}
+		}
+		files, err := s.SearchMemoryFiles(r.Context(), user.ID, q, limit)
+		if err != nil {
+			log.Error().Err(err).Str("user_id", user.ID).Msg("memory search failed")
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "memory search failed"})
+			return
+		}
+		hits := make([]map[string]string, 0, len(files))
+		for _, f := range files {
+			hits = append(hits, map[string]string{
+				"path":     f.FilePath,
+				"content":  f.Content,
+				"checksum": f.Checksum,
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"hits": hits})
+	}
+}
+
+func memoryDeleteFileHandler(s *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := auth.GetUser(r.Context())
+		if user == nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		path := strings.TrimSpace(r.URL.Query().Get("path"))
+		if path == "" || strings.Contains(path, "..") {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid path"})
+			return
+		}
+		if err := s.DeleteMemoryFile(r.Context(), user.ID, filepath.ToSlash(path)); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete memory file"})
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 

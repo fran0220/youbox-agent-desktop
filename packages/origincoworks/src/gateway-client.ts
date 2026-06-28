@@ -8,6 +8,7 @@ import {
   type GatewayUser,
   type LoginResponse,
 } from './types.ts';
+import { assertMemorySyncResponse, type MemorySearchHit, type MemorySyncResponse } from './memory-types.ts';
 
 export class GatewayHttpError extends Error {
   readonly status: number;
@@ -245,6 +246,74 @@ export class GatewayClient {
       skill_id: typeof o.skill_id === 'string' ? o.skill_id : skillId,
       file_count: fileCount,
     };
+  }
+
+  /** POST /api/memory/sync — bidirectional checksum diff */
+  async memorySync(body: {
+    manifest: Array<{ path: string; checksum: string }>;
+    push: Array<{ path: string; content: string }>;
+  }): Promise<MemorySyncResponse> {
+    const raw = await this.requestJson('/api/memory/sync', {
+      method: 'POST',
+      auth: true,
+      body: JSON.stringify(body),
+    });
+    assertMemorySyncResponse(raw);
+    return raw;
+  }
+
+  /** GET /api/memory/search?q= — pg_trgm search over user_memory */
+  async searchMemory(query: string, limit = 20): Promise<MemorySearchHit[]> {
+    const params = new URLSearchParams();
+    params.set('q', query);
+    params.set('limit', String(Math.min(50, Math.max(1, limit))));
+    const raw = await this.requestJson(`/api/memory/search?${params.toString()}`, {
+      method: 'GET',
+      auth: true,
+    });
+    if (!raw || typeof raw !== 'object') return [];
+    const hits = (raw as { hits?: unknown }).hits;
+    if (!Array.isArray(hits)) return [];
+    return hits
+      .filter((h): h is Record<string, unknown> => !!h && typeof h === 'object')
+      .map((h) => ({
+        path: String(h.path ?? ''),
+        content: String(h.content ?? ''),
+        checksum: String(h.checksum ?? ''),
+      }))
+      .filter((h) => h.path.length > 0);
+  }
+
+  /** DELETE /api/memory — clear all user memory */
+  async memoryClear(): Promise<{ deleted_count: number }> {
+    const raw = await this.requestJson('/api/memory', { method: 'DELETE', auth: true });
+    if (!raw || typeof raw !== 'object') {
+      return { deleted_count: 0 };
+    }
+    const n = (raw as { deleted_count?: unknown }).deleted_count;
+    return { deleted_count: typeof n === 'number' ? n : 0 };
+  }
+
+  /** DELETE /api/memory/file?path= */
+  async deleteMemoryFile(path: string): Promise<void> {
+    const params = new URLSearchParams();
+    params.set('path', path);
+    const headers = new Headers();
+    if (!this.token) {
+      throw new Error('gateway client has no bearer token; call login() first');
+    }
+    headers.set('Authorization', `Bearer ${this.token}`);
+    const res = await this.resolveFetch()(this.url(`/api/memory/file?${params.toString()}`), {
+      method: 'DELETE',
+      headers,
+    });
+    if (res.status === 204 || res.ok) return;
+    const body = await this.readJson(res);
+    const errMsg =
+      body && typeof body === 'object' && body !== null && 'error' in body
+        ? String((body as { error: unknown }).error)
+        : `gateway delete memory failed: ${res.status}`;
+    throw new GatewayHttpError(errMsg, res.status, body);
   }
 
   /** POST /api/auth/logout — invalidates server session (204) */

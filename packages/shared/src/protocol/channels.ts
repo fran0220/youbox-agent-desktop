@@ -166,6 +166,7 @@ export const RPC_CHANNELS = {
     LOGOUT: 'gateway:logout',
     SYNC_LLM_CONFIG: 'gateway:syncLlmConfig',
     SYNC_SKILLS: 'gateway:syncSkills',
+    SYNC_MEMORY: 'gateway:syncMemory',
   },
   credentials: {
     HEALTH_CHECK: 'credentials:healthCheck',

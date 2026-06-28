@@ -942,6 +942,14 @@
     {
       "pattern": "fetch",
       "comment": "Fetch/retrieve data"
+    },
+    {
+      "pattern": "memory_read",
+      "comment": "Gateway memory read (builtin @memory source)"
+    },
+    {
+      "pattern": "memory_search",
+      "comment": "Gateway memory search (builtin @memory source)"
     }
   ],
   "allowedApiEndpoints": [],

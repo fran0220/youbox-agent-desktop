@@ -6,6 +6,7 @@ import type { HandlerDeps } from '../handler-deps';
 import { registerGatewayHandlers } from './gateway';
 import * as gatewayLlmSync from './gateway-llm-sync.ts';
 import * as gatewaySkillsSync from './gateway-skills-sync.ts';
+import * as gatewayMemorySync from './gateway-memory-sync.ts';
 
 function createHarness() {
   const handlers = new Map<string, HandlerFn>();
@@ -68,11 +69,13 @@ describe('registerGatewayHandlers gateway LOGIN', () => {
   let loginGatewaySpy: ReturnType<typeof spyOn<typeof gatewayAuth, 'loginGateway'>>;
   let llmSyncSpy: ReturnType<typeof spyOn<typeof gatewayLlmSync, 'syncGatewayLlmConfigForSession'>>;
   let skillsSyncSpy: ReturnType<typeof spyOn<typeof gatewaySkillsSync, 'syncGatewaySkillsForSession'>>;
+  let memorySyncSpy: ReturnType<typeof spyOn<typeof gatewayMemorySync, 'syncGatewayMemoryForSession'>>;
 
   afterEach(() => {
     loginGatewaySpy?.mockRestore();
     llmSyncSpy?.mockRestore();
     skillsSyncSpy?.mockRestore();
+    memorySyncSpy?.mockRestore();
   });
 
   it('forwards positional username and password to loginGateway (IPC seam)', async () => {
@@ -89,6 +92,12 @@ describe('registerGatewayHandlers gateway LOGIN', () => {
       success: true,
       filesWritten: 0,
       ownersPulled: [],
+    });
+    memorySyncSpy = spyOn(gatewayMemorySync, 'syncGatewayMemoryForSession').mockResolvedValue({
+      success: true,
+      pulled: 0,
+      pushed: 0,
+      skipped: true,
     });
 
     const { login, ctx } = createHarness();

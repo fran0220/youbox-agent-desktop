@@ -19,10 +19,14 @@
     "./skills-sync": "./src/skills-sync.ts",
     "./skill-writeback": "./src/skill-writeback.ts",
     "./required-sources": "./src/required-sources.ts",
-    "./checksum": "./src/checksum.ts"
+    "./checksum": "./src/checksum.ts",
+    "./memory-sync": "./src/memory-sync.ts",
+    "./memory-tools": "./src/memory-tools.ts"
   },
   "dependencies": {
-    "@craft-agent/shared": "workspace:*"
+    "@anthropic-ai/claude-agent-sdk": "workspace:*",
+    "@craft-agent/shared": "workspace:*",
+    "zod": "^3.23.0"
   },
   "scripts": {
     "test": "bun test",

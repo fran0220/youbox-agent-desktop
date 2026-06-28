@@ -106,6 +106,8 @@ import {
   resolveRequiredSourceEnables,
 } from '@craft-agent/origincoworks/required-sources'
 import { scheduleGatewaySkillWriteback } from '../gateway-skill-writeback.ts'
+import { buildMemoryMcpServerForSource } from '../gateway-memory-mcp.ts'
+import { createMemoryDestructiveConfirmHandler } from '../memory-sync-sessions.ts'
 
 // Import from server-core domain utilities
 import { sanitizeForTitle, shouldActivateBrowserOverlay, normalizeBrowserToolName, rollbackFailedBranchCreation, releaseBrowserOwnershipOnForcedStop } from '@craft-agent/server-core/domain'
@@ -375,7 +377,8 @@ async function buildServersFromSources(
   sources: LoadedSource[],
   sessionPath?: string,
   tokenRefreshManager?: TokenRefreshManager,
-  summarize?: SummarizeCallback
+  summarize?: SummarizeCallback,
+  memorySession?: { manager: import('../memory-sync-sessions.ts').MemoryDestructiveSessionHost; sessionId: string },
 ) {
   const span = perf.span('sources.buildServers', { count: sources.length })
   const credManager = getSourceCredentialManager()
@@ -440,6 +443,17 @@ async function buildServersFromSources(
     summarize,
     getCredentialForSource,
   )
+  for (const source of sources) {
+    if (!isSourceUsable(source) || source.config.type !== 'memory') continue
+    const confirmDestructive = memorySession
+      ? createMemoryDestructiveConfirmHandler(memorySession.manager, memorySession.sessionId)
+      : undefined
+    const memServer = buildMemoryMcpServerForSource(source, { confirmDestructive })
+    if (memServer) {
+      result.apiServers[source.config.slug] = memServer
+    }
+  }
+
   span.mark('servers.built')
   span.setMetadata('mcpCount', Object.keys(result.mcpServers).length)
   span.setMetadata('apiCount', Object.keys(result.apiServers).length)
@@ -1119,6 +1133,11 @@ export class SessionManager implements ISessionManager {
   private automationSystems: Map<string, AutomationSystem> = new Map()
   // Pending credential request resolvers (keyed by requestId)
   private pendingCredentialResolvers: Map<string, (response: import('@craft-agent/shared/protocol').CredentialResponse) => void> = new Map()
+  /** Memory delete/clear confirmation (tool-layer confirmDestructive). */
+  private pendingMemoryDestructiveConfirmations: Map<
+    string,
+    { resolve: (allowed: boolean) => void; sessionId: string }
+  > = new Map()
   // Permission request metadata tracking (keyed by requestId)
   private pendingPermissionRequests: Map<string, {
     sessionId: string
@@ -1737,7 +1756,13 @@ export class SessionManager implements ISessionManager {
     )
     // Pass session path so large API responses can be saved to session folder
     const sessionPath = getSessionStoragePath(workspaceRootPath, managed.id)
-    const { mcpServers, apiServers } = await buildServersFromSources(enabledSources, sessionPath, managed.tokenRefreshManager, managed.agent?.getSummarizeCallback())
+    const { mcpServers, apiServers } = await buildServersFromSources(
+      enabledSources,
+      sessionPath,
+      managed.tokenRefreshManager,
+      managed.agent?.getSummarizeCallback(),
+      { manager: this, sessionId: managed.id },
+    )
     const intendedSlugs = enabledSources.map(s => s.config.slug)
 
     // Update bridge-mcp-server config/credentials for backends that need it
@@ -2140,7 +2165,11 @@ export class SessionManager implements ISessionManager {
         enabledSlugs.includes(s.config.slug) && isSourceUsable(s)
       )
       const { mcpServers } = await buildServersFromSources(
-        enabledSources, sessionPath, managed.tokenRefreshManager
+        enabledSources,
+        sessionPath,
+        managed.tokenRefreshManager,
+        undefined,
+        { manager: this, sessionId: managed.id },
       )
       await applyBridgeUpdates(managed.agent, sessionPath, enabledSources, mcpServers, managed.id, workspaceRootPath, 'source auth', managed.poolServer?.url)
     }
@@ -3203,7 +3232,13 @@ export class SessionManager implements ISessionManager {
       )
 
       // Build server configs for enabled sources
-      const { mcpServers, apiServers } = await buildServersFromSources(enabledSources, sessionPath, managed.tokenRefreshManager)
+      const { mcpServers, apiServers } = await buildServersFromSources(
+        enabledSources,
+        sessionPath,
+        managed.tokenRefreshManager,
+        undefined,
+        { manager: this, sessionId: managed.id },
+      )
 
       // Create centralized MCP client pool (all backends use it)
       managed.mcpPool = new McpClientPool({ debug: (msg) => sessionLog.debug(msg), workspaceRootPath: managed.workspace.rootPath, sessionPath })
@@ -4279,7 +4314,13 @@ export class SessionManager implements ISessionManager {
         const allEnabledSources = getSourcesBySlugs(workspaceRootPath, managed.enabledSourceSlugs || [])
         // Pass session path so large API responses can be saved to session folder
         const sessionPath = getSessionStoragePath(workspaceRootPath, managed.id)
-        const { mcpServers, apiServers, errors } = await buildServersFromSources(allEnabledSources, sessionPath, managed.tokenRefreshManager, managed.agent?.getSummarizeCallback())
+        const { mcpServers, apiServers, errors } = await buildServersFromSources(
+          allEnabledSources,
+          sessionPath,
+          managed.tokenRefreshManager,
+          managed.agent?.getSummarizeCallback(),
+          { manager: this, sessionId: managed.id },
+        )
 
         if (errors.length > 0) {
           sessionLog.warn(`Source build errors during auto-enable:`, errors)
@@ -4765,7 +4806,13 @@ export class SessionManager implements ISessionManager {
       const sources = getSourcesBySlugs(workspaceRootPath, sourceSlugs)
       // Pass session path so large API responses can be saved to session folder
       const sessionPath = getSessionStoragePath(workspaceRootPath, sessionId)
-      const { mcpServers, apiServers, errors } = await buildServersFromSources(sources, sessionPath, managed.tokenRefreshManager, managed.agent.getSummarizeCallback())
+      const { mcpServers, apiServers, errors } = await buildServersFromSources(
+        sources,
+        sessionPath,
+        managed.tokenRefreshManager,
+        managed.agent.getSummarizeCallback(),
+        { manager: this, sessionId },
+      )
       if (errors.length > 0) {
         sessionLog.warn(`Source build errors:`, errors)
       }
@@ -5801,7 +5848,13 @@ export class SessionManager implements ISessionManager {
     if (hasSources) {
       const sessionPath = getSessionStoragePath(workspaceRootPath, sessionId)
       // Single fresh build — tokens already refreshed above.
-      const { mcpServers, apiServers, errors } = await buildServersFromSources(sources, sessionPath, managed.tokenRefreshManager, agent.getSummarizeCallback())
+      const { mcpServers, apiServers, errors } = await buildServersFromSources(
+        sources,
+        sessionPath,
+        managed.tokenRefreshManager,
+        agent.getSummarizeCallback(),
+        { manager: this, sessionId },
+      )
       if (errors.length > 0) {
         sessionLog.warn(`Source build errors:`, errors)
       }
@@ -6508,6 +6561,54 @@ export class SessionManager implements ISessionManager {
   }
 
   /**
+   * Ask the user to confirm gateway memory delete/clear before tools run.
+   * Reuses the standard permission_request UI (mcp_mutation).
+   */
+  async requestMemoryDestructiveConfirmation(
+    sessionId: string,
+    action: 'delete' | 'clear',
+    detail: string,
+  ): Promise<boolean> {
+    const managed = this.sessions.get(sessionId)
+    if (!managed) {
+      return false
+    }
+
+    const requestId = `memory-destructive-${randomUUID()}`
+    const description =
+      action === 'clear'
+        ? `Clear all gateway memory (${detail})`
+        : `Delete memory file: ${detail}`
+
+    return new Promise<boolean>((resolve) => {
+      this.pendingMemoryDestructiveConfirmations.set(requestId, { resolve, sessionId })
+
+      this.sendEvent(
+        {
+          type: 'permission_request',
+          sessionId,
+          request: {
+            requestId,
+            toolName: action === 'clear' ? 'mcp__memory__memory_clear' : 'mcp__memory__memory_delete',
+            description,
+            type: 'mcp_mutation',
+            sessionId,
+          },
+        },
+        managed.workspace.id,
+      )
+
+      setTimeout(() => {
+        const pending = this.pendingMemoryDestructiveConfirmations.get(requestId)
+        if (pending) {
+          this.pendingMemoryDestructiveConfirmations.delete(requestId)
+          pending.resolve(false)
+        }
+      }, 120_000)
+    })
+  }
+
+  /**
    * Respond to a pending permission request
    * Returns true if the response was delivered, false if agent/session is gone
    */
@@ -6519,6 +6620,17 @@ export class SessionManager implements ISessionManager {
     options?: import('@craft-agent/shared/protocol').PermissionResponseOptions,
   ): boolean {
     const managed = this.sessions.get(sessionId)
+    const memoryPending = this.pendingMemoryDestructiveConfirmations.get(requestId)
+    if (memoryPending) {
+      if (memoryPending.sessionId !== sessionId) {
+        sessionLog.warn(`Memory destructive confirmation session mismatch for ${requestId}`)
+        return false
+      }
+      this.pendingMemoryDestructiveConfirmations.delete(requestId)
+      memoryPending.resolve(allowed)
+      return true
+    }
+
     if (managed?.agent) {
       const requestMeta = this.pendingPermissionRequests.get(requestId)
       this.pendingPermissionRequests.delete(requestId)
