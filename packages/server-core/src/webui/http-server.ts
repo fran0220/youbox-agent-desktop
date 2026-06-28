@@ -19,7 +19,9 @@ import {
   validateSession,
   buildSessionCookie,
   buildLogoutCookie,
+  JWT_EXPIRY_SECONDS,
 } from './auth'
+import { assertSameOriginForStateChangingRequest } from './security'
 import { generateCallbackPage } from '@craft-agent/shared/auth'
 import type { PlatformServices } from '../runtime/platform'
 
@@ -233,6 +235,9 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
 
     // ── Auth endpoint ──
     if (path === '/api/auth' && req.method === 'POST') {
+      const originBlock = assertSameOriginForStateChangingRequest(req)
+      if (originBlock) return originBlock
+
       const ip = getClientIp(req)
 
       if (!rateLimiter.check(ip)) {
@@ -277,6 +282,9 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
 
     // ── Logout endpoint ──
     if (path === '/api/auth/logout' && req.method === 'POST') {
+      const originBlock = assertSameOriginForStateChangingRequest(req)
+      if (originBlock) return originBlock
+
       return new Response(null, {
         status: 204,
         headers: {
@@ -343,6 +351,31 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
           status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
         })
+      }
+    }
+
+    // ── Session refresh (re-mint JWT while gateway session is still valid) ──
+    if (path === '/api/auth/refresh' && req.method === 'POST') {
+      const originBlock = assertSameOriginForStateChangingRequest(req)
+      if (originBlock) return originBlock
+
+      const refreshSession = await validateSession(req.headers.get('cookie'), secret)
+      if (!refreshSession?.gatewayToken || !refreshSession.userId) {
+        return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const client = new GatewayClient(resolvedGatewayBaseUrl, refreshSession.gatewayToken)
+      try {
+        const user = await client.me()
+        const jwt = await createSessionTokenFromGateway(user.id, refreshSession.gatewayToken, secret)
+        return Response.json({ ok: true, expiresIn: JWT_EXPIRY_SECONDS }, {
+          status: 200,
+          headers: {
+            'Set-Cookie': buildSessionCookie(jwt, useSecureCookies),
+          },
+        })
+      } catch {
+        return Response.json({ error: 'Unauthorized' }, { status: 401 })
       }
     }
 

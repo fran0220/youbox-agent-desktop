@@ -31,7 +31,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { version as packageVersion } from '../package.json'
 import { enableDebug } from '@craft-agent/shared/utils/debug'
 import { bootstrapServer, startHealthHttpServer, generateServerToken } from '@craft-agent/server-core/bootstrap'
-import { validateSession, createWebuiHandler, nodeHttpAdapter } from '@craft-agent/server-core/webui'
+import { createWebuiHandler, nodeHttpAdapter, createGatewaySessionCookieValidator } from '@craft-agent/server-core/webui'
 import type { WebuiHandler } from '@craft-agent/server-core/webui'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { getWorkspaces } from '@craft-agent/shared/config'
@@ -170,10 +170,7 @@ const instance = await (async () => {
       tls,
       // When web UI is enabled, accept JWT session cookies on WebSocket upgrade
       validateSessionCookie: webuiEnabled && serverToken
-        ? async (cookieHeader) => {
-            const session = await validateSession(cookieHeader, serverToken)
-            return session !== null
-          }
+        ? createGatewaySessionCookieValidator(serverToken)
         : undefined,
       // Embed the WebUI HTTP handler on the WS server's port
       httpHandler: webuiNodeHandler,

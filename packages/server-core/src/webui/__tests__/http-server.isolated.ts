@@ -30,6 +30,18 @@ function createTestWebuiDir(): string {
 function installGatewayLoginMock(validPassword = PASSWORD) {
   GatewayClient.setFetchForTests(async (input, init) => {
     const url = String(input)
+    if (url.endsWith('/api/users/me') && init?.method === 'GET') {
+      const auth = init.headers instanceof Headers
+        ? init.headers.get('Authorization')
+        : undefined
+      if (auth === `Bearer ${GATEWAY_TOKEN}`) {
+        return new Response(
+          JSON.stringify({ id: 'user-1', name: USERNAME, email: 'octest@local.test', role: 'admin' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return new Response(JSON.stringify({ error: 'invalid session' }), { status: 401 })
+    }
     if (url.endsWith('/api/auth/login') && init?.method === 'POST') {
       const raw = typeof init.body === 'string' ? init.body : ''
       let parsed: { username?: string; password?: string } = {}
@@ -225,6 +237,43 @@ describe('startWebuiHttpServer', () => {
     expect(await configRes.json()).toEqual({
       wsUrl: 'wss://craft.example.com:9100',
     })
+  })
+
+  it('rejects POST /api/auth with foreign Origin', async () => {
+    const { baseUrl } = await createServer()
+
+    const res = await fetch(`${baseUrl}/api/auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'https://evil.example',
+      },
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
+    })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('POST /api/auth/refresh re-mints session cookie when gateway session is valid', async () => {
+    const { baseUrl } = await createServer()
+
+    const authRes = await fetch(`${baseUrl}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
+    })
+    const cookie = extractSessionCookie(authRes)
+
+    const refreshRes = await fetch(`${baseUrl}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { cookie },
+    })
+
+    expect(refreshRes.status).toBe(200)
+    const body = await refreshRes.json() as { ok: boolean; expiresIn: number }
+    expect(body.ok).toBe(true)
+    expect(body.expiresIn).toBeGreaterThan(0)
+    expect(refreshRes.headers.get('set-cookie')).toContain('craft_session=')
   })
 
   it('returns an explicit public websocket URL override from /api/config', async () => {

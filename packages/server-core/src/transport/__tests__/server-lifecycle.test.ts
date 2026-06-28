@@ -16,12 +16,14 @@ function createServer(opts?: {
   maxClients?: number
   requireAuth?: boolean
   validateToken?: (token: string) => Promise<boolean>
+  validateSessionCookie?: (cookieHeader: string | null) => Promise<boolean>
 }) {
   return new WsRpcServer({
     host: '127.0.0.1',
     port: 0,
     requireAuth: opts?.requireAuth ?? true,
     validateToken: opts?.validateToken ?? (async (t) => t === TEST_TOKEN),
+    validateSessionCookie: opts?.validateSessionCookie,
     maxClients: opts?.maxClients,
     serverId: 'test',
   })
@@ -119,6 +121,66 @@ describe('WsRpcServer lifecycle', () => {
           type: 'handshake',
           protocolVersion: PROTOCOL_VERSION,
           // no token
+        }))
+      })
+      ws.on('close', (code) => resolve(code))
+    })
+
+    expect(closeCode).toBe(4005)
+  })
+
+  it('accepts handshake with valid session cookie on upgrade (no bearer token)', async () => {
+    server = createServer({
+      validateSessionCookie: async (cookie) => cookie === 'craft_session=valid',
+    })
+    await server.listen()
+    const url = `ws://127.0.0.1:${server.port}`
+
+    const ws = new WebSocket(url, { headers: { Cookie: 'craft_session=valid' } })
+    openSockets.push(ws)
+
+    const clientId = await new Promise<string>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('timeout')), 5_000)
+      ws.on('open', () => {
+        ws.send(JSON.stringify({
+          id: crypto.randomUUID(),
+          type: 'handshake',
+          protocolVersion: PROTOCOL_VERSION,
+        }))
+      })
+      ws.on('message', (data) => {
+        const msg = JSON.parse(data.toString())
+        if (msg.type === 'handshake_ack') {
+          clearTimeout(timeout)
+          resolve(msg.clientId)
+        }
+      })
+      ws.on('close', () => {
+        clearTimeout(timeout)
+        reject(new Error('closed before handshake_ack'))
+      })
+    })
+
+    expect(clientId).toBeTruthy()
+    expect(server.getConnectedClientCount()).toBe(1)
+  })
+
+  it('rejects handshake when session cookie validator returns false', async () => {
+    server = createServer({
+      validateSessionCookie: async () => false,
+    })
+    await server.listen()
+    const url = `ws://127.0.0.1:${server.port}`
+
+    const ws = new WebSocket(url, { headers: { Cookie: 'craft_session=bad' } })
+    openSockets.push(ws)
+
+    const closeCode = await new Promise<number>((resolve) => {
+      ws.on('open', () => {
+        ws.send(JSON.stringify({
+          id: crypto.randomUUID(),
+          type: 'handshake',
+          protocolVersion: PROTOCOL_VERSION,
         }))
       })
       ws.on('close', (code) => resolve(code))

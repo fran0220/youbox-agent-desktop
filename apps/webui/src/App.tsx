@@ -132,8 +132,22 @@ export default function App() {
       initialize()
     }
 
+    const refreshInterval = window.setInterval(async () => {
+      try {
+        const res = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'same-origin',
+        })
+        if (res.status === 401) {
+          window.location.href = '/login'
+        }
+      } catch {
+        // Non-fatal — next refresh or API call will surface expiry
+      }
+    }, 30 * 60 * 1000)
+
     return () => {
-      // Cleanup on unmount
+      window.clearInterval(refreshInterval)
       clientRef.current?.destroy()
     }
   }, [])
