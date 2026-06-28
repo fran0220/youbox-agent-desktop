@@ -1,5 +1,6 @@
 import {
   createWebuiHandler,
+  resolveWebSocketUrl,
   type WebuiHandler,
   type WebuiHandlerOptions,
 } from './http-server'
@@ -110,7 +111,10 @@ export function createFrontControllerHandler(options: FrontControllerOptions): W
     }
 
     if (path === '/api/config' && req.method === 'GET') {
-      const wsUrl = `ws://127.0.0.1:${backend.port}`
+      const wsUrl = resolveWebSocketUrl(req, {
+        wsProtocol: 'ws',
+        wsPort: backend.port,
+      })
       return Response.json({ wsUrl })
     }
 
