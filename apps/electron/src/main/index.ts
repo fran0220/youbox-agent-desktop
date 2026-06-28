@@ -710,7 +710,17 @@ app.whenReady().then(async () => {
           ? (server, deps, serverCtx) => registerCoreRpcHandlers(server, deps, serverCtx)
           : registerAllRpcHandlers,
         setSessionEventSink: (sm, sink) => sm.setEventSink(sink),
-        initializeSessionManager: (sm) => sm.initialize(),
+        initializeSessionManager: async (sm, { deps, rpcServer }) => {
+          await sm.initialize()
+          const { getStoredGatewayToken } = await import('@craft-agent/origincoworks/auth')
+          const token = await getStoredGatewayToken()
+          if (token) {
+            const { syncGatewayStateAfterAuth } = await import(
+              '../../../../packages/server-core/src/handlers/rpc/gateway-post-auth-sync.ts'
+            )
+            await syncGatewayStateAfterAuth({ sessionManager: sm, deps, rpcServer })
+          }
+        },
         initModelRefreshService: () => initModelRefreshService(async (slug: string) => {
           const { getCredentialManager } = await import('@craft-agent/shared/credentials')
           const manager = getCredentialManager()

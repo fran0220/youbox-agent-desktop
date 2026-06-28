@@ -4,9 +4,8 @@ import type { HandlerFn, RequestContext, RpcServer } from '@craft-agent/server-c
 import * as gatewayAuth from '@craft-agent/origincoworks/auth';
 import type { HandlerDeps } from '../handler-deps';
 import { registerGatewayHandlers } from './gateway';
-import * as gatewayLlmSync from './gateway-llm-sync.ts';
-import * as gatewaySkillsSync from './gateway-skills-sync.ts';
-import * as gatewayMemorySync from './gateway-memory-sync.ts';
+import * as gatewayPostAuth from './gateway-post-auth-sync.ts';
+import * as gatewayClassicSync from './gateway-classic-sessions-sync.ts';
 
 function createHarness() {
   const handlers = new Map<string, HandlerFn>();
@@ -67,15 +66,13 @@ function createHarness() {
 
 describe('registerGatewayHandlers gateway LOGIN', () => {
   let loginGatewaySpy: ReturnType<typeof spyOn<typeof gatewayAuth, 'loginGateway'>>;
-  let llmSyncSpy: ReturnType<typeof spyOn<typeof gatewayLlmSync, 'syncGatewayLlmConfigForSession'>>;
-  let skillsSyncSpy: ReturnType<typeof spyOn<typeof gatewaySkillsSync, 'syncGatewaySkillsForSession'>>;
-  let memorySyncSpy: ReturnType<typeof spyOn<typeof gatewayMemorySync, 'syncGatewayMemoryForSession'>>;
+  let postAuthSpy: ReturnType<typeof spyOn<typeof gatewayPostAuth, 'syncGatewayStateAfterAuth'>>;
+  let classicSyncSpy: ReturnType<typeof spyOn<typeof gatewayClassicSync, 'syncGatewayClassicSessionsForSession'>>;
 
   afterEach(() => {
     loginGatewaySpy?.mockRestore();
-    llmSyncSpy?.mockRestore();
-    skillsSyncSpy?.mockRestore();
-    memorySyncSpy?.mockRestore();
+    postAuthSpy?.mockRestore();
+    classicSyncSpy?.mockRestore();
   });
 
   it('forwards positional username and password to loginGateway (IPC seam)', async () => {
@@ -83,21 +80,17 @@ describe('registerGatewayHandlers gateway LOGIN', () => {
       success: true,
       user: { id: '1', name: 'octest', email: 'octest@local.test', role: 'admin' },
     });
-    llmSyncSpy = spyOn(gatewayLlmSync, 'syncGatewayLlmConfigForSession').mockResolvedValue({
-      success: true,
-      slug: 'origincoworks-gateway',
-      primaryModel: 'gpt-5.5',
+    postAuthSpy = spyOn(gatewayPostAuth, 'syncGatewayStateAfterAuth').mockResolvedValue({
+      llm: { success: true },
+      skills: { success: true },
+      memory: { success: true },
     });
-    skillsSyncSpy = spyOn(gatewaySkillsSync, 'syncGatewaySkillsForSession').mockResolvedValue({
+    classicSyncSpy = spyOn(gatewayClassicSync, 'syncGatewayClassicSessionsForSession').mockResolvedValue({
       success: true,
-      filesWritten: 0,
-      ownersPulled: [],
-    });
-    memorySyncSpy = spyOn(gatewayMemorySync, 'syncGatewayMemoryForSession').mockResolvedValue({
-      success: true,
-      pulled: 0,
-      pushed: 0,
-      skipped: true,
+      summaries: 0,
+      materialized: 0,
+      skipped: 0,
+      errors: [],
     });
 
     const { login, ctx } = createHarness();

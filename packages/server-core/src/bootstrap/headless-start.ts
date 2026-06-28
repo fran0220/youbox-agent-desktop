@@ -28,7 +28,10 @@ export interface ServerBootstrapOptions<TSessionManager, THandlerDeps> {
     oauthFlowStore: OAuthFlowStore
   }) => THandlerDeps
   registerAllRpcHandlers: (server: RpcServer, deps: THandlerDeps, serverCtx: ServerHandlerContext) => void
-  initializeSessionManager: (sessionManager: TSessionManager) => Promise<void>
+  initializeSessionManager: (
+    sessionManager: TSessionManager,
+    ctx: { deps: THandlerDeps; rpcServer: RpcServer },
+  ) => Promise<void>
   setSessionEventSink: (sessionManager: TSessionManager, sink: EventSink) => void
   /**
    * Optional hook called right after the WS RPC server starts listening. Use
@@ -345,7 +348,7 @@ export async function bootstrapServer<TSessionManager, THandlerDeps>(
 
   options.setSessionEventSink(sessionManager, wsServer.push.bind(wsServer))
 
-  await options.initializeSessionManager(sessionManager)
+  await options.initializeSessionManager(sessionManager, { deps, rpcServer: wsServer })
 
   modelRefreshService.startAll()
 

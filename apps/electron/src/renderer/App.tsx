@@ -625,6 +625,10 @@ export default function App() {
       if (!skillsSync.success) {
         console.warn('[App] Gateway skills sync failed:', skillsSync.error)
       }
+      const memorySync = await window.electronAPI.gatewaySyncMemory()
+      if (!memorySync.success) {
+        console.warn('[App] Gateway memory sync failed:', memorySync.error)
+      }
       await refreshLlmConnections()
       const wsId = await window.electronAPI.getWindowWorkspace()
       setWindowWorkspaceId(wsId)

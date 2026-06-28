@@ -2,7 +2,8 @@
  * Seed a per-user headless backend with the gateway session from WebUI front-controller login.
  */
 import { persistGatewaySession } from '@craft-agent/origincoworks/auth'
-import { ensureGatewayManagedLlmConnection } from '../handlers/rpc/gateway-llm-sync'
+import { syncGatewayStateAfterAuth } from '../handlers/rpc/gateway-post-auth-sync'
+import type { RpcServer } from '@craft-agent/server-core/transport'
 import type { HandlerDeps } from '../handlers/handler-deps'
 
 const TOKEN_HEX = /^[0-9a-f]{64}$/i
@@ -19,14 +20,19 @@ export function readGatewayBootstrapTokenFromEnv(): string | null {
  */
 export async function bootstrapGatewaySessionIfConfigured(
   sessionManager: HandlerDeps['sessionManager'],
+  deps: HandlerDeps,
+  rpcServer?: RpcServer | null,
 ): Promise<void> {
   const token = readGatewayBootstrapTokenFromEnv()
   if (!token) return
 
   await persistGatewaySession(token)
-  const result = await ensureGatewayManagedLlmConnection(sessionManager)
-  if (result.error) {
-    throw new Error(`Gateway LLM bootstrap failed: ${result.error}`)
+  const result = await syncGatewayStateAfterAuth({
+    sessionManager,
+    deps,
+    rpcServer: rpcServer ?? null,
+  })
+  if (!result.llm.success) {
+    throw new Error(`Gateway LLM bootstrap failed: ${result.llm.error ?? 'unknown'}`)
   }
-
 }

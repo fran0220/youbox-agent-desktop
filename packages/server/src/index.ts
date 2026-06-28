@@ -243,8 +243,8 @@ const instance = await (async () => {
         }
         sessionManager.setEventSink(messagingHandle.wrapSink(sink))
       },
-      initializeSessionManager: async (sessionManager) => {
-        await bootstrapGatewaySessionIfConfigured(sessionManager)
+      initializeSessionManager: async (sessionManager, { deps, rpcServer }) => {
+        await bootstrapGatewaySessionIfConfigured(sessionManager, deps, rpcServer)
         await sessionManager.initialize()
       },
       cleanupSessionManager: async (sessionManager) => {

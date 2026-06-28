@@ -12,6 +12,7 @@ import { syncGatewayLlmConfigForSession } from './gateway-llm-sync.ts';
 import { syncGatewaySkillsForSession } from './gateway-skills-sync.ts';
 import { syncGatewayMemoryForSession } from './gateway-memory-sync.ts';
 import { syncGatewayClassicSessionsForSession } from './gateway-classic-sessions-sync.ts';
+import { syncGatewayStateAfterAuth } from './gateway-post-auth-sync.ts';
 
 export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.GET_SESSION,
@@ -56,18 +57,14 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
       const result = await loginGateway(username ?? '', password ?? '', resolveGatewayBaseUrl());
       if (result.success) {
         log.info('[Gateway] User signed in:', result.user.name);
-        const llmSync = await syncGatewayLlmConfigForSession(server, deps);
-        if (!llmSync.success) {
+        const postAuth = await syncGatewayStateAfterAuth({
+          sessionManager: deps.sessionManager,
+          deps,
+          rpcServer: server,
+        });
+        if (!postAuth.llm.success) {
           await clearGatewaySession();
-          return { success: false as const, error: llmSync.error };
-        }
-        const skillsSync = await syncGatewaySkillsForSession(server, deps);
-        if (!skillsSync.success) {
-          log.warn('[Gateway] Skills sync after login failed:', skillsSync.error);
-        }
-        const memorySync = await syncGatewayMemoryForSession(deps);
-        if (!memorySync.success) {
-          log.warn('[Gateway] Memory sync after login failed:', memorySync.error);
+          return { success: false as const, error: postAuth.llm.error ?? 'LLM sync failed' };
         }
         const classicSync = await syncGatewayClassicSessionsForSession(deps);
         if (!classicSync.success) {
