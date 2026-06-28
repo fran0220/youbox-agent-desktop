@@ -1896,6 +1896,9 @@ export class SessionManager implements ISessionManager {
         const wsDefaultWorkingDir = wsConfig?.defaults?.workingDirectory
 
         for (const meta of sessionMetadata) {
+          if (this.sessions.has(meta.id)) {
+            continue;
+          }
           // Create managed session from metadata only (messages lazy-loaded on demand)
           // This dramatically reduces memory usage at startup - messages are loaded
           // when getSession() is called for a specific session
@@ -5531,7 +5534,15 @@ export class SessionManager implements ISessionManager {
     if (!managed) {
       throw new Error(`Session ${sessionId} not found`)
     }
-    this.setLastMessageClientId(sessionId, rpcContext?.callerClientId)
+
+    const { isImportedGatewaySession, IMPORTED_SESSION_READ_ONLY_ERROR } = await import(
+      '@craft-agent/origincoworks/is-imported-session'
+    );
+    if (isImportedGatewaySession(managed)) {
+      throw new Error(IMPORTED_SESSION_READ_ONLY_ERROR);
+    }
+
+    this.setLastMessageClientId(sessionId, rpcContext?.callerClientId);
 
     // Source-activation auto-retry dedup (craft-agents-oss#804). When the server
     // has just scheduled or committed a "[<slug> activated]" retry, drop a matching

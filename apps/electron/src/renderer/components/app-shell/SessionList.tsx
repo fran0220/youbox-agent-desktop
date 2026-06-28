@@ -28,6 +28,7 @@ import { useEscapeInterrupt } from "@/context/EscapeInterruptContext"
 import { useNavigation, useNavigationState, routes, isSessionsNavigation } from "@/contexts/NavigationContext"
 import { useFocusContext } from "@/context/FocusContext"
 import { sendToWorkspaceAtom, type SessionMeta } from "@/atoms/sessions"
+import { isImportedSessionMeta } from "@/utils/imported-session"
 import type { ViewConfig } from "@craft-agent/shared/views"
 import type { SessionStatusId, SessionStatus } from "@/config/session-status-config"
 import { buildCollapsedGroupsScopeSuffix } from "@/utils/session-list-collapse"
@@ -38,6 +39,17 @@ export interface SessionListRow {
 
 /** Grouping mode for chat list */
 export type ChatGroupingMode = 'date' | 'status' | 'unread'
+
+function mergeImportedSessionGroup(
+  native: { rows: SessionListRow[]; groups: EntityListGroup<SessionListRow>[] },
+  importedGroup: EntityListGroup<SessionListRow> | null,
+): { rows: SessionListRow[]; groups: EntityListGroup<SessionListRow>[] } {
+  if (!importedGroup) return native
+  return {
+    rows: [...importedGroup.items, ...native.rows],
+    groups: [importedGroup, ...native.groups],
+  }
+}
 
 interface SessionListProps {
   items: SessionMeta[]
@@ -282,6 +294,30 @@ export function SessionList({
     // can insert header-only placeholder groups in the correct position.
     const rows: SessionListRow[] = flatItems.map(item => ({ item }))
 
+    const importedRows: SessionListRow[] = []
+    const nativeRows: SessionListRow[] = []
+    for (const row of rows) {
+      if (isImportedSessionMeta(row.item)) importedRows.push(row)
+      else nativeRows.push(row)
+    }
+    importedRows.sort((a, b) => (b.item.lastMessageAt || 0) - (a.item.lastMessageAt || 0))
+    nativeRows.sort((a, b) => (b.item.lastMessageAt || 0) - (a.item.lastMessageAt || 0))
+
+    const importedCollapsed = collapsedGroupsMeta.find(m => m.key === 'imported')
+    const importedCount = importedCollapsed ? importedCollapsed.count : importedRows.length
+    const importedGroup: EntityListGroup<SessionListRow> | null =
+      importedCount > 0 || importedRows.length > 0
+        ? {
+            key: 'imported',
+            label: t('session.importedGroup', { count: importedCount }),
+            items: importedRows,
+            collapsible: importedRows.length > 0 || !!importedCollapsed,
+            ...(importedCollapsed ? { collapsedCount: importedCollapsed.count } : {}),
+          }
+        : null
+
+    const nativeCollapsedMeta = collapsedGroupsMeta.filter(m => m.key !== 'imported')
+
     if (groupingMode === 'unread') {
       // Two fixed buckets: unread on top, read below. Within each, items keep
       // the same `lastMessageAt`-descending order they already arrive in.
@@ -290,15 +326,15 @@ export function SessionList({
       // bucket is unambiguous (e.g. "Unread (0)").
       const unreadRows: SessionListRow[] = []
       const readRows: SessionListRow[] = []
-      for (const row of rows) {
+      for (const row of nativeRows) {
         if (row.item.hasUnread) unreadRows.push(row)
         else readRows.push(row)
       }
       unreadRows.sort((a, b) => (b.item.lastMessageAt || 0) - (a.item.lastMessageAt || 0))
       readRows.sort((a, b) => (b.item.lastMessageAt || 0) - (a.item.lastMessageAt || 0))
 
-      const collapsedUnread = collapsedGroupsMeta.find(m => m.key === 'unread-yes')
-      const collapsedRead = collapsedGroupsMeta.find(m => m.key === 'unread-no')
+      const collapsedUnread = nativeCollapsedMeta.find(m => m.key === 'unread-yes')
+      const collapsedRead = nativeCollapsedMeta.find(m => m.key === 'unread-no')
 
       // For collapsed groups prefer the persisted count (matches how the
       // date/status branches surface the size of a collapsed bucket).
@@ -323,10 +359,10 @@ export function SessionList({
         },
       ]
 
-      return {
+      return mergeImportedSessionGroup({
         rows: orderedGroups.flatMap(g => g.items),
         groups: orderedGroups,
-      }
+      }, importedGroup)
     }
 
     if (groupingMode === 'status') {
@@ -335,7 +371,7 @@ export function SessionList({
 
       // Build groups from visible items
       const groupsByKey = new Map<string, { rows: SessionListRow[], statusId: string }>()
-      for (const row of rows) {
+      for (const row of nativeRows) {
         const statusId = getSessionStatus(row.item)
         const key = `status-${statusId}`
         if (!groupsByKey.has(key)) groupsByKey.set(key, { rows: [], statusId })
@@ -343,7 +379,7 @@ export function SessionList({
       }
 
       // Insert collapsed placeholder groups
-      for (const meta of collapsedGroupsMeta) {
+      for (const meta of nativeCollapsedMeta) {
         if (!groupsByKey.has(meta.key)) {
           const statusId = meta.key.replace('status-', '')
           groupsByKey.set(meta.key, { rows: [], statusId })
@@ -355,7 +391,7 @@ export function SessionList({
         const state = sessionStatuses.find(s => s.id === statusId)
         if (!state) continue
         groupRows.sort((a, b) => (b.item.lastMessageAt || 0) - (a.item.lastMessageAt || 0))
-        const collapsedMeta = collapsedGroupsMeta.find(m => m.key === key)
+        const collapsedMeta = nativeCollapsedMeta.find(m => m.key === key)
         orderedGroups.push({
           key,
           label: t(`status.${state.id}`, state.label),
@@ -375,17 +411,17 @@ export function SessionList({
         orderedGroups[0].collapsible = false
       }
 
-      return {
+      return mergeImportedSessionGroup({
         rows: orderedGroups.flatMap(g => g.items),
         groups: orderedGroups,
-      }
+      }, importedGroup)
     }
 
     // Default: group by date
     const groupsByKey = new Map<string, EntityListGroup<SessionListRow>>()
     const groupDates = new Map<string, Date>()
 
-    for (const row of rows) {
+    for (const row of nativeRows) {
       const day = startOfDay(new Date(row.item.lastMessageAt || 0))
       const groupKey = day.toISOString()
 
@@ -402,7 +438,7 @@ export function SessionList({
     }
 
     // Insert collapsed placeholder groups (header-only, items: [])
-    for (const meta of collapsedGroupsMeta) {
+    for (const meta of nativeCollapsedMeta) {
       if (!groupsByKey.has(meta.key)) {
         const date = new Date(meta.key)
         groupsByKey.set(meta.key, {
@@ -428,27 +464,35 @@ export function SessionList({
       orderedGroups[0].collapsible = false
     }
 
-    return {
-      rows,
+    return mergeImportedSessionGroup({
+      rows: nativeRows,
       groups: orderedGroups,
-    }
-  }, [isSearchMode, matchingFilterItems, otherResultItems, flatItems, groupingMode, sessionStatuses, collapsedGroupsMeta, t])
+    }, importedGroup)
+  }, [isSearchMode, matchingFilterItems, otherResultItems, flatItems, groupingMode, sessionStatuses, collapsedGroupsMeta, t, i18n.resolvedLanguage])
 
   const flatRows = rowData.rows
 
   const collapseAllGroups = useCallback(() => {
-    if (groupingMode === 'status') {
-      const allKeys = new Set(items.map(item => `status-${getSessionStatus(item)}`))
-      setCollapsedGroups(allKeys)
-    } else if (groupingMode === 'unread') {
-      const allKeys = new Set(items.map(item => item.hasUnread ? 'unread-yes' : 'unread-no'))
-      setCollapsedGroups(allKeys)
-    } else {
-      const allKeys = new Set(items.map(item =>
-        startOfDay(new Date(item.lastMessageAt || 0)).toISOString()
-      ))
-      setCollapsedGroups(allKeys)
+    const allKeys = new Set<string>()
+    if (items.some(isImportedSessionMeta)) {
+      allKeys.add('imported')
     }
+    if (groupingMode === 'status') {
+      for (const item of items) {
+        if (!isImportedSessionMeta(item)) allKeys.add(`status-${getSessionStatus(item)}`)
+      }
+    } else if (groupingMode === 'unread') {
+      for (const item of items) {
+        if (!isImportedSessionMeta(item)) allKeys.add(item.hasUnread ? 'unread-yes' : 'unread-no')
+      }
+    } else {
+      for (const item of items) {
+        if (!isImportedSessionMeta(item)) {
+          allKeys.add(startOfDay(new Date(item.lastMessageAt || 0)).toISOString())
+        }
+      }
+    }
+    setCollapsedGroups(allKeys)
   }, [items, groupingMode])
   const expandAllGroups = useCallback(() => {
     setCollapsedGroups(new Set())

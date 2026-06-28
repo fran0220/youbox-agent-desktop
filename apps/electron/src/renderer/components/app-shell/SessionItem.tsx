@@ -13,6 +13,8 @@ import { CompactSessionMenu } from "./CompactSessionMenu"
 import { SessionStatusIcon } from "./SessionStatusIcon"
 import { SessionBadges } from "./SessionBadges"
 import { getSessionTitle, getSessionPreviewText, highlightMatch, hasUnreadMeta, shortTimeLocale } from "@/utils/session"
+import { isImportedSessionMeta } from "@/utils/imported-session"
+import { useTranslation } from "react-i18next"
 import { useSessionListContext } from "@/context/SessionListContext"
 import { useAppShellContext } from "@/context/AppShellContext"
 import { navigate, routes } from "@/lib/navigate"
@@ -54,7 +56,9 @@ export function SessionItem({
   onToggleSelect,
   onRangeSelect,
 }: SessionItemProps) {
+  const { t } = useTranslation()
   const ctx = useSessionListContext()
+  const isImported = isImportedSessionMeta(item)
   const { workspaces, isCompactMode } = useAppShellContext()
   const hasRemoteWorkspaces = workspaces?.some(w => w.remoteServer) ?? false
   const { hotkey: nextHotkey } = useActionLabel('chat.nextSearchMatch')
@@ -194,7 +198,15 @@ export function SessionItem({
       titleClassName={cn("text-[13px]", item.isAsyncOperationOngoing && "animate-shimmer-text")}
       subtitle={previewText}
       titleSuffix={
-        hasMessagingBinding ? (
+        isImported ? (
+          <EntityListBadge
+            variant="text"
+            colorClass="bg-muted/60 text-muted-foreground border border-border/60"
+            tooltip={t('session.importedReadOnlyBanner')}
+          >
+            {t('session.importedBadge')}
+          </EntityListBadge>
+        ) : hasMessagingBinding ? (
           <div className="flex items-center gap-1">
             {sessionBindings.map((binding) => {
               const pill = PLATFORM_PILL[binding.platform as 'telegram' | 'whatsapp']

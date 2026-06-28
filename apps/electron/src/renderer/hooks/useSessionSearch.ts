@@ -6,6 +6,7 @@ import { parseLabelEntry } from "@craft-agent/shared/labels"
 import { fuzzyScore } from "@craft-agent/shared/search"
 import { getSessionTitle, getSessionStatus } from "@/utils/session"
 import type { SessionMeta } from "@/atoms/sessions"
+import { isImportedSessionMeta } from "@/utils/imported-session"
 import type { ViewConfig } from "@craft-agent/shared/views"
 import type { SessionFilter } from "@/contexts/NavigationContext"
 
@@ -120,6 +121,7 @@ function groupSessionsByDate(sessions: SessionMeta[]): DateGroup[] {
 }
 
 function getCollapseGroupKey(item: SessionMeta, groupingMode?: 'date' | 'status' | 'unread'): string {
+  if (isImportedSessionMeta(item)) return 'imported'
   if (groupingMode === 'status') return `status-${getSessionStatus(item)}`
   if (groupingMode === 'unread') return item.hasUnread ? 'unread-yes' : 'unread-no'
   return startOfDay(new Date(item.lastMessageAt || 0)).toISOString()

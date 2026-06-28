@@ -75,6 +75,8 @@ export interface SessionMeta {
   isArchived?: boolean
   /** Timestamp when session was archived (for retention policy) */
   archivedAt?: number
+  /** Provenance when materialized from gateway chat_sessions */
+  importedFrom?: string
 }
 
 /**

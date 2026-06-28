@@ -218,6 +218,19 @@ export class GatewayClient {
     return { status: 200, checksum: etag, files: parsed.files };
   }
 
+  /** GET /api/desktop/classic-sessions — read-only legacy session summaries */
+  async listClassicSessions(): Promise<unknown> {
+    return this.requestJson('/api/desktop/classic-sessions', { method: 'GET', auth: true });
+  }
+
+  /** GET /api/sessions/{id} — full legacy session including messages jsonb */
+  async getClassicSession(sessionId: string): Promise<unknown> {
+    return this.requestJson(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'GET',
+      auth: true,
+    });
+  }
+
   /** GET /api/skills — skill summaries (builtin + user) */
   async listSkills(): Promise<unknown> {
     return this.requestJson('/api/skills', { method: 'GET', auth: true });

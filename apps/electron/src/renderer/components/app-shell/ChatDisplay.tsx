@@ -75,6 +75,7 @@ import { CHAT_LAYOUT } from "@/config/layout"
 import { collectFileChangesFromActivities, getFirstFileChangeIdForActivity } from "@/lib/file-changes"
 import { resolveBranchNewPanelOption } from "./branching"
 import { handleErrorMessageAction } from "./error-message-actions"
+import { isImportedSessionMeta } from "@/utils/imported-session"
 
 // ============================================================================
 // CSS Custom Highlight API helper
@@ -502,9 +503,10 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
   const appShellContext = useAppShellContext()
   const isFocusedPanel = appShellContext?.isFocusedPanel ?? true
 
+  const isImportedReadOnly = session ? isImportedSessionMeta(session) : false
   // Input is only disabled when explicitly disabled (e.g., agent needs activation)
   // User can type during streaming - submitting will stop the stream and send
-  const isInputDisabled = disabled
+  const isInputDisabled = disabled || isImportedReadOnly
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
   const scrollViewportRef = React.useRef<HTMLDivElement>(null)
   const prevSessionIdRef = React.useRef<string | null>(null)
@@ -1912,7 +1914,21 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
             </div>
           </div>
 
+          {isImportedReadOnly && (
+            <div
+              className={cn(
+                CHAT_LAYOUT.maxWidth,
+                'mx-auto w-full mb-2 rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-sm text-muted-foreground',
+                compactMode ? 'px-2' : 'px-3 @xs/panel:px-4',
+              )}
+              role="status"
+            >
+              {t('session.importedReadOnlyBanner')}
+            </div>
+          )}
+
           {/* === INPUT CONTAINER: FreeForm or Structured Input === */}
+          {!isImportedReadOnly && (
           <ChatInputZone
             compactMode={compactMode}
             permissionMode={permissionMode}
@@ -1970,6 +1986,7 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
               onFollowUpIndexClick: handleFollowUpIndexClick,
             }}
           />
+          )}
           </div>
         </div>
       ) : null}

@@ -21,7 +21,9 @@
     "./required-sources": "./src/required-sources.ts",
     "./checksum": "./src/checksum.ts",
     "./memory-sync": "./src/memory-sync.ts",
-    "./memory-tools": "./src/memory-tools.ts"
+    "./memory-tools": "./src/memory-tools.ts",
+    "./session-import": "./src/session-import.ts",
+    "./is-imported-session": "./src/is-imported-session.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "workspace:*",

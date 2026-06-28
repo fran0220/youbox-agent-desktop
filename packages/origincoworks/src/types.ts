@@ -146,6 +146,70 @@ export function assertGatewaySkillPullResponse(value: unknown): {
   return { checksum, files };
 }
 
+/** GET /api/desktop/classic-sessions summary row */
+export interface ClassicSessionSummary {
+  id: string;
+  title: string;
+  type: string;
+  model: string;
+  workspace_path: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Legacy message shape inside chat_sessions.messages jsonb */
+export interface ClassicSessionMessage {
+  id?: string;
+  role?: string;
+  content?: unknown;
+  name?: string;
+  tool_call_id?: string;
+  tool_input?: unknown;
+  created_at?: string;
+}
+
+/** GET /api/sessions/{id} full row (messages included) */
+export interface ClassicChatSession {
+  id: string;
+  user_id?: string;
+  title: string;
+  type: string;
+  model: string;
+  workspace_path: string;
+  messages: ClassicSessionMessage[];
+  created_at: string;
+  updated_at: string;
+}
+
+export function assertClassicSessionSummaries(value: unknown): asserts value is ClassicSessionSummary[] {
+  if (!Array.isArray(value)) {
+    throw new Error('classic sessions response must be an array');
+  }
+  for (const row of value) {
+    if (!row || typeof row !== 'object') {
+      throw new Error('classic session summary must be an object');
+    }
+    const o = row as Record<string, unknown>;
+    if (typeof o.id !== 'string' || !o.id) {
+      throw new Error('classic session summary missing id');
+    }
+  }
+}
+
+export function assertClassicSessionDetail(value: unknown): asserts value is ClassicChatSession {
+  if (!value || typeof value !== 'object') {
+    throw new Error('classic session detail must be an object');
+  }
+  const o = value as Record<string, unknown>;
+  if (typeof o.id !== 'string' || !o.id) {
+    throw new Error('classic session detail missing id');
+  }
+  if (!Array.isArray(o.messages)) {
+    throw new Error('classic session detail missing messages array');
+  }
+}
+
 export function assertDesktopConfigResponse(value: unknown): asserts value is DesktopConfigResponse {
   if (!value || typeof value !== 'object') {
     throw new Error('desktop config response must be an object');

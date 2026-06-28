@@ -67,6 +67,17 @@ export {
 } from './required-sources.ts';
 export type { RequiredSourcesResolution } from './required-sources.ts';
 export {
+  adaptLegacyMessage,
+  adaptLegacyMessages,
+  buildStoredSessionFromClassic,
+  materializeImportedSession,
+  syncClassicSessionsToWorkspace,
+  IMPORTED_SESSION_LABEL,
+  IMPORTED_SESSION_STATUS,
+} from './session-import.ts';
+export type { MaterializeImportedSessionResult, SyncClassicSessionsResult } from './session-import.ts';
+export { isImportedGatewaySession, IMPORTED_SESSION_READ_ONLY_ERROR } from './is-imported-session.ts';
+export {
   collectSkillFilesFromWorkspace,
   writeUserSkillToGateway,
   isGatewayEditableUserSkill,

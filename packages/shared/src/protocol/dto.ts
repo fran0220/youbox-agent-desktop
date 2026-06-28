@@ -101,6 +101,8 @@ export interface Session {
   isArchived?: boolean
   archivedAt?: number
   supportsBranching?: boolean
+  /** Provenance when materialized from gateway chat_sessions (read-only imported history) */
+  importedFrom?: string
 }
 
 export interface CreateSessionOptions {

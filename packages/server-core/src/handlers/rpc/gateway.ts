@@ -11,6 +11,7 @@ import type { HandlerDeps } from '../handler-deps';
 import { syncGatewayLlmConfigForSession } from './gateway-llm-sync.ts';
 import { syncGatewaySkillsForSession } from './gateway-skills-sync.ts';
 import { syncGatewayMemoryForSession } from './gateway-memory-sync.ts';
+import { syncGatewayClassicSessionsForSession } from './gateway-classic-sessions-sync.ts';
 
 export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.GET_SESSION,
@@ -19,6 +20,7 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.SYNC_LLM_CONFIG,
   RPC_CHANNELS.gateway.SYNC_SKILLS,
   RPC_CHANNELS.gateway.SYNC_MEMORY,
+  RPC_CHANNELS.gateway.SYNC_CLASSIC_SESSIONS,
 ] as const;
 
 export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): void {
@@ -67,6 +69,12 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
         if (!memorySync.success) {
           log.warn('[Gateway] Memory sync after login failed:', memorySync.error);
         }
+        const classicSync = await syncGatewayClassicSessionsForSession(deps);
+        if (!classicSync.success) {
+          log.warn('[Gateway] Classic sessions sync after login failed:', classicSync.error);
+        } else if (classicSync.materialized > 0) {
+          deps.sessionManager.reloadSessions();
+        }
       } else {
         log.info('[Gateway] Sign-in failed for user (no secrets logged)');
       }
@@ -84,5 +92,13 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
 
   server.handle(RPC_CHANNELS.gateway.SYNC_MEMORY, async () => {
     return syncGatewayMemoryForSession(deps);
+  });
+
+  server.handle(RPC_CHANNELS.gateway.SYNC_CLASSIC_SESSIONS, async () => {
+    const result = await syncGatewayClassicSessionsForSession(deps);
+    if (result.success && result.materialized > 0) {
+      deps.sessionManager.reloadSessions();
+    }
+    return result;
   });
 }

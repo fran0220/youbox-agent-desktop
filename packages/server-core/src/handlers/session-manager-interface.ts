@@ -42,6 +42,8 @@ export interface ISessionManager {
   // ---------------------------------------------------------------------------
 
   getSessions(workspaceId?: string): Session[]
+  /** Reload session metadata from disk (e.g. after classic-session import materializes new JSONL). */
+  reloadSessions(): void
   getSession(sessionId: string): Promise<Session | null>
   createSession(workspaceId: string, options?: CreateSessionOptions): Promise<Session>
   deleteSession(sessionId: string): Promise<void>
