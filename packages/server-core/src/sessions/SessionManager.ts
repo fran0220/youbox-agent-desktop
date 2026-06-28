@@ -1970,6 +1970,9 @@ export class SessionManager implements ISessionManager {
    * stays sync — no microtask race window between the load and the enqueue.
    */
   private persistSession(managed: ManagedSession): void {
+    if (managed.importedFrom) {
+      return
+    }
     if (!managed.messagesLoaded) {
       this.hydrateMessagesForColdPersist(managed)
     }
@@ -8019,8 +8022,6 @@ export class SessionManager implements ISessionManager {
     }
 
     await this.ensureMessagesLoaded(managed)
-    this.persistSession(managed)
-    await sessionPersistenceQueue.flush(importedSessionId)
 
     let summary = await this.generateRemoteTransferSummary(managed)
     if (!summary?.trim()) {

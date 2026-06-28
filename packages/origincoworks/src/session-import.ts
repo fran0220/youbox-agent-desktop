@@ -91,10 +91,64 @@ function mapLegacyRole(role: unknown): StoredMessage['type'] | null {
   const r = role.toLowerCase();
   if (r === 'user' || r === 'human') return 'user';
   if (r === 'assistant' || r === 'ai' || r === 'bot') return 'assistant';
-  if (r === 'tool' || r === 'function') return 'tool';
+  if (r === 'tool' || r === 'function' || r === 'tool_result') return 'tool';
   if (r === 'system') return 'info';
   if (r === 'error') return 'error';
   return null;
+}
+
+function formatLegacyAttachmentSummary(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const type = typeof o.type === 'string' ? o.type : 'attachment';
+  const name =
+    (typeof o.name === 'string' && o.name) ||
+    (typeof o.filename === 'string' && o.filename) ||
+    (typeof o.file_name === 'string' && o.file_name) ||
+    undefined;
+  const mime =
+    typeof o.mime_type === 'string'
+      ? o.mime_type
+      : typeof o.mimeType === 'string'
+        ? o.mimeType
+        : undefined;
+  const label = name ?? type;
+  return mime ? `[attachment: ${label} (${mime})]` : `[attachment: ${label}]`;
+}
+
+function extractAttachmentLines(legacy: ClassicSessionMessage): string[] {
+  const lines: string[] = [];
+  const raw = legacy as Record<string, unknown>;
+  for (const key of ['attachments', 'files'] as const) {
+    const arr = raw[key];
+    if (!Array.isArray(arr)) continue;
+    for (const item of arr) {
+      const line = formatLegacyAttachmentSummary(item);
+      if (line) lines.push(line);
+    }
+  }
+  return lines;
+}
+
+function appendToolCallPlaceholders(legacy: ClassicSessionMessage, base: string): string {
+  const toolCalls = (legacy as Record<string, unknown>).tool_calls;
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return base;
+  const parts = toolCalls
+    .map((tc) => {
+      if (!tc || typeof tc !== 'object') return null;
+      const fn = (tc as Record<string, unknown>).function;
+      if (fn && typeof fn === 'object') {
+        const name = (fn as Record<string, unknown>).name;
+        if (typeof name === 'string' && name.length > 0) return `[tool_call: ${name}]`;
+      }
+      const name = (tc as Record<string, unknown>).name;
+      if (typeof name === 'string' && name.length > 0) return `[tool_call: ${name}]`;
+      return '[tool_call]';
+    })
+    .filter((p): p is string => !!p);
+  if (parts.length === 0) return base;
+  const suffix = parts.join('\n');
+  return base.trim() ? `${base}\n${suffix}` : suffix;
 }
 
 /** Map one legacy chat_sessions message object to StoredMessage, or null if unusable. */
@@ -103,9 +157,19 @@ export function adaptLegacyMessage(
   index: number,
   legacy: ClassicSessionMessage,
 ): StoredMessage | null {
+  if (!legacy || typeof legacy !== 'object') return null;
   const role = mapLegacyRole(legacy.role);
   if (!role) return null;
-  const content = normalizeContent(legacy.content);
+
+  let content = normalizeContent(legacy.content);
+  const attachmentLines = extractAttachmentLines(legacy);
+  if (attachmentLines.length > 0) {
+    content = [content, ...attachmentLines].filter(Boolean).join('\n');
+  }
+  if (role === 'assistant') {
+    content = appendToolCallPlaceholders(legacy, content);
+  }
+
   if (!content && role !== 'tool') {
     return null;
   }
@@ -123,18 +187,30 @@ export function adaptLegacyMessage(
       msg.toolInput = legacy.tool_input as Record<string, unknown>;
     }
     msg.toolStatus = 'completed';
+    if (!content.trim()) {
+      const raw = legacy as Record<string, unknown>;
+      const result = raw.result ?? raw.output;
+      if (result != null) {
+        msg.content = normalizeContent(result) || '(empty tool result)';
+      }
+    }
   }
   return msg;
 }
 
 export function adaptLegacyMessages(
   sessionId: string,
-  messages: ClassicSessionMessage[],
+  messages: ClassicSessionMessage[] | null | undefined,
 ): StoredMessage[] {
+  if (!Array.isArray(messages)) return [];
   const out: StoredMessage[] = [];
   for (let i = 0; i < messages.length; i++) {
-    const adapted = adaptLegacyMessage(sessionId, i, messages[i]!);
-    if (adapted) out.push(adapted);
+    try {
+      const adapted = adaptLegacyMessage(sessionId, i, messages[i]!);
+      if (adapted) out.push(adapted);
+    } catch {
+      // Skip individual malformed elements without aborting the whole import.
+    }
   }
   return out;
 }
