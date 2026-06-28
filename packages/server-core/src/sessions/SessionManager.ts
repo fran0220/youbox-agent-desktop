@@ -8023,11 +8023,11 @@ export class SessionManager implements ISessionManager {
 
     await this.ensureMessagesLoaded(managed)
 
-    let summary = await this.generateRemoteTransferSummary(managed)
-    if (!summary?.trim()) {
-      const { buildImportedSessionFallbackSummary } = await import('@craft-agent/origincoworks')
-      summary = buildImportedSessionFallbackSummary(managed.messages)
-    }
+    const { resolveTransferredSessionSummary } = await import('@craft-agent/origincoworks')
+    const summary = await resolveTransferredSessionSummary(
+      managed.messages,
+      () => this.generateRemoteTransferSummary(managed),
+    )
     if (!summary?.trim()) {
       throw new Error('Could not summarize the imported session for continuation')
     }

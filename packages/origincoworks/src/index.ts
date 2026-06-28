@@ -82,6 +82,11 @@ export {
   buildImportedSessionFallbackSummary,
   canContinueFromImportedSession,
 } from './continue-from-imported.ts';
+export {
+  DEFAULT_REMOTE_TRANSFER_SUMMARY_TIMEOUT_MS,
+  resolveTransferredSessionSummary,
+} from './resolve-transferred-session-summary.ts';
+export type { LegacyTurnForSummary } from './resolve-transferred-session-summary.ts';
 export type { ContinueFromImportedSessionResult } from './continue-from-imported.ts';
 export {
   collectSkillFilesFromWorkspace,
