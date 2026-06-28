@@ -54,6 +54,8 @@ internal/
 | GET/POST/PUT/DELETE | `/api/sessions[/{id}]` | 桌面端会话 CRUD |
 | GET | `/api/agent/config` | 下发 LLM 配置、默认模型与 provider |
 | GET | `/api/desktop/config` | 下发桌面 LLM 配置（省略 exa/tavily/fal/mineru/jimeng/asset/ai_search/openai 等非 LLM 密钥） |
+| GET | `/api/desktop/policy` | 桌面端角色与能力策略 |
+| POST | `/api/desktop/audit` | 桌面端审计上报（写入 `audit_logs`，需认证，204） |
 | POST | `/api/memory/sync` | 记忆双向同步 |
 | GET | `/api/memory/stats` | 记忆统计 |
 | DELETE | `/api/memory` | 清空用户记忆 |

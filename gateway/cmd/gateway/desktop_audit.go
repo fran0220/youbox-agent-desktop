@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fran0220/jacoworks/gateway/internal/audit"
 	"github.com/fran0220/jacoworks/gateway/internal/auth"
 )
 
@@ -46,6 +47,8 @@ func desktopAuditHandler(al desktopAuditRecorder) http.HandlerFunc {
 		}
 
 		resourceID := strings.TrimSpace(body.ResourceID)
+		resourceID = audit.SanitizeResourceID(resourceID)
+		resourceID = audit.MaskAssignmentSecrets(resourceID)
 		if len(resourceID) > maxAuditResourceIDLen {
 			resourceID = resourceID[:maxAuditResourceIDLen]
 		}
