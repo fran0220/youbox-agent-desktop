@@ -1,7 +1,7 @@
 import {
   IMPORTED_SESSION_LABEL,
   IMPORTED_SESSION_STATUS,
-} from '@craft-agent/origincoworks/session-import'
+} from '@craft-agent/origincoworks/imported-session-constants'
 import type { SessionMeta } from '@/atoms/sessions'
 
 export type ImportedSessionMarker = Pick<

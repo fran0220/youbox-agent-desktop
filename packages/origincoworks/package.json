@@ -23,6 +23,7 @@
     "./memory-sync": "./src/memory-sync.ts",
     "./memory-tools": "./src/memory-tools.ts",
     "./session-import": "./src/session-import.ts",
+    "./imported-session-constants": "./src/imported-session-constants.ts",
     "./is-imported-session": "./src/is-imported-session.ts"
   },
   "dependencies": {

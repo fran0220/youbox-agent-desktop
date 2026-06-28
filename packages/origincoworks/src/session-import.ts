@@ -17,9 +17,12 @@ import {
   type ClassicSessionMessage,
   type ClassicSessionSummary,
 } from './types.ts';
+import {
+  IMPORTED_SESSION_LABEL,
+  IMPORTED_SESSION_STATUS,
+} from './imported-session-constants.ts';
 
-export const IMPORTED_SESSION_LABEL = 'imported';
-export const IMPORTED_SESSION_STATUS = 'imported';
+export { IMPORTED_SESSION_LABEL, IMPORTED_SESSION_STATUS };
 
 export type MaterializeImportedSessionResult =
   | { action: 'created'; sessionId: string }
