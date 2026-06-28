@@ -90,6 +90,7 @@ import { getSessionDataPath, getSessionPath, getSessionPlansPath } from '../sess
 // Error typing
 import { parseError, type AgentError } from './errors.ts';
 
+import { buildPostToolUseAuditEvent, buildPreToolUseAuditEvent } from './audit-helpers.ts';
 // Centralized PreToolUse pipeline
 import { runPreToolUseChecks, type PreToolUseCheckResult } from './core/pre-tool-use.ts';
 import { getRtkPath } from './core/rtk-detector.ts';
@@ -1133,6 +1134,14 @@ export class PiAgent extends BaseAgent {
             ? { error: typeof agentEvent.result === 'string' ? agentEvent.result : undefined }
             : { tool_response: typeof agentEvent.result === 'string' ? agentEvent.result : undefined }),
         });
+        const toolName = agentEvent.toolName ?? (event.toolName as string) ?? 'unknown';
+        this.auditEvent(
+          buildPostToolUseAuditEvent(
+            toolName,
+            agentEvent.input as Record<string, unknown> | undefined,
+            !!agentEvent.isError,
+          ),
+        );
       }
 
       this.eventQueue.enqueue(agentEvent);
@@ -1219,6 +1228,16 @@ export class PiAgent extends BaseAgent {
       workspaceTrusted: this.config.workspaceTrusted,
       onDebug: (msg) => this.debug(`PreToolUse(sessionId=${sessionId}): ${msg}`),
     });
+
+    const preAudit = buildPreToolUseAuditEvent({
+      toolName,
+      input,
+      permissionMode: this.permissionManager.getPermissionMode(),
+      checkResult,
+    });
+    if (preAudit) {
+      this.auditEvent(preAudit);
+    }
 
     switch (checkResult.type) {
       case 'allow':

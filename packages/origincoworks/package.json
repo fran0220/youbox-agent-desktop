@@ -14,7 +14,8 @@
     "./desktop-config": "./src/desktop-config.ts",
     "./model-config": "./src/model-config.ts",
     "./llm-config": "./src/llm-config.ts",
-    "./policy": "./src/policy.ts"
+    "./policy": "./src/policy.ts",
+    "./audit": "./src/audit.ts"
   },
   "dependencies": {
     "@craft-agent/shared": "workspace:*"

@@ -33,6 +33,8 @@ export {
   isHighRiskBashCommand,
   shouldPromptHighRiskInAllowAll,
 } from './policy.ts';
+export type { AuditEventPayload } from './audit.ts';
+export { postAuditEvent, sanitizeAuditResourceId } from './audit.ts';
 export {
   clearGatewaySession,
   getGatewaySessionState,

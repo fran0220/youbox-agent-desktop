@@ -15,6 +15,7 @@
     ".": "./src/index.ts",
     "./agent": "./src/agent/index.ts",
     "./agent/gateway-policy": "./src/agent/gateway-policy.ts",
+    "./agent/audit-helpers": "./src/agent/audit-helpers.ts",
     "./agent/modes": "./src/agent/mode-types.ts",
     "./agent/mode-types": "./src/agent/mode-types.ts",
     "./agent/thinking-levels": "./src/agent/thinking-levels.ts",

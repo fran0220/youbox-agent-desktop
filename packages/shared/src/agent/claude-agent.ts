@@ -63,6 +63,7 @@ import {
   createConfigWatcher,
   type ConfigWatcherCallbacks,
 } from '../config/watcher.ts';
+import { buildPostToolUseAuditEvent, buildPreToolUseAuditEvent } from './audit-helpers.ts';
 // Centralized PreToolUse pipeline
 import {
   runPreToolUseChecks,
@@ -1136,6 +1137,16 @@ export class ClaudeAgent extends BaseAgent {
                 onDebug: (msg) => this.onDebug?.(msg),
               });
 
+              const preAudit = buildPreToolUseAuditEvent({
+                toolName: input.tool_name,
+                input: toolInput,
+                permissionMode,
+                checkResult,
+              });
+              if (preAudit) {
+                this.auditEvent(preAudit);
+              }
+
               // Consume pending steer message (if any) — will be injected via additionalContext
               const steerMsg = this.pendingSteerMessage;
               if (steerMsg) {
@@ -1489,6 +1500,16 @@ This is a branched conversation. All prior messages in this conversation are par
 
           const events = await this.eventAdapter.adapt(message);
           for (const event of events) {
+            if (event.type === 'tool_result') {
+              const tr = event as Extract<AgentEvent, { type: 'tool_result' }>;
+              this.auditEvent(
+                buildPostToolUseAuditEvent(
+                  tr.toolName ?? 'unknown',
+                  tr.input as Record<string, unknown> | undefined,
+                  !!tr.isError,
+                ),
+              );
+            }
             // After source_test (or any session-scoped tool) successfully activates a
             // new source, activateSourceInSessionFn stashes a restart descriptor on the
             // agent. The drain controller captures the descriptor on the first

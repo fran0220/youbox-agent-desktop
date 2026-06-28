@@ -133,6 +133,35 @@ export class GatewayClient {
     return this.requestJson('/api/desktop/policy', { method: 'GET', auth: true });
   }
 
+  /** POST /api/desktop/audit — persist a client-originated audit row (204) */
+  async postDesktopAudit(body: {
+    action: string;
+    resource_type: string;
+    resource_id: string;
+  }): Promise<void> {
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    if (!this.token) {
+      throw new Error('gateway client has no bearer token; call login() first');
+    }
+    headers.set('Authorization', `Bearer ${this.token}`);
+    const res = await this.resolveFetch()(this.url('/api/desktop/audit'), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (res.status === 204) {
+      return;
+    }
+    const responseBody = await this.readJson(res);
+    if (!res.ok) {
+      const errMsg =
+        responseBody && typeof responseBody === 'object' && responseBody !== null && 'error' in responseBody
+          ? String((responseBody as { error: unknown }).error)
+          : `gateway request failed: ${res.status}`;
+      throw new GatewayHttpError(errMsg, res.status, responseBody);
+    }
+  }
+
   /** POST /api/auth/logout — invalidates server session (204) */
   async logout(): Promise<void> {
     if (!this.token) {

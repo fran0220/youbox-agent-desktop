@@ -29,6 +29,7 @@ import { getLlmConnections, getDefaultLlmConnection } from '../config/storage.ts
 import { loadAllSources } from '../sources/storage.ts';
 import type { ApiServerConfig } from '../mcp/mcp-pool.ts';
 
+import type { AgentAuditEvent } from './audit-helpers.ts';
 import type {
   AgentBackend,
   ChatOptions,
@@ -397,6 +398,24 @@ export abstract class BaseAgent implements AgentBackend {
       await this.automationSystem?.executeAgentEvent(event, input, signal);
     } catch (err) {
       this.debug(`Automation event ${event} failed: ${err}`);
+    }
+  }
+
+  /**
+   * Emit a gateway audit event (fire-and-forget). Never throws into the agent loop.
+   */
+  protected auditEvent(event: AgentAuditEvent): void {
+    const sink = this.config.auditSink;
+    if (!sink) return;
+    try {
+      const result = sink(event);
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        void (result as Promise<void>).catch((err) => {
+          this.debug(`Audit sink failed: ${err}`);
+        });
+      }
+    } catch (err) {
+      this.debug(`Audit sink failed: ${err}`);
     }
   }
 

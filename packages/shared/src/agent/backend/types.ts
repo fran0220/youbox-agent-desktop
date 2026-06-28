@@ -47,6 +47,7 @@ export interface BackendRuntimeUpdate {
 }
 import type { AutomationSystem } from '../../automations/index.ts';
 import type { GatewayPolicySnapshot } from '../gateway-policy.ts';
+import type { AgentAuditEvent } from '../audit-helpers.ts';
 
 /**
  * Provider identifier for AI backends.
@@ -292,6 +293,12 @@ export interface CoreBackendConfig {
 
   /** Workspace trust flag for gateway policy gate; defaults from policy when unset */
   workspaceTrusted?: boolean;
+
+  /** Gateway user id for audit attribution (POST /api/desktop/audit) */
+  gatewayUserId?: string;
+
+  /** Fire-and-forget audit sink; host wires adapter postAuditEvent */
+  auditSink?: (event: AgentAuditEvent) => void | Promise<void>;
 }
 
 // ============================================================
