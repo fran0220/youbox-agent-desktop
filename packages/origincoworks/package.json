@@ -15,7 +15,9 @@
     "./model-config": "./src/model-config.ts",
     "./llm-config": "./src/llm-config.ts",
     "./policy": "./src/policy.ts",
-    "./audit": "./src/audit.ts"
+    "./audit": "./src/audit.ts",
+    "./skills-sync": "./src/skills-sync.ts",
+    "./checksum": "./src/checksum.ts"
   },
   "dependencies": {
     "@craft-agent/shared": "workspace:*"

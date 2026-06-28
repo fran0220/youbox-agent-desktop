@@ -1,6 +1,10 @@
 import {
+  assertGatewaySkillPullResponse,
+  assertGatewaySkillsChecksumResponse,
   assertGatewayUser,
   assertLoginResponse,
+  type GatewaySkillFile,
+  type GatewaySkillsChecksumResponse,
   type GatewayUser,
   type LoginResponse,
 } from './types.ts';
@@ -160,6 +164,52 @@ export class GatewayClient {
           : `gateway request failed: ${res.status}`;
       throw new GatewayHttpError(errMsg, res.status, responseBody);
     }
+  }
+
+  /** GET /api/skills/checksum — aggregate checksums per owner bucket */
+  async getSkillsChecksum(): Promise<GatewaySkillsChecksumResponse> {
+    const body = await this.requestJson('/api/skills/checksum', { method: 'GET', auth: true });
+    assertGatewaySkillsChecksumResponse(body);
+    return body;
+  }
+
+  /**
+   * GET /api/skills/pull?owner=system|user
+   * Supports If-None-Match for system (and user) aggregate checksum.
+   */
+  async pullSkills(
+    owner: string,
+    ifNoneMatch?: string,
+  ): Promise<{ status: 200 | 304; checksum: string; files: GatewaySkillFile[] }> {
+    if (!this.token) {
+      throw new Error('gateway client has no bearer token; call login() first');
+    }
+    const params = new URLSearchParams();
+    params.set('owner', owner === 'system' ? 'system' : 'user');
+    const headers = new Headers();
+    headers.set('Authorization', `Bearer ${this.token}`);
+    if (ifNoneMatch) {
+      headers.set('If-None-Match', ifNoneMatch);
+    }
+    const res = await this.resolveFetch()(this.url(`/api/skills/pull?${params.toString()}`), {
+      method: 'GET',
+      headers,
+    });
+    if (res.status === 304) {
+      const etag = res.headers.get('ETag') ?? ifNoneMatch ?? '';
+      return { status: 304, checksum: etag, files: [] };
+    }
+    const body = await this.readJson(res);
+    if (!res.ok) {
+      const errMsg =
+        body && typeof body === 'object' && body !== null && 'error' in body
+          ? String((body as { error: unknown }).error)
+          : `gateway request failed: ${res.status}`;
+      throw new GatewayHttpError(errMsg, res.status, body);
+    }
+    const parsed = assertGatewaySkillPullResponse(body);
+    const etag = res.headers.get('ETag') ?? parsed.checksum;
+    return { status: 200, checksum: etag, files: parsed.files };
   }
 
   /** POST /api/auth/logout — invalidates server session (204) */

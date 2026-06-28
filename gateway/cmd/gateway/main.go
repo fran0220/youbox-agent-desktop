@@ -1097,19 +1097,33 @@ func skillsPullHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 
-		checksums, err := s.GetSkillChecksums(r.Context(), []string{"system"})
+		owner := "system"
+		switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("owner"))) {
+		case "", "system", "builtin":
+			owner = "system"
+		case "user":
+			owner = user.ID
+		default:
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner must be system or user"})
+			return
+		}
+
+		checksums, err := s.GetSkillChecksums(r.Context(), []string{owner})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get checksums"})
 			return
 		}
-		etag := checksums["system"]
+		etag := checksums[owner]
 
 		if etag != "" && r.Header.Get("If-None-Match") == etag {
+			if etag != "" {
+				w.Header().Set("ETag", etag)
+			}
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
 
-		files, err := s.GetSkillFiles(r.Context(), "system")
+		files, err := s.GetSkillFiles(r.Context(), owner)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load skills"})
 			return

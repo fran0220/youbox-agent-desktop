@@ -97,6 +97,7 @@ const EXPECTED_CHANNELS: string[] = [
   'gateway:login',
   'gateway:logout',
   'gateway:syncLlmConfig',
+  'gateway:syncSkills',
   'git:getBranch',
   'gitbash:browse',
   'gitbash:check',

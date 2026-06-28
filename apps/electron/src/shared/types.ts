@@ -399,6 +399,10 @@ export interface ElectronAPI {
     | { success: true; slug: string; primaryModel: string }
     | { success: false; error: string }
   >
+  gatewaySyncSkills(): Promise<
+    | { success: true; filesWritten: number; ownersPulled: string[] }
+    | { success: false; error: string }
+  >
 
   // Onboarding
   getAuthState(): Promise<AuthState>

@@ -51,3 +51,13 @@ export type {
   GatewaySessionState,
   GatewaySessionUnauthenticatedReason,
 } from './auth.ts';
+export type { GatewaySkillFile, GatewaySkillsChecksumResponse } from './types.ts';
+export {
+  syncGatewaySkillsToWorkspaces,
+  applySkillFilesToWorkspace,
+  readSkillsSyncState,
+  writeSkillsSyncState,
+  syncSkillsForOwner,
+} from './skills-sync.ts';
+export type { SkillsSyncResult, SkillsSyncState, PullOwnerSkillsFn } from './skills-sync.ts';
+export { contentChecksum } from './checksum.ts';

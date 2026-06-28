@@ -9,12 +9,14 @@ import {
 } from '@craft-agent/origincoworks/auth';
 import type { HandlerDeps } from '../handler-deps';
 import { syncGatewayLlmConfigForSession } from './gateway-llm-sync.ts';
+import { syncGatewaySkillsForSession } from './gateway-skills-sync.ts';
 
 export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.GET_SESSION,
   RPC_CHANNELS.gateway.LOGIN,
   RPC_CHANNELS.gateway.LOGOUT,
   RPC_CHANNELS.gateway.SYNC_LLM_CONFIG,
+  RPC_CHANNELS.gateway.SYNC_SKILLS,
 ] as const;
 
 export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): void {
@@ -55,6 +57,10 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
           await clearGatewaySession();
           return { success: false as const, error: llmSync.error };
         }
+        const skillsSync = await syncGatewaySkillsForSession(server, deps);
+        if (!skillsSync.success) {
+          log.warn('[Gateway] Skills sync after login failed:', skillsSync.error);
+        }
       } else {
         log.info('[Gateway] Sign-in failed for user (no secrets logged)');
       }
@@ -64,5 +70,9 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
 
   server.handle(RPC_CHANNELS.gateway.SYNC_LLM_CONFIG, async () => {
     return syncGatewayLlmConfigForSession(server, deps);
+  });
+
+  server.handle(RPC_CHANNELS.gateway.SYNC_SKILLS, async () => {
+    return syncGatewaySkillsForSession(server, deps);
   });
 }

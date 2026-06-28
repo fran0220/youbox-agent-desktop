@@ -621,6 +621,10 @@ export default function App() {
         setAppState('reauth')
         return
       }
+      const skillsSync = await window.electronAPI.gatewaySyncSkills()
+      if (!skillsSync.success) {
+        console.warn('[App] Gateway skills sync failed:', skillsSync.error)
+      }
       await refreshLlmConnections()
       const wsId = await window.electronAPI.getWindowWorkspace()
       setWindowWorkspaceId(wsId)
