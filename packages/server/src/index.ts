@@ -35,6 +35,7 @@ import {
   createWebuiHandler,
   nodeHttpAdapter,
   createGatewaySessionCookieValidator,
+  createCompoundHandshakeTokenValidator,
   bootstrapGatewaySessionIfConfigured,
 } from '@craft-agent/server-core/webui'
 import type { WebuiHandler } from '@craft-agent/server-core/webui'
@@ -175,6 +176,9 @@ const instance = await (async () => {
       bundledAssetsRoot,
       serverVersion: process.env.CRAFT_VERSION ?? packageVersion,
       tls,
+      validateToken: serverToken
+        ? createCompoundHandshakeTokenValidator(serverToken)
+        : undefined,
       // When web UI is enabled, accept JWT session cookies on WebSocket upgrade
       validateSessionCookie: webuiEnabled && serverToken
         ? createGatewaySessionCookieValidator(webuiJwtSecret ?? serverToken)

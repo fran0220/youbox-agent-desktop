@@ -2,6 +2,11 @@ export { startWebuiHttpServer, createWebuiHandler, type WebuiHttpServerOptions, 
 export { nodeHttpAdapter } from './node-adapter'
 export { validateSession, extractSessionCookie } from './auth'
 export { createGatewaySessionCookieValidator } from './session-cookie-validator'
+export {
+  createCompoundHandshakeTokenValidator,
+  createGatewayHandshakeTokenValidator,
+  isGatewaySessionTokenShape,
+} from './gateway-handshake-validator'
 export { assertSameOriginForStateChangingRequest } from './security'
 export { createFrontControllerHandler, type FrontControllerOptions } from './front-controller'
 export { UserBackendPool, type UserBackendPoolOptions, allocateBackendPort, buildUserConfigDir } from './user-backend-pool'

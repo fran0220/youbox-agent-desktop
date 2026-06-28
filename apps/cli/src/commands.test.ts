@@ -89,6 +89,20 @@ describe('parseArgs', () => {
     }
   })
 
+  it('parses login command and gateway flags', () => {
+    const args = parseArgs([
+      'bun', 'index.ts',
+      '--gateway-url', 'http://127.0.0.1:8847',
+      '--gateway-user', 'octest',
+      '--gateway-password', 'secret',
+      'login',
+    ])
+    expect(args.command).toBe('login')
+    expect(args.gatewayUrl).toBe('http://127.0.0.1:8847')
+    expect(args.gatewayUser).toBe('octest')
+    expect(args.gatewayPassword).toBe('secret')
+  })
+
   it('parses --help as command', () => {
     const args = parseArgs(['bun', 'index.ts', '--help'])
     expect(args.command).toBe('help')

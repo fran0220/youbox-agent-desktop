@@ -1,14 +1,20 @@
 #!/usr/bin/env bun
 /**
- * craft-cli — Terminal client for Craft Agent server.
+ * OriginCoworks CLI (ocn) — terminal client for the headless Agent server.
  *
- * Connects over WebSocket (ws:// or wss://) to a running Craft Agent server
- * and provides commands for listing resources, managing sessions, sending
- * messages with real-time streaming, and validating server health.
+ * Connects over WebSocket (ws:// or wss://) with gateway session token or server token.
  */
 
 import { resolve } from 'path'
 import { CliRpcClient } from './client.ts'
+import { CLI_DESCRIPTION, CLI_PROGRAM_NAME, CLI_VALIDATE_TMP_PREFIX } from './branding.ts'
+import {
+  loginAndPersistCliConfig,
+  persistValidatedGatewayToken,
+  readCliAuthConfig,
+  validateCliStoredToken,
+} from './auth-config.ts'
+import { resolveGatewayBaseUrl } from '@craft-agent/origincoworks/auth'
 
 // ---------------------------------------------------------------------------
 // Arg parsing
@@ -17,6 +23,9 @@ import { CliRpcClient } from './client.ts'
 export interface CliArgs {
   url: string
   token: string
+  gatewayUrl: string
+  gatewayUser: string
+  gatewayPassword: string
   workspace?: string
   timeout: number
   json: boolean
@@ -44,6 +53,9 @@ export function parseArgs(argv: string[]): CliArgs {
   const args = argv.slice(2) // skip bun + script path
   let url = ''
   let token = ''
+  let gatewayUrl = ''
+  let gatewayUser = ''
+  let gatewayPassword = ''
   let workspace: string | undefined
   let timeout = 10_000
   let json = false
@@ -72,6 +84,15 @@ export function parseArgs(argv: string[]): CliArgs {
         break
       case '--token':
         token = args[++i] ?? ''
+        break
+      case '--gateway-url':
+        gatewayUrl = args[++i] ?? ''
+        break
+      case '--gateway-user':
+        gatewayUser = args[++i] ?? ''
+        break
+      case '--gateway-password':
+        gatewayPassword = args[++i] ?? ''
         break
       case '--workspace':
         workspace = args[++i]
@@ -153,8 +174,34 @@ export function parseArgs(argv: string[]): CliArgs {
   if (!model) model = process.env.LLM_MODEL ?? ''
   if (!apiKey) apiKey = process.env.LLM_API_KEY ?? ''
   if (!baseUrl) baseUrl = process.env.LLM_BASE_URL ?? ''
+  if (!gatewayUrl) gatewayUrl = process.env.ORIGINCOWORKS_GATEWAY_URL ?? ''
 
-  return { url, token, workspace, timeout, json, tlsCa, sendTimeout, command, rest, sources, mode, outputFormat, noCleanup, noSpinner, verbose, serverEntry, workspaceDir, provider, model, apiKey, baseUrl }
+  return {
+    url,
+    token,
+    gatewayUrl,
+    gatewayUser,
+    gatewayPassword,
+    workspace,
+    timeout,
+    json,
+    tlsCa,
+    sendTimeout,
+    command,
+    rest,
+    sources,
+    mode,
+    outputFormat,
+    noCleanup,
+    noSpinner,
+    verbose,
+    serverEntry,
+    workspaceDir,
+    provider,
+    model,
+    apiKey,
+    baseUrl,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1051,7 +1098,7 @@ export function getValidateSteps(): ValidateStep[] {
         // Auto-bootstrap a temp workspace for CI environments
         const { mkdtemp } = await import('fs/promises')
         const { tmpdir } = await import('os')
-        const tmpDir = await mkdtemp(`${tmpdir()}/craft-validate-`)
+        const tmpDir = await mkdtemp(`${tmpdir()}/${CLI_VALIDATE_TMP_PREFIX}`)
         const ws = (await client.invoke('workspaces:create', tmpDir, 'validate-workspace')) as { id: string }
         ctx.workspaceId = ws.id
         ctx.workspaceRootPath = tmpDir
@@ -1887,17 +1934,97 @@ export async function runValidation(
 }
 
 // ---------------------------------------------------------------------------
+// Gateway login & remote connection
+// ---------------------------------------------------------------------------
+
+export async function resolveRemoteConnection(
+  args: CliArgs,
+): Promise<{ url: string; token: string } | null> {
+  const stored = await readCliAuthConfig()
+  const url = args.url || stored?.serverUrl || process.env.CRAFT_SERVER_URL || ''
+  const token = args.token || stored?.token || process.env.CRAFT_SERVER_TOKEN || ''
+  if (!url.trim() || !token.trim()) {
+    return null
+  }
+  return { url: url.trim(), token: token.trim() }
+}
+
+async function cmdLogin(args: CliArgs): Promise<void> {
+  let loginToken = args.token.trim()
+  const rest = [...args.rest]
+  for (let i = 0; i < rest.length; i++) {
+    if (rest[i] === '--token') {
+      loginToken = rest[++i] ?? loginToken
+    }
+  }
+
+  const gatewayUrl = args.gatewayUrl.trim() || resolveGatewayBaseUrl()
+  const serverUrl = args.url.trim() || undefined
+
+  if (loginToken) {
+    const result = await persistValidatedGatewayToken({
+      token: loginToken,
+      gatewayUrl,
+      serverUrl,
+    })
+    if (!result.success) {
+      err(result.error)
+      process.exit(1)
+    }
+    out(
+      args.json
+        ? { ok: true, user: result.user, gatewayUrl }
+        : `OriginCoworks: signed in as ${result.user.name} (gateway session saved)`,
+      args.json,
+    )
+    return
+  }
+
+  const username = args.gatewayUser || rest.filter((a) => a !== '--token' && !a.startsWith('-'))[0] || ''
+  const password = args.gatewayPassword
+  if (!username || !password) {
+    err('Usage: login <username> (password via --gateway-password or prompt)')
+    err('   or: login --token <64-hex-gateway-token>')
+    process.exit(1)
+  }
+
+  const result = await loginAndPersistCliConfig({
+    username,
+    password,
+    gatewayUrl,
+    serverUrl,
+  })
+  if (!result.success) {
+    err(result.error)
+    process.exit(1)
+  }
+  out(
+    args.json
+      ? { ok: true, user: result.user, gatewayUrl }
+      : `OriginCoworks: signed in as ${result.user.name} (gateway session saved)`,
+    args.json,
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------------------
 
 function printHelp(): void {
-  process.stdout.write(`craft-cli — Terminal client for Craft Agent server
+  process.stdout.write(`${CLI_PROGRAM_NAME} — ${CLI_DESCRIPTION}
 
-Usage: craft-cli [options] <command> [args...]
+Usage: ${CLI_PROGRAM_NAME} [options] <command> [args...]
 
-Connection:
-  --url <ws[s]://...>    Server URL (default: $CRAFT_SERVER_URL)
-  --token <secret>       Auth token (default: $CRAFT_SERVER_TOKEN)
+Gateway login (persists token to ~/.origincoworks-next/cli.json):
+  login <username>       Sign in via gateway (password: --gateway-password)
+  login --token <hex>    Validate and store an existing gateway session token
+  --gateway-url <url>    Gateway base URL (default: $ORIGINCOWORKS_GATEWAY_URL or http://127.0.0.1:8847)
+  --gateway-user <name>  Username for login
+  --gateway-password <p> Password for login
+
+Connection (remote commands; uses saved cli.json when flags omitted):
+  --url <ws[s]://...>    Headless server WebSocket URL ($CRAFT_SERVER_URL)
+  --token <secret>       Gateway session token or server token ($CRAFT_SERVER_TOKEN)
   --workspace <id>       Workspace ID (auto-detected if omitted)
   --timeout <ms>         Request timeout (default: 10000)
   --tls-ca <path>        Custom CA cert for self-signed TLS
@@ -1905,19 +2032,13 @@ Connection:
 
 LLM Configuration (for 'run' command):
   --provider <name>      LLM provider (default: anthropic, or $LLM_PROVIDER)
-                         Supported: anthropic, openai, google, openrouter, groq, mistral, deepseek, xai, ...
   --model <id>           Model to use (or $LLM_MODEL)
-  --api-key <key>        API key (or $LLM_API_KEY, or provider-specific e.g. $OPENAI_API_KEY)
+  --api-key <key>        API key (or $LLM_API_KEY)
   --base-url <url>       Custom API endpoint (or $LLM_BASE_URL)
 
 Commands:
+  login                  Authenticate with the gateway and save session token
   run <message>          Spawn server, send message, stream response, exit
-                         --workspace-dir <path>  Use directory as workspace (creates if needed)
-                         --source <slug>     Enable source (repeatable)
-                         --mode <mode>       Permission mode (default: allow-all)
-                         --output-format     text or stream-json (default: text)
-                         --no-cleanup        Keep session after completion
-                         --server-entry      Path to server/index.ts
   ping                   Verify connectivity (clientId + latency)
   health                 Check credential store health
   versions               Show server runtime versions
@@ -1933,24 +2054,13 @@ Commands:
   invoke <channel> [...] Raw RPC call with JSON args
   listen <channel>       Subscribe to push events (Ctrl+C to stop)
   --validate-server      Multi-step server integration test
-                         --verbose, -v       Show server stderr output
 
 Examples:
-  craft-cli run "What files are in the current directory?"
-  craft-cli run --source craft-kb "Summarize today's daily note"
-  craft-cli run --workspace-dir .github/agents --source craft-public "Read the doc"
-  craft-cli run --provider openai --model gpt-4o "Summarize this repo"
-  OPENAI_API_KEY=sk-... craft-cli run --provider openai "Hello"
-  GOOGLE_API_KEY=... craft-cli run --provider google --model gemini-2.0-flash "Hello"
-  DEEPSEEK_API_KEY=sk-... craft-cli run --provider deepseek --model deepseek-v4-flash "Hello"
-  echo "Analyze this code" | craft-cli run
-  craft-cli ping
-  craft-cli sessions
-  craft-cli send abc-123 "What files are in the current directory?"
-  echo "Summarize this" | craft-cli send abc-123
-  craft-cli --validate-server
-  craft-cli invoke system:homeDir
-  craft-cli --json workspaces | jq '.[].name'
+  ${CLI_PROGRAM_NAME} login octest --gateway-password '***'
+  ${CLI_PROGRAM_NAME} login --token <64-hex> --url ws://127.0.0.1:9101
+  ${CLI_PROGRAM_NAME} --url ws://127.0.0.1:9101 ping
+  ${CLI_PROGRAM_NAME} sessions
+  ${CLI_PROGRAM_NAME} send <session-id> "Hello"
 `)
 }
 
@@ -1983,20 +2093,34 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     return
   }
 
+  if (args.command === 'login') {
+    await cmdLogin(args)
+    return
+  }
+
   // validate can spawn its own server or use --url
   if (args.command === 'validate') {
     await cmdValidate(args)
     return
   }
 
-  // All other commands need a server URL
-  if (!args.url) {
-    err('No server URL. Use --url <ws://...> or set $CRAFT_SERVER_URL')
+  const remote = await resolveRemoteConnection(args)
+  if (!remote) {
+    err('Not authenticated. Run `login` or pass --url and --token (or set $CRAFT_SERVER_URL / $CRAFT_SERVER_TOKEN).')
     process.exit(1)
   }
 
-  const client = new CliRpcClient(args.url, {
-    token: args.token || undefined,
+  const stored = await readCliAuthConfig()
+  if (stored && remote.token === stored.token) {
+    const check = await validateCliStoredToken(stored)
+    if (!check.ok) {
+      err('Gateway session expired or invalid. Run `login` again.')
+      process.exit(1)
+    }
+  }
+
+  const client = new CliRpcClient(remote.url, {
+    token: remote.token,
     workspaceId: args.workspace,
     requestTimeout: args.timeout,
     connectTimeout: args.timeout,
