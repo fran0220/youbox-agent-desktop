@@ -95,6 +95,26 @@ describe('memory-sync', () => {
     expect(readFileSync(statePath, 'utf8')).toContain('lastManifestChecksum');
   });
 
+  it('syncGatewayMemoryToWorkspace accepts gateway null pull/push_accepted', async () => {
+    workspaceRoot = mkdtempSync(join(tmpdir(), 'ocn-mem-'));
+
+    GatewayClient.setFetchForTests(async () => {
+      return new Response(
+        JSON.stringify({
+          pull: null,
+          push_accepted: null,
+          server_time: new Date().toISOString(),
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+
+    const client = new GatewayClient('http://127.0.0.1:8847', 'c'.repeat(64));
+    const result = await syncGatewayMemoryToWorkspace({ client, workspaceRoot });
+    expect(result.pulled).toBe(0);
+    expect(result.pushed).toBe(0);
+  });
+
   it('readMemoryFromCache serves offline reads after pull is cached', () => {
     workspaceRoot = mkdtempSync(join(tmpdir(), 'ocn-mem-'));
     applyMemoryPullToCache(workspaceRoot, [

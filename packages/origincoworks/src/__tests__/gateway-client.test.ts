@@ -134,6 +134,40 @@ describe('GatewayClient (mocked fetch)', () => {
     const user = await client.me();
     expect(user.name).toBe('octest');
   });
+
+  it('memorySync normalizes null pull and push_accepted from gateway', async () => {
+    GatewayClient.setFetchForTests(async (input, init) => {
+      const url = String(input);
+      expect(url).toContain('/api/memory/sync');
+      expect(init?.method).toBe('POST');
+      return new Response(
+        JSON.stringify({
+          pull: null,
+          push_accepted: null,
+          server_time: '2026-06-28T00:00:00Z',
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    const client = new GatewayClient('http://gateway.test', 't'.repeat(64));
+    const res = await client.memorySync({ manifest: [], push: [] });
+    expect(res.pull).toEqual([]);
+    expect(res.push_accepted).toEqual([]);
+    expect(res.server_time).toBe('2026-06-28T00:00:00Z');
+  });
+
+  it('deleteMemoryFile sends DELETE with path query', async () => {
+    let seen = '';
+    GatewayClient.setFetchForTests(async (input, init) => {
+      seen = String(input);
+      expect(init?.method).toBe('DELETE');
+      return new Response(null, { status: 204 });
+    });
+    const client = new GatewayClient('http://gateway.test', 't'.repeat(64));
+    await client.deleteMemoryFile('MEMORY.md');
+    expect(seen).toContain('/api/memory/file');
+    expect(seen).toContain('path=MEMORY.md');
+  });
 });
 
 describe('GatewayClient live gateway', () => {

@@ -39,15 +39,21 @@ export type MemoryStatsResponse = {
   total_bytes: number;
 };
 
+function normalizeMemorySyncArrayField(value: unknown, field: string): unknown[] {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new Error(`memory sync response ${field} must be an array`);
+  }
+  return value;
+}
+
 export function assertMemorySyncResponse(value: unknown): asserts value is MemorySyncResponse {
   if (!value || typeof value !== 'object') {
     throw new Error('memory sync response must be an object');
   }
   const o = value as Record<string, unknown>;
-  if (!Array.isArray(o.pull)) {
-    throw new Error('memory sync response missing pull array');
-  }
-  if (!Array.isArray(o.push_accepted)) {
-    throw new Error('memory sync response missing push_accepted');
-  }
+  o.pull = normalizeMemorySyncArrayField(o.pull, 'pull');
+  o.push_accepted = normalizeMemorySyncArrayField(o.push_accepted, 'push_accepted');
 }

@@ -156,16 +156,41 @@ export function createMemoryMcpServer(deps: MemoryToolDeps): ReturnType<typeof c
           return { content: [{ type: 'text' as const, text: 'Delete cancelled.' }] };
         }
       }
-      deleteMemoryFromCache(deps.workspaceRoot, path);
+      const hadLocal = deleteMemoryFromCache(deps.workspaceRoot, path);
       const client = await deps.getClient();
       if (client) {
         try {
           await client.deleteMemoryFile(path);
-        } catch {
-          // local delete still applied
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            content: [
+              {
+                type: 'text' as const,
+                text: hadLocal
+                  ? `Local cache removed but gateway delete failed: ${msg}`
+                  : `Gateway delete failed: ${msg}`,
+              },
+            ],
+            isError: true,
+          };
         }
+        return { content: [{ type: 'text' as const, text: `Deleted memory file: ${path} (gateway and local cache).` }] };
       }
-      return { content: [{ type: 'text' as const, text: `Deleted memory file: ${path} (local cache).` }] };
+      if (!hadLocal) {
+        return {
+          content: [{ type: 'text' as const, text: `No memory file at path: ${path}` }],
+          isError: true,
+        };
+      }
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Deleted memory file: ${path} (local cache only; gateway offline).`,
+          },
+        ],
+      };
     },
   );
 

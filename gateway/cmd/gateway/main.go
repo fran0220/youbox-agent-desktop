@@ -943,7 +943,7 @@ func memorySyncHandler(s *store.Store) http.HandlerFunc {
 		}
 
 		var pullPaths []string
-		var pushAccepted []string
+		pushAccepted := make([]string, 0)
 
 		for _, sf := range serverFiles {
 			clientCk, clientHas := clientChecksums[sf.FilePath]
@@ -992,7 +992,7 @@ func memorySyncHandler(s *store.Store) http.HandlerFunc {
 			pushAccepted = append(pushAccepted, p.Path)
 		}
 
-		var pullFiles []pullEntry
+		pullFiles := make([]pullEntry, 0)
 		if len(pullPaths) > 0 {
 			fetched, err := s.GetMemoryFilesByPaths(r.Context(), user.ID, pullPaths)
 			if err != nil {
@@ -1008,6 +1008,10 @@ func memorySyncHandler(s *store.Store) http.HandlerFunc {
 					Checksum: f.Checksum,
 				})
 			}
+		}
+
+		if pushAccepted == nil {
+			pushAccepted = []string{}
 		}
 
 		writeJSON(w, http.StatusOK, syncResponse{
