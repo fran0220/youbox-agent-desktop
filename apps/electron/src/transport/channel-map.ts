@@ -35,6 +35,7 @@ export const CHANNEL_MAP = {
   importSession: invoke(RPC_CHANNELS.sessions.IMPORT),
   exportRemoteSessionTransfer: invoke(RPC_CHANNELS.sessions.EXPORT_REMOTE_TRANSFER),
   importRemoteSessionTransfer: invoke(RPC_CHANNELS.sessions.IMPORT_REMOTE_TRANSFER),
+  continueFromImportedSession: invoke(RPC_CHANNELS.sessions.CONTINUE_FROM_IMPORTED),
   getPendingPlanExecution: invoke(RPC_CHANNELS.sessions.GET_PENDING_PLAN_EXECUTION),
   getSessionPermissionModeState: invoke(RPC_CHANNELS.sessions.GET_PERMISSION_MODE_STATE),
 

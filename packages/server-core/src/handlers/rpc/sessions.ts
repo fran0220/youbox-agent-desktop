@@ -127,6 +127,7 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.sessions.IMPORT,
   RPC_CHANNELS.sessions.EXPORT_REMOTE_TRANSFER,
   RPC_CHANNELS.sessions.IMPORT_REMOTE_TRANSFER,
+  RPC_CHANNELS.sessions.CONTINUE_FROM_IMPORTED,
 ] as const
 
 export function registerSessionsHandlers(server: RpcServer, deps: HandlerDeps): void {
@@ -572,5 +573,13 @@ export function registerSessionsHandlers(server: RpcServer, deps: HandlerDeps): 
     await sessionManager.waitForInit()
     if (!targetWorkspaceId || typeof targetWorkspaceId !== 'string') throw new Error('targetWorkspaceId is required')
     return sessionManager.importRemoteSessionTransfer(targetWorkspaceId, payload)
+  })
+
+  server.handle(RPC_CHANNELS.sessions.CONTINUE_FROM_IMPORTED, async (_ctx, importedSessionId: string) => {
+    await sessionManager.waitForInit()
+    if (!importedSessionId || typeof importedSessionId !== 'string') {
+      throw new Error('importedSessionId is required')
+    }
+    return sessionManager.continueFromImportedSession(importedSessionId)
   })
 }

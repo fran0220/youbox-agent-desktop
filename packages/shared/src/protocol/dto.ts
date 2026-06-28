@@ -152,6 +152,10 @@ export interface ImportRemoteSessionTransferResult {
   sessionId: string
 }
 
+export interface ContinueFromImportedSessionResult {
+  sessionId: string
+}
+
 export interface PermissionModeState {
   permissionMode: PermissionMode
   previousPermissionMode?: PermissionMode

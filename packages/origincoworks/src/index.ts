@@ -78,6 +78,12 @@ export {
 export type { MaterializeImportedSessionResult, SyncClassicSessionsResult } from './session-import.ts';
 export { isImportedGatewaySession, IMPORTED_SESSION_READ_ONLY_ERROR } from './is-imported-session.ts';
 export {
+  buildContinuedSessionName,
+  buildImportedSessionFallbackSummary,
+  canContinueFromImportedSession,
+} from './continue-from-imported.ts';
+export type { ContinueFromImportedSessionResult } from './continue-from-imported.ts';
+export {
   collectSkillFilesFromWorkspace,
   writeUserSkillToGateway,
   isGatewayEditableUserSkill,

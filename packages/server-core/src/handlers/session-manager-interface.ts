@@ -185,6 +185,14 @@ export interface ISessionManager {
     payload: import('@craft-agent/shared/protocol').RemoteSessionTransferPayload,
   ): Promise<import('@craft-agent/shared/protocol').ImportRemoteSessionTransferResult>
 
+  /**
+   * Create a new writable session from imported legacy history, seeded with a
+   * one-shot transferredSessionSummary for the first agent turn.
+   */
+  continueFromImportedSession(
+    importedSessionId: string,
+  ): Promise<import('@craft-agent/shared/protocol').ContinueFromImportedSessionResult>
+
   // ---------------------------------------------------------------------------
   // Utilities
   // ---------------------------------------------------------------------------

@@ -504,6 +504,20 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
   const isFocusedPanel = appShellContext?.isFocusedPanel ?? true
 
   const isImportedReadOnly = session ? isImportedSessionMeta(session) : false
+  const [continueFromImportedBusy, setContinueFromImportedBusy] = useState(false)
+  const handleContinueFromImported = useCallback(async () => {
+    if (!session || !isImportedReadOnly || continueFromImportedBusy) return
+    setContinueFromImportedBusy(true)
+    try {
+      const { sessionId: newSessionId } = await window.electronAPI.continueFromImportedSession(session.id)
+      navigate(routes.view.allSessions(newSessionId))
+    } catch (err) {
+      console.error('[ChatDisplay] continueFromImportedSession failed:', err)
+      toast.error(t('session.continueFromImportedFailed'))
+    } finally {
+      setContinueFromImportedBusy(false)
+    }
+  }, [session, isImportedReadOnly, continueFromImportedBusy, t])
   // Input is only disabled when explicitly disabled (e.g., agent needs activation)
   // User can type during streaming - submitting will stop the stream and send
   const isInputDisabled = disabled || isImportedReadOnly
@@ -1923,7 +1937,19 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
               )}
               role="status"
             >
-              {t('session.importedReadOnlyBanner')}
+              <p>{t('session.importedReadOnlyBanner')}</p>
+              <button
+                type="button"
+                disabled={continueFromImportedBusy}
+                onClick={() => void handleContinueFromImported()}
+                className={cn(
+                  'mt-2 inline-flex items-center gap-2 rounded-md border border-border/80 bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-minimal transition-colors',
+                  'hover:bg-muted/50 disabled:opacity-50 disabled:pointer-events-none',
+                )}
+              >
+                {continueFromImportedBusy && <Spinner className="text-[10px]" />}
+                {continueFromImportedBusy ? t('session.continuingFromImported') : t('session.continueFromImported')}
+              </button>
             </div>
           )}
 

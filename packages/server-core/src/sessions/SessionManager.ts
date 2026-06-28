@@ -7957,6 +7957,71 @@ export class SessionManager implements ISessionManager {
     return { sessionId: session.id }
   }
 
+  async continueFromImportedSession(
+    importedSessionId: string,
+  ): Promise<import('@craft-agent/shared/protocol').ContinueFromImportedSessionResult> {
+    const managed = this.sessions.get(importedSessionId)
+    if (!managed) {
+      throw new Error(`Session ${importedSessionId} not found`)
+    }
+
+    const {
+      isImportedGatewaySession,
+      buildContinuedSessionName,
+    } = await import('@craft-agent/origincoworks')
+
+    if (!isImportedGatewaySession(managed)) {
+      throw new Error('Only imported legacy sessions can be continued into a new writable session')
+    }
+
+    if (managed.isProcessing) {
+      throw new Error('Cannot continue while the imported session is processing')
+    }
+
+    await this.ensureMessagesLoaded(managed)
+    this.persistSession(managed)
+    await sessionPersistenceQueue.flush(importedSessionId)
+
+    let summary = await this.generateRemoteTransferSummary(managed)
+    if (!summary?.trim()) {
+      const { buildImportedSessionFallbackSummary } = await import('@craft-agent/origincoworks')
+      summary = buildImportedSessionFallbackSummary(managed.messages) ?? undefined
+    }
+    if (!summary?.trim()) {
+      throw new Error('Could not summarize the imported session for continuation')
+    }
+
+    const workspaceId = managed.workspace.id
+    const session = await this.createSession(workspaceId, {
+      name: buildContinuedSessionName(managed.name),
+      model: managed.model,
+      llmConnection: managed.llmConnection,
+      workingDirectory: managed.workingDirectory ?? 'user_default',
+      sessionStatus: 'todo',
+      labels: [],
+    })
+
+    const continued = this.sessions.get(session.id)
+    if (!continued) {
+      throw new Error(`Continued session ${session.id} was not created`)
+    }
+
+    continued.transferredSessionSummary = summary.trim()
+    continued.transferredSessionSummaryApplied = false
+    this.persistSession(continued)
+    await sessionPersistenceQueue.flush(session.id)
+
+    this.sendEvent({ type: 'session_created', sessionId: session.id }, workspaceId)
+
+    sessionLog.info('[continue-imported] Created writable session from imported history', {
+      importedSessionId,
+      continuedSessionId: session.id,
+      summaryChars: summary.trim().length,
+    })
+
+    return { sessionId: session.id }
+  }
+
   /**
    * Export a session as a portable SessionBundle.
    *

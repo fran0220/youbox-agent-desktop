@@ -221,6 +221,7 @@ const EXPECTED_CHANNELS: string[] = [
   'session:setModel',
   'sessions:cancel',
   'sessions:command',
+  'sessions:continueFromImported',
   'sessions:create',
   'sessions:delete',
   'sessions:export',
