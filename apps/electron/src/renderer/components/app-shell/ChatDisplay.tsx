@@ -70,7 +70,8 @@ import { useBackgroundTasks } from "@/hooks/useBackgroundTasks"
 import { useTurnCardExpansion } from "@/hooks/useTurnCardExpansion"
 import { useNavigation } from "@/contexts/NavigationContext"
 import { useAppShellContext } from "@/context/AppShellContext"
-import { navigate, routes } from "@/lib/navigate"
+import { routes } from "@/lib/navigate"
+import { ensureSessionRegisteredInRenderer } from "@/lib/ensure-session-registered"
 import { CHAT_LAYOUT } from "@/config/layout"
 import { collectFileChangesFromActivities, getFirstFileChangeIdForActivity } from "@/lib/file-changes"
 import { resolveBranchNewPanelOption } from "./branching"
@@ -505,19 +506,21 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
 
   const isImportedReadOnly = session ? isImportedSessionMeta(session) : false
   const [continueFromImportedBusy, setContinueFromImportedBusy] = useState(false)
+  const { navigate } = useNavigation()
   const handleContinueFromImported = useCallback(async () => {
     if (!session || !isImportedReadOnly || continueFromImportedBusy) return
     setContinueFromImportedBusy(true)
     try {
       const { sessionId: newSessionId } = await window.electronAPI.continueFromImportedSession(session.id)
-      navigate(routes.view.allSessions(newSessionId))
+      await ensureSessionRegisteredInRenderer(newSessionId)
+      await navigate(routes.view.allSessions(newSessionId))
     } catch (err) {
       console.error('[ChatDisplay] continueFromImportedSession failed:', err)
       toast.error(t('session.continueFromImportedFailed'))
     } finally {
       setContinueFromImportedBusy(false)
     }
-  }, [session, isImportedReadOnly, continueFromImportedBusy, t])
+  }, [session, isImportedReadOnly, continueFromImportedBusy, navigate, t])
   // Input is only disabled when explicitly disabled (e.g., agent needs activation)
   // User can type during streaming - submitting will stop the stream and send
   const isInputDisabled = disabled || isImportedReadOnly
@@ -561,8 +564,7 @@ export const ChatDisplay = React.forwardRef<ChatDisplayHandle, ChatDisplayProps>
   } | null>(null)
   const followUpOpenNonceRef = React.useRef(0)
 
-  // Navigation for session branching
-  const { navigate } = useNavigation()
+  // Navigation for session branching (navigate from useNavigation above for continue + branch)
 
   // Get isDark from useTheme hook for overlay theme
   // This accounts for scenic themes (like Haze) that force dark mode
