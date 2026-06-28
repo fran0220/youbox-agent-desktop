@@ -202,6 +202,10 @@ func main() {
 	mux.Handle("GET /api/desktop/policy", authMiddleware.Authenticate(desktopPolicyHandler(desktopTrustCfg)))
 	mux.Handle("POST /api/desktop/audit", authMiddleware.Authenticate(http.HandlerFunc(desktopAuditHandler(auditLogger))))
 	mux.Handle("GET /api/desktop/release/latest", authMiddleware.Authenticate(http.HandlerFunc(desktopReleaseLatestHandler(s))))
+	mux.Handle("GET /api/desktop/release/latest.yml", authMiddleware.Authenticate(http.HandlerFunc(desktopReleaseFeedHandler(s))))
+	mux.Handle("GET /api/desktop/release/latest-mac.yml", authMiddleware.Authenticate(http.HandlerFunc(desktopReleaseFeedHandler(s))))
+	mux.Handle("GET /api/desktop/release/latest-linux.yml", authMiddleware.Authenticate(http.HandlerFunc(desktopReleaseFeedHandler(s))))
+	mux.Handle("GET /api/desktop/release/latest-linux-arm64.yml", authMiddleware.Authenticate(http.HandlerFunc(desktopReleaseFeedHandler(s))))
 
 	// Authenticated: memory sync & management
 	mux.Handle("POST /api/memory/sync", authMiddleware.Authenticate(http.HandlerFunc(memorySyncHandler(s))))

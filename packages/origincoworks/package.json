@@ -26,7 +26,8 @@
     "./imported-session-constants": "./src/imported-session-constants.ts",
     "./is-imported-session": "./src/is-imported-session.ts",
     "./session-metadata-writeback": "./src/session-metadata-writeback.ts",
-    "./session-gateway-id": "./src/session-gateway-id.ts"
+    "./session-gateway-id": "./src/session-gateway-id.ts",
+    "./release": "./src/release.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "workspace:*",

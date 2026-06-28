@@ -3,7 +3,7 @@
  *
  * Handles checking for updates, downloading, and installing via the standard
  * electron-updater library when a publish feed is configured in electron-builder.
- * OriginCoworks Next ships with no craft.do product feed; checks are skipped until a feed URL is set.
+ * OriginCoworks Next uses the JAcoworks gateway generic feed at /api/desktop/release/ (not craft.do).
  *
  * Platform behavior:
  * - macOS: Downloads zip, extracts and swaps app bundle atomically
@@ -28,6 +28,11 @@ import {
 import { readJsonFileSync } from '@craft-agent/shared/utils/files'
 import { RPC_CHANNELS, type UpdateInfo } from '../shared/types'
 import type { EventSink } from '@craft-agent/server-core/transport'
+import {
+  getStoredGatewayToken,
+  resolveGatewayBaseUrl,
+} from '@craft-agent/origincoworks/auth'
+import { resolveGatewayUpdaterFeedBaseUrl } from '@craft-agent/origincoworks/release'
 
 // Platform detection
 const PLATFORM = platform()
@@ -326,8 +331,27 @@ function checkForExistingDownload(): { exists: boolean; version?: string } {
  *
  * @param options.autoDownload - If false, only checks without downloading (for manual "Check Now")
  */
-/** True when electron-builder embedded a generic publish URL in app-update.yml. */
+let gatewayFeedConfigured = false
+
+/** Configure electron-updater to use the gateway generic feed (requires gateway session token). */
+export async function configureGatewayUpdateFeed(): Promise<boolean> {
+  const token = await getStoredGatewayToken()
+  if (!token) {
+    gatewayFeedConfigured = false
+    autoUpdater.requestHeaders = null
+    return false
+  }
+  const feedUrl = resolveGatewayUpdaterFeedBaseUrl(resolveGatewayBaseUrl())
+  autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl })
+  autoUpdater.addAuthHeader(token)
+  gatewayFeedConfigured = true
+  mainLog.info(`[auto-update] Gateway update feed: ${feedUrl}`)
+  return true
+}
+
+/** True when the gateway feed is configured (session token + non-craft publish URL). */
 function hasConfiguredUpdateFeed(): boolean {
+  if (gatewayFeedConfigured) return true
   try {
     const ymlPath = path.join(path.dirname(app.getAppPath()), 'app-update.yml')
     if (!fs.existsSync(ymlPath)) return false
@@ -341,8 +365,10 @@ function hasConfiguredUpdateFeed(): boolean {
 export async function checkForUpdates(options: CheckOptions = {}): Promise<UpdateInfo> {
   const { autoDownload = true } = options
 
+  await configureGatewayUpdateFeed()
+
   if (!hasConfiguredUpdateFeed()) {
-    mainLog.info('[auto-update] No product update feed configured; skipping check')
+    mainLog.info('[auto-update] No gateway session or product update feed; skipping check')
     return getUpdateInfo()
   }
 
@@ -461,12 +487,14 @@ export interface UpdateOnLaunchResult {
  * - Auto-downloads if update available
  */
 export async function checkForUpdatesOnLaunch(): Promise<UpdateOnLaunchResult> {
+  await configureGatewayUpdateFeed()
+
   if (!hasConfiguredUpdateFeed()) {
-    autoUpdateLog.info('No update feed configured; skipping launch check')
+    autoUpdateLog.info('No gateway session or update feed; skipping launch check')
     return { action: 'none' }
   }
 
-  autoUpdateLog.info('Checking for updates on launch...')
+  autoUpdateLog.info('Checking for updates on launch (gateway feed)...')
 
   const info = await checkForUpdates({ autoDownload: true })
 

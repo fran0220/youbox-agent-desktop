@@ -99,4 +99,9 @@ export {
 } from './session-metadata-writeback.ts';
 export type { SessionMetadataWritebackPayload } from './session-metadata-writeback.ts';
 export { craftSessionIdToGatewayChatSessionId } from './session-gateway-id.ts';
+export {
+  GATEWAY_UPDATER_FEED_PATH_PREFIX,
+  resolveGatewayUpdaterFeedBaseUrl,
+  resolveGatewayReleaseLatestUrl,
+} from './release.ts';
 export type { SkillFilePayload, GatewaySkillSummary } from './skill-writeback.ts';
