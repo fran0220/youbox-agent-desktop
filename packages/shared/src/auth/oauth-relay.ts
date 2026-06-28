@@ -1,8 +1,18 @@
 import type { PreparedOAuthFlow } from './oauth-flow-types.ts';
 
-export const OAUTH_RELAY_CALLBACK_URL = 'https://agents.craft.do/auth/callback';
 const OAUTH_RELAY_STATE_PREFIX = 'ca1.';
 const OAUTH_RELAY_STATE_VERSION = 1;
+
+/**
+ * Optional HTTPS OAuth relay callback registered with providers (e.g. Google Web client).
+ * When unset, WebUI/headless flows use the deployment `callbackUrl` directly — no Craft relay ships by default.
+ *
+ * Override: `CRAFT_OAUTH_RELAY_CALLBACK_URL` (operator-hosted relay that forwards to `returnTo` in state).
+ */
+export function resolveOAuthRelayCallbackUrl(): string | undefined {
+  const fromEnv = process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}
 
 interface OAuthRelayStateEnvelope {
   v: number;
@@ -76,14 +86,15 @@ export function decodeOAuthRelayState(value: string): OAuthRelayState {
 export function wrapPreparedOAuthFlowForRelay(
   prepared: PreparedOAuthFlow,
   returnTo: string,
+  relayCallbackUrl: string,
 ): PreparedOAuthFlow {
   const authUrl = new URL(prepared.authUrl);
-  authUrl.searchParams.set('redirect_uri', OAUTH_RELAY_CALLBACK_URL);
+  authUrl.searchParams.set('redirect_uri', relayCallbackUrl);
   authUrl.searchParams.set('state', encodeOAuthRelayState(returnTo, prepared.state));
 
   return {
     ...prepared,
     authUrl: authUrl.toString(),
-    redirectUri: OAUTH_RELAY_CALLBACK_URL,
+    redirectUri: relayCallbackUrl,
   };
 }

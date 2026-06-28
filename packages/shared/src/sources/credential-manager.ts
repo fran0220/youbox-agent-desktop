@@ -28,7 +28,7 @@ import type { CredentialId, StoredCredential } from '../credentials/types.ts';
 import { getCredentialManager } from '../credentials/index.ts';
 import { CraftOAuth, getMcpBaseUrl, prepareMcpOAuth, exchangeMcpOAuth, type OAuthCallbacks, type OAuthTokens } from '../auth/oauth.ts';
 import { type OAuthSessionContext } from '../auth/types.ts';
-import { OAUTH_RELAY_CALLBACK_URL, wrapPreparedOAuthFlowForRelay } from '../auth/oauth-relay.ts';
+import { resolveOAuthRelayCallbackUrl, wrapPreparedOAuthFlowForRelay } from '../auth/oauth-relay.ts';
 import type { PreparedOAuthFlow, OAuthExchangeParams, OAuthExchangeResult, OAuthProvider } from '../auth/oauth-flow-types.ts';
 import {
   startGoogleOAuth,
@@ -424,13 +424,14 @@ export class SourceCredentialManager {
     options: { callbackPort?: number; callbackUrl?: string },
   ): Promise<PreparedOAuthFlow> {
     const { callbackPort } = options;
-    const relayReturnTo = options.callbackUrl;
-    // When callbackUrl is provided (WebUI), keep the provider-facing redirect_uri
-    // stable so providers like Google only need a single registered callback.
-    // The relay unwraps the real server callback target from the outer state.
-    const providerCallbackUrl = relayReturnTo
-      ? OAUTH_RELAY_CALLBACK_URL
-      : undefined;
+    const deploymentCallbackUrl = options.callbackUrl;
+    const relayCallbackUrl = resolveOAuthRelayCallbackUrl();
+    const useOAuthRelay = Boolean(deploymentCallbackUrl && relayCallbackUrl);
+    // With CRAFT_OAUTH_RELAY_CALLBACK_URL set, providers see the stable relay URI; the deployment
+    // callback is carried in the relay state envelope. Without it, the deployment URL is used directly.
+    const providerCallbackUrl = useOAuthRelay
+      ? relayCallbackUrl
+      : deploymentCallbackUrl;
     const provider = this.detectProvider(source);
 
     let prepared: PreparedOAuthFlow;
@@ -534,8 +535,8 @@ export class SourceCredentialManager {
       }
     }
 
-    return relayReturnTo
-      ? wrapPreparedOAuthFlowForRelay(prepared, relayReturnTo)
+    return useOAuthRelay
+      ? wrapPreparedOAuthFlowForRelay(prepared, deploymentCallbackUrl!, relayCallbackUrl!)
       : prepared;
   }
 

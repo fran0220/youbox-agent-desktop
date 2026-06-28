@@ -1,13 +1,29 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
-  OAUTH_RELAY_CALLBACK_URL,
   decodeOAuthRelayState,
   encodeOAuthRelayState,
   isOAuthRelayState,
+  resolveOAuthRelayCallbackUrl,
   wrapPreparedOAuthFlowForRelay,
 } from '../oauth-relay.ts';
 import type { PreparedOAuthFlow } from '../oauth-flow-types.ts';
+
+describe('resolveOAuthRelayCallbackUrl', () => {
+  const prev = process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL;
+
+  it('returns undefined when env is unset', () => {
+    delete process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL;
+    expect(resolveOAuthRelayCallbackUrl()).toBeUndefined();
+  });
+
+  it('returns trimmed env value when set', () => {
+    process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL = '  https://relay.example/auth/callback  ';
+    expect(resolveOAuthRelayCallbackUrl()).toBe('https://relay.example/auth/callback');
+    if (prev === undefined) delete process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL;
+    else process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL = prev;
+  });
+});
 
 describe('oauth relay state', () => {
   it('round-trips the relay callback target and inner state', () => {
@@ -41,16 +57,18 @@ describe('wrapPreparedOAuthFlowForRelay', () => {
       provider: 'google',
     };
 
+    const relayUrl = 'https://relay.example/auth/callback';
     const wrapped = wrapPreparedOAuthFlowForRelay(
       prepared,
       'https://ghalmos.craftdocs-cf-t1.com/api/oauth/callback',
+      relayUrl,
     );
 
     expect(wrapped.state).toBe('inner-state-123');
-    expect(wrapped.redirectUri).toBe(OAUTH_RELAY_CALLBACK_URL);
+    expect(wrapped.redirectUri).toBe(relayUrl);
 
     const authUrl = new URL(wrapped.authUrl);
-    expect(authUrl.searchParams.get('redirect_uri')).toBe(OAUTH_RELAY_CALLBACK_URL);
+    expect(authUrl.searchParams.get('redirect_uri')).toBe(relayUrl);
 
     const outerState = authUrl.searchParams.get('state');
     expect(outerState).toBeTruthy();
