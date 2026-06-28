@@ -14,6 +14,48 @@ export function resolveOAuthRelayCallbackUrl(): string | undefined {
   return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
 }
 
+/**
+ * Operator-hosted HTTPS relay for Slack source OAuth (Slack requires HTTPS redirect_uri).
+ * When unset, Electron flows with only `callbackPort` cannot start — no Craft relay ships by default.
+ *
+ * Override: `CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL` (HTTPS endpoint that forwards to `http://localhost:{port}/callback`).
+ */
+export const SLACK_OAUTH_RELAY_NOT_CONFIGURED_MESSAGE =
+  'Slack OAuth requires an HTTPS redirect relay. Set CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL to your operator-hosted relay URL (HTTPS endpoint that forwards to the local callback).';
+
+export function resolveSlackOAuthRelayCallbackUrl(): string | undefined {
+  const fromEnv = process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL?.trim();
+  return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}
+
+/**
+ * Resolve Slack OAuth redirect_uri. WebUI/headless may pass a full HTTPS `callbackUrl` directly.
+ * Electron local callback uses `callbackPort` plus `CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL` (appends `?port=`).
+ */
+export function buildSlackOAuthRedirectUri(options: {
+  callbackUrl?: string;
+  callbackPort?: number;
+}): string {
+  if (options.callbackUrl) {
+    return options.callbackUrl;
+  }
+
+  const relayBase = resolveSlackOAuthRelayCallbackUrl();
+  if (!relayBase) {
+    throw new Error(SLACK_OAUTH_RELAY_NOT_CONFIGURED_MESSAGE);
+  }
+
+  if (options.callbackPort == null) {
+    throw new Error(
+      'Slack OAuth with a local callback requires callbackPort when CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL is set.',
+    );
+  }
+
+  const relay = new URL(relayBase);
+  relay.searchParams.set('port', String(options.callbackPort));
+  return relay.toString();
+}
+
 interface OAuthRelayStateEnvelope {
   v: number;
   r: string;

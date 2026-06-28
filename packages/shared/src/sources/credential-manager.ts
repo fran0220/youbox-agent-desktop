@@ -480,7 +480,8 @@ export class SourceCredentialManager {
           service = inferSlackServiceFromUrl(api?.baseUrl) || 'full';
         }
 
-        prepared = prepareSlackOAuth({ service, userScopes, callbackPort, callbackUrl: providerCallbackUrl });
+        // Slack uses CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL (+ port), not the generic OAuth relay envelope.
+        prepared = prepareSlackOAuth({ service, userScopes, callbackPort, callbackUrl: deploymentCallbackUrl });
         break;
       }
 
@@ -533,6 +534,10 @@ export class SourceCredentialManager {
         prepared = await prepareMcpOAuth(source.config.mcp.url, { callbackPort, callbackUrl: providerCallbackUrl });
         break;
       }
+    }
+
+    if (provider === 'slack') {
+      return prepared;
     }
 
     return useOAuthRelay

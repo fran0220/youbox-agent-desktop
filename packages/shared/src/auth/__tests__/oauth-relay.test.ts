@@ -1,13 +1,62 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 
 import {
+  buildSlackOAuthRedirectUri,
   decodeOAuthRelayState,
   encodeOAuthRelayState,
   isOAuthRelayState,
   resolveOAuthRelayCallbackUrl,
+  resolveSlackOAuthRelayCallbackUrl,
+  SLACK_OAUTH_RELAY_NOT_CONFIGURED_MESSAGE,
   wrapPreparedOAuthFlowForRelay,
 } from '../oauth-relay.ts';
 import type { PreparedOAuthFlow } from '../oauth-flow-types.ts';
+
+describe('resolveSlackOAuthRelayCallbackUrl', () => {
+  const prev = process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+
+  it('returns undefined when env is unset', () => {
+    delete process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+    expect(resolveSlackOAuthRelayCallbackUrl()).toBeUndefined();
+  });
+
+  it('returns trimmed env value when set', () => {
+    process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL = '  https://relay.example/auth/slack/callback  ';
+    expect(resolveSlackOAuthRelayCallbackUrl()).toBe('https://relay.example/auth/slack/callback');
+    if (prev === undefined) delete process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+    else process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL = prev;
+  });
+});
+
+describe('buildSlackOAuthRedirectUri', () => {
+  const prev = process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+
+  afterEach(() => {
+    if (prev === undefined) delete process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+    else process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL = prev;
+  });
+
+  it('uses callbackUrl directly when provided', () => {
+    delete process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+    const url = 'https://webui.example/api/oauth/callback';
+    expect(buildSlackOAuthRedirectUri({ callbackUrl: url })).toBe(url);
+  });
+
+  it('builds relay URL with port when env is set', () => {
+    process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL = 'https://relay.example/auth/slack/callback';
+    expect(buildSlackOAuthRedirectUri({ callbackPort: 6477 })).toBe(
+      'https://relay.example/auth/slack/callback?port=6477',
+    );
+  });
+
+  it('throws branded message when relay env unset and no callbackUrl', () => {
+    delete process.env.CRAFT_SLACK_OAUTH_RELAY_CALLBACK_URL;
+    expect(() => buildSlackOAuthRedirectUri({ callbackPort: 6477 })).toThrow(
+      SLACK_OAUTH_RELAY_NOT_CONFIGURED_MESSAGE,
+    );
+    expect(() => buildSlackOAuthRedirectUri({ callbackPort: 6477 })).not.toThrow(/craft\.do/);
+  });
+});
 
 describe('resolveOAuthRelayCallbackUrl', () => {
   const prev = process.env.CRAFT_OAUTH_RELAY_CALLBACK_URL;
