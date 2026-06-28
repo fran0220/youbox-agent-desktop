@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Craft Agents — Login</title>
+  <title>OriginCoworks — Sign in</title>
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="icon" type="image/x-icon" href="./favicon.ico" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -225,18 +225,27 @@
 </head>
 <body>
   <div class="card">
-    <h1>Craft Agents</h1>
-    <p class="subtitle">Enter your server token to continue</p>
+    <h1>OriginCoworks</h1>
+    <p class="subtitle">Sign in with your gateway account to continue</p>
 
     <form id="login-form">
-      <label for="password">Server Token</label>
+      <label for="username">Username</label>
+      <input
+        id="username"
+        name="username"
+        type="text"
+        placeholder="Username"
+        autocomplete="username"
+        autofocus
+        required
+      >
+      <label for="password" style="margin-top: 14px;">Password</label>
       <input
         id="password"
         name="password"
         type="password"
-        placeholder="Enter CRAFT_SERVER_TOKEN"
+        placeholder="Password"
         autocomplete="current-password"
-        autofocus
         required
       >
       <button type="submit" id="submit-btn">Sign In</button>
@@ -257,11 +266,12 @@
       submitBtn.textContent = 'Signing in...';
 
       try {
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         const res = await fetch('/api/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password }),
+          body: JSON.stringify({ username, password }),
         });
 
         if (res.ok) {

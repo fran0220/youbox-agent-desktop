@@ -138,7 +138,6 @@ if (webuiEnabled && serverToken) {
   webuiHandler = createWebuiHandler({
     webuiDir: webuiDir!,
     secret: serverToken,
-    password: process.env.CRAFT_WEBUI_PASSWORD || undefined,
     secureCookies: webuiSecureCookies,
     publicWsUrl: webuiWsUrl,
     wsProtocol: rpcProtocol,

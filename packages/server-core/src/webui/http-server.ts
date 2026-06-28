@@ -11,11 +11,11 @@
  */
 
 import { join, extname } from 'node:path'
+import { GatewayClient } from '@craft-agent/origincoworks/gateway-client'
+import { resolveGatewayBaseUrl, sanitizeGatewayLoginError } from '@craft-agent/origincoworks/auth'
 import {
   RateLimiter,
-  initPasswordHash,
-  verifyPassword,
-  createSessionToken,
+  createSessionTokenFromGateway,
   validateSession,
   buildSessionCookie,
   buildLogoutCookie,
@@ -121,10 +121,10 @@ export interface OAuthCallbackDeps {
 export interface WebuiHandlerOptions {
   /** Path to built web UI dist/ directory. */
   webuiDir: string
-  /** Secret used to sign JWTs — typically CRAFT_SERVER_TOKEN. */
+  /** Secret used to sign session JWTs — typically CRAFT_SERVER_TOKEN (not the gateway password). */
   secret: string
-  /** Optional separate web UI password. Falls back to `secret` for verification. */
-  password?: string
+  /** Gateway base URL for login; defaults to ORIGINCOWORKS_GATEWAY_URL or http://127.0.0.1:8847 */
+  gatewayBaseUrl?: string
   /** Explicit Secure-cookie override. When unset, infer from the request / proxy headers. */
   secureCookies?: boolean
   /** Optional browser-facing WebSocket URL override for reverse-proxy deployments. */
@@ -170,7 +170,7 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
   const {
     webuiDir,
     secret,
-    password,
+    gatewayBaseUrl,
     secureCookies,
     publicWsUrl,
     wsProtocol,
@@ -183,11 +183,8 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
   const rateLimiter = new RateLimiter(5, 60_000)
   const cleanupTimer = setInterval(() => rateLimiter.cleanup(), 120_000)
 
-  const loginPassword = password || secret
+  const resolvedGatewayBaseUrl = gatewayBaseUrl ?? resolveGatewayBaseUrl()
   const trustedProxySet = new Set(trustedProxies ?? [])
-
-  // Hash the login password at startup (async, but resolves before first auth attempt in practice)
-  const passwordReady = initPasswordHash(loginPassword)
 
   /** Extract client IP — only trusts proxy headers when trustedProxies is configured. */
   function getClientIp(req: Request): string {
@@ -236,7 +233,6 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
 
     // ── Auth endpoint ──
     if (path === '/api/auth' && req.method === 'POST') {
-      await passwordReady
       const ip = getClientIp(req)
 
       if (!rateLimiter.check(ip)) {
@@ -247,31 +243,36 @@ export function createWebuiHandler(options: WebuiHandlerOptions): WebuiHandler {
         )
       }
 
-      let body: { password?: string }
+      let body: { username?: string; password?: string }
       try {
-        body = await req.json() as { password?: string }
+        body = await req.json() as { username?: string; password?: string }
       } catch {
         return Response.json({ error: 'Invalid request body' }, { status: 400 })
       }
 
-      if (!body.password || typeof body.password !== 'string') {
-        return Response.json({ error: 'Password is required' }, { status: 400 })
+      const username = typeof body.username === 'string' ? body.username.trim() : ''
+      const password = typeof body.password === 'string' ? body.password : ''
+      if (!username || !password) {
+        return Response.json({ error: 'Username and password are required' }, { status: 400 })
       }
 
-      if (!await verifyPassword(body.password)) {
-        logger.warn(`[webui] Failed auth attempt from ${ip}`)
-        return Response.json({ error: 'Invalid credentials' }, { status: 401 })
+      const client = new GatewayClient(resolvedGatewayBaseUrl)
+      try {
+        const { token, user } = await client.login(username, password)
+        const jwt = await createSessionTokenFromGateway(user.id, token, secret)
+        logger.info(`[webui] Successful gateway auth for user ${user.name} from ${ip}`)
+
+        return Response.json({ ok: true }, {
+          status: 200,
+          headers: {
+            'Set-Cookie': buildSessionCookie(jwt, useSecureCookies),
+          },
+        })
+      } catch (err) {
+        logger.warn(`[webui] Failed gateway auth attempt from ${ip}`)
+        const message = sanitizeGatewayLoginError(err)
+        return Response.json({ error: message }, { status: 401 })
       }
-
-      const jwt = await createSessionToken(secret)
-      logger.info(`[webui] Successful auth from ${ip}`)
-
-      return Response.json({ ok: true }, {
-        status: 200,
-        headers: {
-          'Set-Cookie': buildSessionCookie(jwt, useSecureCookies),
-        },
-      })
     }
 
     // ── Logout endpoint ──

@@ -1,10 +1,13 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { GatewayClient } from '@craft-agent/origincoworks/gateway-client'
 import { startWebuiHttpServer } from '../http-server'
 
 const SECRET = 'test-server-secret'
+const GATEWAY_TOKEN = 'a'.repeat(64)
+const USERNAME = 'octest'
 const PASSWORD = 'test-password'
 const TEMP_DIRS: string[] = []
 const SERVERS: Array<{ stop: () => void }> = []
@@ -24,6 +27,38 @@ function createTestWebuiDir(): string {
   return dir
 }
 
+function installGatewayLoginMock(validPassword = PASSWORD) {
+  GatewayClient.setFetchForTests(async (input, init) => {
+    const url = String(input)
+    if (url.endsWith('/api/auth/login') && init?.method === 'POST') {
+      const raw = typeof init.body === 'string' ? init.body : ''
+      let parsed: { username?: string; password?: string } = {}
+      try {
+        parsed = JSON.parse(raw) as { username?: string; password?: string }
+      } catch {
+        return new Response(JSON.stringify({ error: 'invalid credentials' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      if (parsed.username === USERNAME && parsed.password === validPassword) {
+        return new Response(
+          JSON.stringify({
+            token: GATEWAY_TOKEN,
+            user: { id: 'user-1', name: USERNAME, email: 'octest@local.test', role: 'admin' },
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return new Response(JSON.stringify({ error: 'invalid credentials' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return new Response('not found', { status: 404 })
+  })
+}
+
 async function createServer(overrides?: {
   secureCookies?: boolean
   publicWsUrl?: string
@@ -34,7 +69,7 @@ async function createServer(overrides?: {
     port: 0,
     webuiDir: createTestWebuiDir(),
     secret: SECRET,
-    password: PASSWORD,
+    gatewayBaseUrl: 'http://127.0.0.1:8847',
     secureCookies: overrides?.secureCookies,
     publicWsUrl: overrides?.publicWsUrl,
     wsProtocol: overrides?.wsProtocol ?? 'wss',
@@ -57,7 +92,12 @@ function extractSessionCookie(res: Response): string {
   return setCookie!.split(';')[0]!
 }
 
+beforeEach(() => {
+  installGatewayLoginMock()
+})
+
 afterEach(() => {
+  GatewayClient.setFetchForTests(undefined)
   while (SERVERS.length > 0) {
     SERVERS.pop()?.stop()
   }
@@ -69,13 +109,33 @@ afterEach(() => {
 })
 
 describe('startWebuiHttpServer', () => {
+  it('serves /login without authentication', async () => {
+    const { baseUrl } = await createServer()
+    const res = await fetch(`${baseUrl}/login`)
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('login')
+  })
+
+  it('redirects unauthenticated HTML requests to /login', async () => {
+    const { baseUrl } = await createServer()
+    const res = await fetch(`${baseUrl}/`, { redirect: 'manual', headers: { Accept: 'text/html' } })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/login')
+  })
+
+  it('returns 401 for /api/config without session cookie', async () => {
+    const { baseUrl } = await createServer()
+    const res = await fetch(`${baseUrl}/api/config`)
+    expect(res.status).toBe(401)
+  })
+
   it('allows plain-http login even when the RPC transport is wss', async () => {
     const { baseUrl } = await createServer({ wsProtocol: 'wss', wsPort: 9100 })
 
     const authRes = await fetch(`${baseUrl}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: PASSWORD }),
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
     })
 
     expect(authRes.status).toBe(200)
@@ -101,11 +161,14 @@ describe('startWebuiHttpServer', () => {
     const res = await fetch(`${baseUrl}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: 'wrong-password' }),
+      body: JSON.stringify({ username: USERNAME, password: 'wrong-password' }),
     })
 
     expect(res.status).toBe(401)
-    expect(await res.json()).toEqual({ error: 'Invalid credentials' })
+    expect(res.headers.get('set-cookie')).toBeNull()
+    const body = await res.json() as { error: string }
+    expect(body.error).toBe('invalid credentials')
+    expect(JSON.stringify(body)).not.toContain('wrong-password')
   })
 
   it('honors an explicit secure-cookie override', async () => {
@@ -114,7 +177,7 @@ describe('startWebuiHttpServer', () => {
     const res = await fetch(`${baseUrl}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: PASSWORD }),
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
     })
 
     expect(res.status).toBe(200)
@@ -130,7 +193,7 @@ describe('startWebuiHttpServer', () => {
         'Content-Type': 'application/json',
         'X-Forwarded-Proto': 'https',
       },
-      body: JSON.stringify({ password: PASSWORD }),
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
     })
 
     expect(res.status).toBe(200)
@@ -147,7 +210,7 @@ describe('startWebuiHttpServer', () => {
         'X-Forwarded-Proto': 'https',
         'X-Forwarded-Host': 'craft.example.com:3100',
       },
-      body: JSON.stringify({ password: PASSWORD }),
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
     })
 
     const configRes = await fetch(`${baseUrl}/api/config`, {
@@ -174,7 +237,7 @@ describe('startWebuiHttpServer', () => {
     const authRes = await fetch(`${baseUrl}/api/auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: PASSWORD }),
+      body: JSON.stringify({ username: USERNAME, password: PASSWORD }),
     })
 
     const configRes = await fetch(`${baseUrl}/api/config`, {

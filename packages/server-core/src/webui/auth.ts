@@ -19,11 +19,18 @@ export interface JwtPayload {
   sub: string
   iat: number
   exp: number
+  /** Gateway user id (same as sub for gateway-backed sessions). */
+  userId?: string
+  /** Gateway session token (64-hex); used for downstream gateway API calls. */
+  gatewayToken?: string
 }
 
 export async function signJwt(payload: JwtPayload, secret: string): Promise<string> {
   const key = new TextEncoder().encode(secret)
-  return new SignJWT({ sub: payload.sub } as Record<string, unknown>)
+  const claims: Record<string, unknown> = { sub: payload.sub }
+  if (payload.userId) claims.userId = payload.userId
+  if (payload.gatewayToken) claims.gatewayToken = payload.gatewayToken
+  return new SignJWT(claims)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt(payload.iat)
     .setExpirationTime(payload.exp)
@@ -38,15 +45,37 @@ export async function verifyJwt(token: string, secret: string): Promise<JwtPaylo
       sub: payload.sub as string,
       iat: payload.iat as number,
       exp: payload.exp as number,
+      userId: typeof payload.userId === 'string' ? payload.userId : undefined,
+      gatewayToken: typeof payload.gatewayToken === 'string' ? payload.gatewayToken : undefined,
     }
   } catch {
     return null
   }
 }
 
+/** @deprecated Legacy single-password issuer; use createSessionTokenFromGateway. */
 export async function createSessionToken(secret: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000)
   return signJwt({ sub: 'webui', iat: now, exp: now + JWT_EXPIRY_SECONDS }, secret)
+}
+
+/** Mint a browser session JWT bound to the gateway user and token (not CRAFT_SERVER_TOKEN). */
+export async function createSessionTokenFromGateway(
+  userId: string,
+  gatewayToken: string,
+  secret: string,
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000)
+  return signJwt(
+    {
+      sub: userId,
+      userId,
+      gatewayToken,
+      iat: now,
+      exp: now + JWT_EXPIRY_SECONDS,
+    },
+    secret,
+  )
 }
 
 // ---------------------------------------------------------------------------
