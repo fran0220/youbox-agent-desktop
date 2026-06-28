@@ -920,6 +920,42 @@ export function runPreToolUseChecks(ctx: PreToolUseInput): PreToolUseCheckResult
   }
 
   // ============================================================
+  // 5i. ALLOW-ALL ADMIN ESCALATION (distinct from high-risk bash prompt)
+  // ============================================================
+  if (
+    effectivePermissionMode === 'allow-all' &&
+    toolName === 'Bash' &&
+    (!ctx.gatewayPolicy || ctx.gatewayPolicy.require_admin_escalation_approval)
+  ) {
+    const command = typeof input.command === 'string' ? input.command : '';
+    const adminPrompt = classifyAdminApproval(command);
+    if (adminPrompt) {
+      onDebug?.(`Allow-all admin escalation approval required for: ${command}`);
+      const adminWrappedInput =
+        adminPrompt.command &&
+        typeof currentInput.command === 'string' &&
+        process.platform === 'darwin'
+          ? { ...currentInput, command: wrapCommandForMacAdminPrompt(adminPrompt.command) }
+          : undefined;
+
+      return {
+        type: 'prompt',
+        promptType: adminPrompt.promptType,
+        description: adminPrompt.description,
+        command: adminPrompt.command,
+        modifiedInput: adminWrappedInput ?? (wasModified ? currentInput : undefined),
+        appName: adminPrompt.appName,
+        reason: adminPrompt.reason,
+        impact: adminPrompt.impact,
+        requiresSystemPrompt: adminPrompt.requiresSystemPrompt,
+        rememberForMinutes: adminPrompt.rememberForMinutes,
+        commandHash: adminPrompt.commandHash,
+        approvalTtlSeconds: adminPrompt.approvalTtlSeconds,
+      };
+    }
+  }
+
+  // ============================================================
   // 6. ASK MODE PROMPT DECISION
   // ============================================================
   if (effectivePermissionMode === 'ask') {

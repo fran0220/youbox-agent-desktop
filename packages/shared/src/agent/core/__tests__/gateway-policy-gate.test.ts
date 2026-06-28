@@ -152,6 +152,19 @@ describe('gateway policy gate (VAL-PERM-010..014, 016)', () => {
     }
   });
 
+  const adminGatewayPolicy: GatewayPolicySnapshot = {
+    role: 'admin',
+    flags: {
+      allow_bash: true,
+      allow_file_write: true,
+      allow_mcp: true,
+      allow_api_mutations: true,
+    },
+    workspace_trust_default: true,
+    require_high_risk_confirmation: true,
+    require_admin_escalation_approval: true,
+  };
+
   it('VAL-PERM-013: admin escalation uses admin_approval in ask mode', () => {
     setPermissionMode(SESSION_ID, 'ask', { changedBy: 'user' });
     const result = runPreToolUseChecks(
@@ -164,6 +177,40 @@ describe('gateway policy gate (VAL-PERM-010..014, 016)', () => {
     expect(result.type).toBe('prompt');
     if (result.type === 'prompt') {
       expect(result.promptType).toBe('admin_approval');
+    }
+  });
+
+  it('VAL-PERM-013: admin escalation uses admin_approval in allow-all (brew --cask)', () => {
+    setPermissionMode(SESSION_ID, 'allow-all', { changedBy: 'user' });
+    const result = runPreToolUseChecks(
+      createInput({
+        permissionMode: 'allow-all',
+        toolName: 'Bash',
+        input: { command: 'brew install --cask google-chrome' },
+        gatewayPolicy: adminGatewayPolicy,
+      }),
+    );
+    expect(result.type).toBe('prompt');
+    if (result.type === 'prompt') {
+      expect(result.promptType).toBe('admin_approval');
+      expect(result.description.toLowerCase()).toMatch(/admin approval|cask install/);
+    }
+  });
+
+  it('VAL-PERM-013: admin escalation uses admin_approval in allow-all (installer -pkg)', () => {
+    setPermissionMode(SESSION_ID, 'allow-all', { changedBy: 'user' });
+    const result = runPreToolUseChecks(
+      createInput({
+        permissionMode: 'allow-all',
+        toolName: 'Bash',
+        input: { command: 'installer -pkg /tmp/foo.pkg -target /' },
+        gatewayPolicy: adminGatewayPolicy,
+      }),
+    );
+    expect(result.type).toBe('prompt');
+    if (result.type === 'prompt') {
+      expect(result.promptType).toBe('admin_approval');
+      expect(result.description.toLowerCase()).toMatch(/admin approval|installer/);
     }
   });
 
