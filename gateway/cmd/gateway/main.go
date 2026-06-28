@@ -197,6 +197,7 @@ func main() {
 
 	// Authenticated: desktop LLM config (non-LLM secrets redacted)
 	mux.Handle("GET /api/desktop/config", authMiddleware.Authenticate(http.HandlerFunc(desktopConfigHandler(cfg, s))))
+	mux.Handle("GET /api/desktop/classic-sessions", authMiddleware.Authenticate(http.HandlerFunc(classicSessionsHandler(s))))
 	desktopTrustCfg := loadDesktopWorkspaceTrustConfig()
 	mux.Handle("GET /api/desktop/policy", authMiddleware.Authenticate(desktopPolicyHandler(desktopTrustCfg)))
 	mux.Handle("POST /api/desktop/audit", authMiddleware.Authenticate(http.HandlerFunc(desktopAuditHandler(auditLogger))))
