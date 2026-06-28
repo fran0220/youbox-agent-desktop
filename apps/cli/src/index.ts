@@ -15,6 +15,7 @@ import {
   validateCliStoredToken,
 } from './auth-config.ts'
 import { resolveGatewayBaseUrl } from '@craft-agent/origincoworks/auth'
+import { isSessionStreamSuccessTerminal } from './session-stream.ts'
 
 // ---------------------------------------------------------------------------
 // Arg parsing
@@ -228,6 +229,29 @@ async function resolveWorkspace(
     // Fall through — workspace may not be needed
   }
   return undefined
+}
+
+/** Register the session's workspace on the WS client so workspace-scoped session:event pushes arrive. */
+export async function resolveWorkspaceForSession(
+  client: CliRpcClient,
+  sessionId: string,
+  explicitWorkspace?: string,
+): Promise<string | undefined> {
+  if (explicitWorkspace) {
+    return resolveWorkspace(client, explicitWorkspace)
+  }
+  try {
+    const session = (await client.invoke('sessions:getMessages', sessionId)) as {
+      workspaceId?: string
+    } | null
+    if (session?.workspaceId) {
+      await client.invoke('window:switchWorkspace', session.workspaceId).catch(() => {})
+      return session.workspaceId
+    }
+  } catch {
+    // Fall through to first workspace
+  }
+  return resolveWorkspace(client, undefined)
 }
 
 // ---------------------------------------------------------------------------
@@ -487,9 +511,15 @@ async function sendAndStream(
         exitCode = 1
         finished = true
         break
+      case 'text_complete':
+      case 'usage_update':
       case 'complete':
-        if (!streamJson) process.stdout.write('\n')
-        finished = true
+        if (!streamJson && (ev.type === 'complete' || ev.type === 'text_complete')) {
+          process.stdout.write('\n')
+        }
+        if (isSessionStreamSuccessTerminal(ev)) {
+          finished = true
+        }
         break
       case 'interrupted':
         if (!streamJson) process.stdout.write('\n[interrupted]\n')
@@ -530,6 +560,7 @@ async function cmdSend(client: CliRpcClient, args: CliArgs): Promise<void> {
   }
 
   await client.connect()
+  await resolveWorkspaceForSession(client, sessionId, args.workspace)
   const exitCode = await sendAndStream(client, sessionId, message, args)
   client.destroy()
   process.exit(exitCode)
@@ -950,7 +981,9 @@ async function waitForSendEvents(
     seen.add(ev.type)
     if (ev.type === 'text_delta') textChunks++
     if (ev.type === 'tool_start') toolName = String(ev.toolName ?? '')
-    if (ev.type === 'complete' || ev.type === 'error' || ev.type === 'interrupted') {
+    if (ev.type === 'error' || ev.type === 'interrupted') {
+      finished = true
+    } else if (isSessionStreamSuccessTerminal(ev)) {
       finished = true
     }
     onEvent?.(ev)
@@ -967,8 +1000,10 @@ async function waitForSendEvents(
 
     if (!finished) throw new Error('Timed out waiting for completion')
 
-    // Only treat as failure if error was the terminal event (no complete followed)
-    if (seen.has('error') && !seen.has('complete')) throw new Error('Session returned an error event')
+    const sawSuccessTerminal = [...seen].some((t) =>
+      t === 'complete' || t === 'text_complete' || t === 'usage_update',
+    )
+    if (seen.has('error') && !sawSuccessTerminal) throw new Error('Session returned an error event')
 
     if (expectTool) {
       if (!seen.has('tool_start')) throw new Error('No tool_start event received')

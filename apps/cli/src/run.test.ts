@@ -104,6 +104,9 @@ function createMockServer(opts?: MockServerOptions): MockServer {
               createSessionArgs = envelope.args
               result = { id: 'run-session-1', name: 'run-test' }
               break
+            case 'sessions:getMessages':
+              result = { id: 'run-session-1', workspaceId: 'ws-1' }
+              break
             case 'sessions:sendMessage': {
               ws.send(serializeEnvelope({
                 id: envelope.id,
@@ -114,7 +117,8 @@ function createMockServer(opts?: MockServerOptions): MockServer {
               pushSessionEvents(ws, 'run-session-1', [
                 { type: 'text_delta', delta: 'Hello ' },
                 { type: 'text_delta', delta: 'World' },
-                { type: 'complete' },
+                { type: 'text_complete' },
+                { type: 'usage_update', tokenUsage: { inputTokens: 1, outputTokens: 2 } },
               ])
               return // already sent response
             }
@@ -270,7 +274,9 @@ describe('run command', () => {
       const ev = event as { type: string; sessionId: string; delta?: string }
       if (ev.sessionId !== 'run-session-1') return
       if (ev.type === 'text_delta') deltas.push(ev.delta!)
-      if (ev.type === 'complete') completed = true
+      if (ev.type === 'text_complete' || ev.type === 'usage_update' || ev.type === 'complete') {
+        completed = true
+      }
     })
 
     await client.invoke('sessions:sendMessage', 'run-session-1', 'test')
@@ -398,6 +404,24 @@ describe('run command', () => {
       'settings:setupLlmConnection',
       'LLM_Connection:setDefault',
     ])
+
+    client.destroy()
+  })
+
+  it('resolveWorkspaceForSession switches workspace from session:getMessages', async () => {
+    const { resolveWorkspaceForSession } = await import('./index.ts')
+    const { CliRpcClient } = await import('./client.ts')
+
+    const client = new CliRpcClient(mockWsServer!.url, {
+      token: mockWsServer!.token,
+      requestTimeout: 5_000,
+    })
+    await client.connect()
+
+    const wsId = await resolveWorkspaceForSession(client, 'run-session-1')
+    expect(wsId).toBe('ws-1')
+    expect(mockWsServer!.invokedChannels).toContain('sessions:getMessages')
+    expect(mockWsServer!.invokedChannels).toContain('window:switchWorkspace')
 
     client.destroy()
   })
