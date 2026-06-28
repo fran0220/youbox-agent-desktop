@@ -101,6 +101,11 @@ import { resolveGatewayPolicyForRuntime } from '../gateway-policy-context.ts'
 import { resolveWorkspaceTrustedForAgent } from '../resolve-workspace-trusted.ts'
 import { createGatewayAuditSink } from '../gateway-audit-sink.ts'
 import { getGatewaySessionState } from '@craft-agent/origincoworks/auth'
+import {
+  formatSkippedRequiredSourcesWarning,
+  resolveRequiredSourceEnables,
+} from '@craft-agent/origincoworks/required-sources'
+import { scheduleGatewaySkillWriteback } from '../gateway-skill-writeback.ts'
 
 // Import from server-core domain utilities
 import { sanitizeForTitle, shouldActivateBrowserOverlay, normalizeBrowserToolName, rollbackFailedBranchCreation, releaseBrowserOwnershipOnForcedStop } from '@craft-agent/server-core/domain'
@@ -1517,6 +1522,9 @@ export class SessionManager implements ISessionManager {
       },
       onSkillChange: async (slug, skill) => {
         sessionLog.info(`Skill '${slug}' changed:`, skill ? 'updated' : 'deleted')
+        if (skill) {
+          scheduleGatewaySkillWriteback(workspaceRootPath, slug, sessionLog)
+        }
         // Broadcast updated list to UI
         const { loadAllSkills } = await import('@craft-agent/shared/skills')
         const skills = loadAllSkills(workspaceRootPath)
@@ -5713,9 +5721,6 @@ export class SessionManager implements ISessionManager {
         }
 
         if (requiredSources.size > 0) {
-          const currentSlugs = new Set(managed.enabledSourceSlugs || [])
-          const toEnable: string[] = []
-          const skipped: string[] = []
           const candidateSlugs = Array.from(requiredSources)
           const loadedSources = getSourcesBySlugs(workspaceRoot, candidateSlugs)
           const usableSources = new Set(
@@ -5723,18 +5728,21 @@ export class SessionManager implements ISessionManager {
               .filter(isSourceUsable)
               .map(source => source.config.slug)
           )
-
-          for (const srcSlug of candidateSlugs) {
-            if (currentSlugs.has(srcSlug)) continue
-            if (usableSources.has(srcSlug)) {
-              toEnable.push(srcSlug)
-            } else {
-              skipped.push(srcSlug)
-            }
-          }
+          const { toEnable, skipped } = resolveRequiredSourceEnables({
+            requiredSlugs: candidateSlugs,
+            currentEnabledSlugs: managed.enabledSourceSlugs || [],
+            usableSlugs: usableSources,
+          })
 
           if (skipped.length > 0) {
-            sessionLog.warn(`Skill requires sources that are not usable (missing or unauthenticated): ${skipped.join(', ')}`)
+            const warningMessage = formatSkippedRequiredSourcesWarning(skipped)
+            sessionLog.warn(warningMessage)
+            this.sendEvent({
+              type: 'info',
+              sessionId,
+              message: warningMessage,
+              level: 'warning',
+            }, managed.workspace.id)
           }
 
           if (toEnable.length > 0) {

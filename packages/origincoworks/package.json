@@ -17,6 +17,8 @@
     "./policy": "./src/policy.ts",
     "./audit": "./src/audit.ts",
     "./skills-sync": "./src/skills-sync.ts",
+    "./skill-writeback": "./src/skill-writeback.ts",
+    "./required-sources": "./src/required-sources.ts",
     "./checksum": "./src/checksum.ts"
   },
   "dependencies": {

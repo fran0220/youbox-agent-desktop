@@ -217,6 +217,36 @@ export class GatewayClient {
     return { status: 200, checksum: etag, files: parsed.files };
   }
 
+  /** GET /api/skills — skill summaries (builtin + user) */
+  async listSkills(): Promise<unknown> {
+    return this.requestJson('/api/skills', { method: 'GET', auth: true });
+  }
+
+  /**
+   * PUT /api/skills/{skillId} — replace all files for a user-owned skill.
+   * Paths in `files` are relative to the skill root (e.g. SKILL.md, refs/x.md).
+   */
+  async upsertUserSkill(
+    skillId: string,
+    files: Array<{ path: string; content: string }>,
+  ): Promise<{ status: string; skill_id: string; file_count: number }> {
+    const body = await this.requestJson(`/api/skills/${encodeURIComponent(skillId)}`, {
+      method: 'PUT',
+      auth: true,
+      body: JSON.stringify({ files }),
+    });
+    if (!body || typeof body !== 'object') {
+      throw new Error('invalid upsert skill response');
+    }
+    const o = body as Record<string, unknown>;
+    const fileCount = typeof o.file_count === 'number' ? o.file_count : files.length;
+    return {
+      status: typeof o.status === 'string' ? o.status : 'ok',
+      skill_id: typeof o.skill_id === 'string' ? o.skill_id : skillId,
+      file_count: fileCount,
+    };
+  }
+
   /** POST /api/auth/logout — invalidates server session (204) */
   async logout(): Promise<void> {
     if (!this.token) {

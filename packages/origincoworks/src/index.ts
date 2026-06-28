@@ -61,3 +61,14 @@ export {
 } from './skills-sync.ts';
 export type { SkillsSyncResult, SkillsSyncState, PullOwnerSkillsFn } from './skills-sync.ts';
 export { contentChecksum } from './checksum.ts';
+export {
+  resolveRequiredSourceEnables,
+  formatSkippedRequiredSourcesWarning,
+} from './required-sources.ts';
+export type { RequiredSourcesResolution } from './required-sources.ts';
+export {
+  collectSkillFilesFromWorkspace,
+  writeUserSkillToGateway,
+  isGatewayEditableUserSkill,
+} from './skill-writeback.ts';
+export type { SkillFilePayload, GatewaySkillSummary } from './skill-writeback.ts';
