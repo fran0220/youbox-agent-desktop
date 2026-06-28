@@ -31,7 +31,12 @@ import { readFileSync, existsSync } from 'node:fs'
 import { version as packageVersion } from '../package.json'
 import { enableDebug } from '@craft-agent/shared/utils/debug'
 import { bootstrapServer, startHealthHttpServer, generateServerToken } from '@craft-agent/server-core/bootstrap'
-import { createWebuiHandler, nodeHttpAdapter, createGatewaySessionCookieValidator } from '@craft-agent/server-core/webui'
+import {
+  createWebuiHandler,
+  nodeHttpAdapter,
+  createGatewaySessionCookieValidator,
+  bootstrapGatewaySessionIfConfigured,
+} from '@craft-agent/server-core/webui'
 import type { WebuiHandler } from '@craft-agent/server-core/webui'
 import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { getWorkspaces } from '@craft-agent/shared/config'
@@ -131,13 +136,15 @@ let webuiNodeHandler: ReturnType<typeof nodeHttpAdapter> | undefined
 // after bootstrap completes, but the handler captures the closure.
 let healthCheckFn: (() => { status: string }) | null = null
 
+const webuiJwtSecret = process.env.CRAFT_WEBUI_JWT_SECRET?.trim() || serverToken
+
 if (webuiEnabled && serverToken) {
   const rpcPort = parseInt(process.env.CRAFT_RPC_PORT ?? '9100', 10)
   const rpcProtocol = tls ? 'wss' as const : 'ws' as const
 
   webuiHandler = createWebuiHandler({
     webuiDir: webuiDir!,
-    secret: serverToken,
+    secret: webuiJwtSecret ?? serverToken,
     secureCookies: webuiSecureCookies,
     publicWsUrl: webuiWsUrl,
     wsProtocol: rpcProtocol,
@@ -170,7 +177,7 @@ const instance = await (async () => {
       tls,
       // When web UI is enabled, accept JWT session cookies on WebSocket upgrade
       validateSessionCookie: webuiEnabled && serverToken
-        ? createGatewaySessionCookieValidator(serverToken)
+        ? createGatewaySessionCookieValidator(webuiJwtSecret ?? serverToken)
         : undefined,
       // Embed the WebUI HTTP handler on the WS server's port
       httpHandler: webuiNodeHandler,
@@ -233,6 +240,7 @@ const instance = await (async () => {
         sessionManager.setEventSink(messagingHandle.wrapSink(sink))
       },
       initializeSessionManager: async (sessionManager) => {
+        await bootstrapGatewaySessionIfConfigured(sessionManager)
         await sessionManager.initialize()
       },
       cleanupSessionManager: async (sessionManager) => {
