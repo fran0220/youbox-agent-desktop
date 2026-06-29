@@ -5,7 +5,8 @@
  * Render-only surface that acts as a dropdown trigger in BrowserTabStrip.
  */
 
-import { forwardRef, useEffect, useState, type ButtonHTMLAttributes } from 'react'
+import { forwardRef, useEffect, useMemo, useState, type ButtonHTMLAttributes } from 'react'
+import { useTranslation } from 'react-i18next'
 import * as Icons from 'lucide-react'
 import { Spinner } from '@craft-agent/ui'
 import type { BrowserInstanceInfo } from '../../../shared/types'
@@ -20,8 +21,13 @@ export const BrowserTabBadge = forwardRef<HTMLButtonElement, BrowserTabBadgeProp
   { instance, isActive: _isActive, className, style, ...buttonProps },
   ref
 ) {
-  const hostname = getHostname(instance.url)
-  const displayLabel = instance.title.trim() || hostname || 'Local File'
+  const { t } = useTranslation()
+  const hostnameLabels = useMemo(
+    () => ({ newTab: t('browser.newTab'), localFile: t('browser.localFile') }),
+    [t],
+  )
+  const hostname = getHostname(instance.url, hostnameLabels)
+  const displayLabel = instance.title.trim() || hostname || t('browser.localFile')
   const themedBackground = instance.themeColor || undefined
 
   const themeLuminance = instance.themeColor ? getThemeLuminance(instance.themeColor) : null
@@ -56,7 +62,7 @@ export const BrowserTabBadge = forwardRef<HTMLButtonElement, BrowserTabBadgeProp
         transition: 'background-color 200ms ease, border-color 200ms ease',
         ...style,
       }}
-      aria-label={`${displayLabel} actions`}
+      aria-label={t('browser.tabActions', { label: displayLabel })}
       {...buttonProps}
     >
       <span className={`shrink-0 flex items-center justify-center ${isDarkThemeColor ? 'h-3.5 w-3.5' : 'h-3 w-3'}`}>

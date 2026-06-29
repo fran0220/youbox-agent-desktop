@@ -123,7 +123,10 @@ function BrowserStatusBar({
   onClick: () => void
 }) {
   const { t } = useTranslation()
-  const hostname = getHostname(instance.url)
+  const hostname = getHostname(instance.url, {
+    newTab: t('browser.newTab'),
+    localFile: t('browser.localFile'),
+  })
   const themeColor = instance.themeColor
   const themeLuminance = themeColor ? getThemeLuminance(themeColor) : null
   const isDarkTheme = themeLuminance !== null && themeLuminance < 0.42

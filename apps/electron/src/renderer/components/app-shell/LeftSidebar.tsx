@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { AnimatePresence, motion, type Variants } from "motion/react"
 import { ChevronRight } from "lucide-react"
 
@@ -166,6 +167,7 @@ const itemVariants: Variants = {
  * - Two-phase drop animation: overlay fades out, ghost fades in
  */
 export function LeftSidebar({ links, isCollapsed, getItemProps, focusedItemId, isNested }: LeftSidebarProps) {
+  const { t } = useTranslation()
   // For nested sidebars, wrap in motion container for stagger effect
   const NavWrapper = isNested ? motion.nav : 'nav'
   const navProps = isNested ? {
@@ -183,7 +185,7 @@ export function LeftSidebar({ links, isCollapsed, getItemProps, focusedItemId, i
           isNested ? "pl-5 pr-0 relative" : "px-2"
         )}
         role="navigation"
-        aria-label={isNested ? "Sub navigation" : "Main navigation"}
+        aria-label={isNested ? t('sidebar.subNavigation') : t('sidebar.mainNavigation')}
         {...navProps}
       >
         {/* Vertical line for nested items - 4px left of chevron center */}

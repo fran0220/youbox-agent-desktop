@@ -935,6 +935,7 @@ app.whenReady().then(async () => {
         })
         const { rebuildMenu } = await import('./menu')
         await rebuildMenu()
+        browserPaneManager?.broadcastLanguageChange(code)
       })
 
       ipcMain.on('__get-ws-port', (e) => {

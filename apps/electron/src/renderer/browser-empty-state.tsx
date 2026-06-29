@@ -4,7 +4,11 @@ import ReactDOM from 'react-dom/client'
 import { BrowserEmptyStateCard } from '@craft-agent/ui'
 import { routes } from '../shared/routes'
 import { EMPTY_STATE_PROMPT_SAMPLES } from './components/browser/empty-state-prompts'
+import { bootstrapRendererI18n, registerWindowLanguageHook } from '@/lib/setup-renderer-i18n'
 import './index.css'
+
+bootstrapRendererI18n()
+registerWindowLanguageHook(() => {})
 
 function BrowserEmptyStateApp() {
   const { t } = useTranslation()
@@ -29,8 +33,8 @@ function BrowserEmptyStateApp() {
     <div className="h-screen w-screen bg-foreground-2 overflow-hidden">
       <div className="h-full w-full bg-background overflow-auto">
         <BrowserEmptyStateCard
-          title={t("browser.readyTitle")}
-          description={t("browser.readyDescription")}
+          title={t('browser.readyTitle')}
+          description={t('browser.readyDescription')}
           prompts={EMPTY_STATE_PROMPT_SAMPLES}
           showExamplePrompts={true}
           showSafetyHint={true}

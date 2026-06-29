@@ -8,6 +8,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import ReactDOM from 'react-dom/client'
+import { useTranslation } from 'react-i18next'
+import { i18n } from '@craft-agent/shared/i18n'
 import { EyeOff, X, XCircle } from 'lucide-react'
 import { BrowserControls } from '@craft-agent/ui'
 import { HeaderIconButton } from '@/components/ui/HeaderIconButton'
@@ -17,7 +19,10 @@ import {
   StyledDropdownMenuContent,
   StyledDropdownMenuItem,
 } from '@/components/ui/styled-dropdown'
+import { bootstrapRendererI18n } from '@/lib/setup-renderer-i18n'
 import './index.css'
+
+bootstrapRendererI18n()
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -47,6 +52,7 @@ declare global {
       onStateUpdate: (callback: (state: ToolbarState) => void) => () => void
       onThemeColor: (callback: (color: string | null) => void) => () => void
       onForceCloseMenu: (callback: (payload: { reason?: string }) => void) => () => void
+      onLanguageChanged: (callback: (lang: string) => void) => () => void
     }
   }
 }
@@ -56,9 +62,10 @@ declare global {
 /* ------------------------------------------------------------------ */
 
 function BrowserToolbarApp() {
+  const { t } = useTranslation()
   const [state, setState] = useState<ToolbarState>({
     url: 'about:blank',
-    title: 'New Tab',
+    title: i18n.t('browser.newTab'),
     isLoading: false,
     canGoBack: false,
     canGoForward: false,
@@ -71,9 +78,15 @@ function BrowserToolbarApp() {
 
   useEffect(() => {
     if (!api) return
+    return api.onLanguageChanged((lang) => {
+      void i18n.changeLanguage(lang)
+    })
+  }, [api])
+
+  useEffect(() => {
+    if (!api) return
     return api.onStateUpdate((s) => {
       setState(s)
-      // Sync theme color from full state push (initial load / reconnection)
       if ('themeColor' in s) {
         setThemeColor((s as ToolbarState).themeColor ?? null)
       }
@@ -100,7 +113,6 @@ function BrowserToolbarApp() {
       return
     }
 
-    // Prime expansion immediately to avoid a constrained first measurement.
     void api.setMenuGeometry(true, 120)
 
     const sendGeometry = () => {
@@ -156,11 +168,6 @@ function BrowserToolbarApp() {
 
   return (
     <>
-      {/*
-        Full-window outside-tap catcher while menu is open.
-        Critical for draggable titlebar windows (Windows) where outside-click
-        dismissal can be unreliable if events fall into app-region: drag zones.
-      */}
       {windowMenuOpen && (
         <div
           className="fixed inset-0 z-[90] titlebar-no-drag bg-black/[0.0039215686]"
@@ -187,7 +194,7 @@ function BrowserToolbarApp() {
               <DropdownMenuTrigger asChild>
                 <HeaderIconButton
                   icon={<X className="h-3.5 w-3.5" />}
-                  aria-label="Browser window options"
+                  aria-label={t('browser.windowOptions')}
                   className={themeColor ? '' : 'bg-background shadow-minimal hover:bg-foreground/5'}
                   style={themeColor ? { color: 'var(--tb-fg)' } : undefined}
                 />
@@ -203,11 +210,11 @@ function BrowserToolbarApp() {
               >
                 <StyledDropdownMenuItem onSelect={handleHideWindow}>
                   <EyeOff className="h-3.5 w-3.5" />
-                  Hide Window
+                  {t('browser.hideWindow')}
                 </StyledDropdownMenuItem>
                 <StyledDropdownMenuItem variant="destructive" onSelect={handleCloseWindowEntirely}>
                   <XCircle className="h-3.5 w-3.5" />
-                  Close Window Entirely
+                  {t('browser.closeWindowEntirely')}
                 </StyledDropdownMenuItem>
               </StyledDropdownMenuContent>
             </DropdownMenu>
@@ -220,10 +227,6 @@ function BrowserToolbarApp() {
     </>
   )
 }
-
-/* ------------------------------------------------------------------ */
-/*  Mount                                                              */
-/* ------------------------------------------------------------------ */
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

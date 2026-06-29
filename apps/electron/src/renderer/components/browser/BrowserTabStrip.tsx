@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import * as Icons from 'lucide-react'
 import { Spinner } from '@craft-agent/ui'
@@ -46,6 +47,11 @@ export function BrowserTabStrip({
   instancesOverride,
   maxVisibleBadges = DEFAULT_MAX_VISIBLE_BADGES,
 }: BrowserTabStripProps) {
+  const { t } = useTranslation()
+  const hostnameLabels = useMemo(
+    () => ({ newTab: t('browser.newTab'), localFile: t('browser.localFile') }),
+    [t],
+  )
   // Filter the badge strip to the workspace currently in focus. Remote-connected
   // workspaces have a different `remoteWorkspaceId` (what the remote agent
   // stamps onto its tabs) than the local `activeWorkspaceId` (what locally-
@@ -293,8 +299,8 @@ export function BrowserTabStrip({
           </DropdownMenuTrigger>
           <StyledDropdownMenuContent align="end" minWidth="min-w-64">
             {overflow.map((instance) => {
-              const hostname = getHostname(instance.url)
-              const displayLabel = instance.title.trim() || hostname || 'Local File'
+              const hostname = getHostname(instance.url, hostnameLabels)
+              const displayLabel = instance.title.trim() || hostname || t('browser.localFile')
               return (
                 <DropdownMenuSub key={instance.id}>
                   <StyledDropdownMenuSubTrigger>

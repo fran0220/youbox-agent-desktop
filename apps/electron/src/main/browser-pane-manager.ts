@@ -30,6 +30,8 @@ import type {
   BrowserCapabilityRequest,
   ScreenshotResultWire,
 } from '@craft-agent/server-core/transport'
+import { i18n, type LanguageCode } from '@craft-agent/shared/i18n'
+import { getPersistedUiLanguage } from '@craft-agent/shared/config'
 
 export type { BrowserInstanceInfo }
 
@@ -122,6 +124,7 @@ const TOOLBAR_CHANNELS = {
   DESTROY: 'browser-toolbar:destroy',
   STATE_UPDATE: 'browser-toolbar:state-update',
   THEME_COLOR: 'browser-toolbar:theme-color',
+  LANGUAGE_CHANGED: 'browser-pane:language-changed',
 } as const
 export const BROWSER_PANE_SESSION_PARTITION = 'persist:browser-pane'
 const SESSION_PARTITION = BROWSER_PANE_SESSION_PARTITION
@@ -452,7 +455,7 @@ export class BrowserPaneManager implements IBrowserPaneManager {
       nativeOverlayView,
       cdp,
       currentUrl: 'about:blank',
-      title: 'New Tab',
+      title: i18n.t('browser.newTab'),
       favicon: null,
       isLoading: false,
       canGoBack: false,
@@ -2150,18 +2153,59 @@ export class BrowserPaneManager implements IBrowserPaneManager {
 
   private normalizePageState(url: string, title: string): { url: string; title: string } {
     if (this.isBrowserEmptyStateUrl(url)) {
-      return { url: 'about:blank', title: 'New Tab' }
+      return { url: 'about:blank', title: i18n.t('browser.newTab') }
     }
     return { url, title }
   }
 
+  private resolveUiLanguage(): LanguageCode {
+    return getPersistedUiLanguage() ?? (i18n.resolvedLanguage as LanguageCode | undefined) ?? 'en'
+  }
+
+  /** Push language updates to all browser sub-windows (separate session from main). */
+  broadcastLanguageChange(lang: LanguageCode): void {
+    const newTabTitle = i18n.t('browser.newTab')
+    for (const instance of this.instances.values()) {
+      const pageUrl = instance.pageView.webContents.isDestroyed()
+        ? ''
+        : instance.pageView.webContents.getURL()
+      if (
+        instance.currentUrl === 'about:blank'
+        || this.isBrowserEmptyStateUrl(pageUrl)
+      ) {
+        instance.title = newTabTitle
+      }
+
+      if (!instance.toolbarView.webContents.isDestroyed()) {
+        instance.toolbarView.webContents.send(TOOLBAR_CHANNELS.LANGUAGE_CHANGED, lang)
+      }
+
+      if (
+        this.isBrowserEmptyStateUrl(pageUrl)
+        && !instance.pageView.webContents.isDestroyed()
+      ) {
+        void instance.pageView.webContents.executeJavaScript(
+          `window.__craftChangeLanguage?.(${JSON.stringify(lang)})`,
+        )
+      }
+
+      this.emitStateChange(instance)
+    }
+  }
+
   private async loadEmptyStatePage(instance: BrowserInstance): Promise<void> {
+    const uiLang = this.resolveUiLanguage()
     if (VITE_DEV_SERVER_URL) {
-      await instance.pageView.webContents.loadURL(`${VITE_DEV_SERVER_URL}/${BROWSER_EMPTY_STATE_PAGE}`)
+      const query = new URLSearchParams({ uiLang })
+      await instance.pageView.webContents.loadURL(
+        `${VITE_DEV_SERVER_URL}/${BROWSER_EMPTY_STATE_PAGE}?${query.toString()}`,
+      )
       return
     }
 
-    await instance.pageView.webContents.loadFile(join(__dirname, `renderer/${BROWSER_EMPTY_STATE_PAGE}`))
+    await instance.pageView.webContents.loadFile(join(__dirname, `renderer/${BROWSER_EMPTY_STATE_PAGE}`), {
+      query: { uiLang },
+    })
   }
 
   private async handleDeepLinkUrl(url: string): Promise<void> {
@@ -2226,7 +2270,10 @@ export class BrowserPaneManager implements IBrowserPaneManager {
   }
 
   private async loadToolbarPage(instance: BrowserInstance): Promise<void> {
-    const query = `instanceId=${encodeURIComponent(instance.id)}`
+    const query = new URLSearchParams({
+      instanceId: instance.id,
+      uiLang: this.resolveUiLanguage(),
+    }).toString()
     let lastError: unknown = null
 
     for (let attempt = 0; attempt <= TOOLBAR_LOAD_MAX_RETRIES; attempt++) {
@@ -2236,7 +2283,7 @@ export class BrowserPaneManager implements IBrowserPaneManager {
         } else {
           await instance.toolbarView.webContents.loadFile(
             join(__dirname, 'renderer/browser-toolbar.html'),
-            { query: { instanceId: instance.id } },
+            { query: { instanceId: instance.id, uiLang: this.resolveUiLanguage() } },
           )
         }
 
