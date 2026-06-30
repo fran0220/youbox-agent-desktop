@@ -1,7 +1,7 @@
 /**
  * Secure Storage Backend
  *
- * Stores credentials in an encrypted file at ~/.origincoworks-next/credentials.enc
+ * Stores credentials in an encrypted file at ~/.originai/credentials.enc
  * Uses AES-256-GCM for authenticated encryption.
  *
  * Encryption key is derived from OS-native hardware UUID using PBKDF2:

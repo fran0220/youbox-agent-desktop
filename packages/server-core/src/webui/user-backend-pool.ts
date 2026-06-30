@@ -104,6 +104,7 @@ export class UserBackendPool {
       CRAFT_BUNDLED_ASSETS_ROOT: this.options.bundledAssetsRoot,
       CRAFT_REPO_ROOT: this.options.repoRoot,
       CRAFT_GATEWAY_SESSION_TOKEN: gatewayToken,
+      ORIGINAI_GATEWAY_URL: this.options.gatewayBaseUrl,
       ORIGINCOWORKS_GATEWAY_URL: this.options.gatewayBaseUrl,
       CRAFT_WEBUI_JWT_SECRET: this.options.jwtSecret,
     }

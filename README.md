@@ -1,9 +1,9 @@
-# OriginCoworks Next
+# OriginAI
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-**OriginCoworks Next** is an Apache-2.0 fork of [Craft Agents](https://github.com/lukilabs/craft-agents-oss) integrated end-to-end with the **JAcoworks Go gateway**. It keeps Craft's agent-native workbench (Electron desktop app, multi-tenant WebUI, headless server, and a Bun CLI) and replaces per-machine, static-token onboarding with a single gateway-driven control plane: one sign-in delivers your LLM configuration, permission policy, skills, memory, classic-session history, and release updates.
+**OriginAI** is an Apache-2.0 fork of [Craft Agents](https://github.com/lukilabs/craft-agents-oss) integrated end-to-end with the **JAcoworks Go gateway**. It keeps Craft's agent-native workbench (Electron desktop app, multi-tenant WebUI, headless server, and a Bun CLI) and replaces per-machine, static-token onboarding with a single gateway-driven control plane: one sign-in delivers your LLM configuration, permission policy, skills, memory, classic-session history, and release updates.
 
 Like upstream, it runs the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) and the Pi SDK side by side.
 
@@ -12,13 +12,13 @@ Like upstream, it runs the [Claude Agent SDK](https://www.npmjs.com/package/@ant
 Everything below routes through the new `packages/origincoworks` adapter (the only network layer to the gateway) plus a small set of Go `/api/desktop/*` endpoints. Craft core edits are surgical, the internal `@craft-agent/*` npm scope is unchanged, and `CRAFT_*` environment variables remain valid as backward-compatible aliases.
 
 - **Gateway-driven auth on every surface.** Desktop, WebUI, and the CLI all authenticate against the gateway (`POST /api/auth/login`) and store a session token; identity is verified via `GET /api/users/me`. There is no static `CRAFT_SERVER_TOKEN` onboarding gate anymore.
-- **Gateway-backed LLM config.** `GET /api/desktop/config` (secret-redacted) auto-provisions a single managed `pi_compat` LLM connection (`OriginCoworks Gateway`) that hits the real xiaomao proxy (default model `gpt-5.5`, base `https://api.xiaomao.chat`). No manual provider/API-key onboarding.
+- **Gateway-backed LLM config.** `GET /api/desktop/config` (secret-redacted) auto-provisions a single managed `pi_compat` LLM connection (`OriginAI Gateway`) that hits the real xiaomao proxy (default model `gpt-5.5`, base `https://api.xiaomao.chat`). No manual provider/API-key onboarding.
 - **Permission policy + audit.** Gateway role and workspace-trust checks run in pre-tool-use; high-risk commands are surfaced, and audit events `POST /api/desktop/audit`.
 - **Skills sync + Memory source.** Checksum-based skills sync (system + user) keeps workspaces current, and a first-class `memory` source type is backed by gateway memory sync (read / search / write-with-permission).
 - **Classic session import.** Read-only import of legacy sessions via `GET /api/desktop/classic-sessions`, continue-from-old via a transferred-session summary, and metadata write-back via `POST /api/desktop/session-metadata`.
 - **Multi-tenant WebUI.** A front controller authenticates users via the gateway and spawns an isolated per-user headless backend (process-level tenant isolation, each with its own config dir). Logout tears the backend down.
 - **Release + feedback.** Gateway `GET /api/desktop/release/latest` (DB-backed `releases` / `release_assets`) plus an auto-update feed pointed at the gateway, and `POST /api/desktop/feedback`.
-- **Branding & data dir.** Product identity "OriginCoworks Next", bundle id `com.origincoworks.next`, deep-link scheme `origincoworks://`, default data dir `~/.origincoworks-next`, and a branded CLI (`ocn`).
+- **Branding & data dir.** Product identity "OriginAI", bundle id `com.origincoworks.next`, deep-link scheme `originai://` (legacy `origincoworks://`), default data dir `~/.originai`, and a branded CLI (`ocn`).
 
 > **Out of scope.** Release signing, macOS notarization, Windows NSIS signing, object-storage upload, and production deployment are **not** included. Release support covers only the `release/latest` endpoint + tables and the updater feed configuration.
 
@@ -96,7 +96,7 @@ Real LLM keys and other secrets are sourced from the database `system_settings` 
 
 ## Run
 
-By default every surface talks to the gateway at `http://127.0.0.1:8847`. Override it with `ORIGINCOWORKS_GATEWAY_URL`.
+By default every surface talks to the gateway at `http://127.0.0.1:8847`. Override with `ORIGINAI_GATEWAY_URL` (legacy alias: `ORIGINCOWORKS_GATEWAY_URL`).
 
 ### Desktop (Electron)
 
@@ -133,7 +133,7 @@ bun run apps/cli/src/index.ts --help
 # Or alias it
 alias ocn="bun run $(pwd)/apps/cli/src/index.ts"
 
-# Sign in via the gateway (token persisted to ~/.origincoworks-next/cli.json)
+# Sign in via the gateway (token persisted to ~/.originai/cli.json)
 ocn login <username> --gateway-password '<password>'
 # or validate and store an existing 64-hex gateway session token
 ocn login --token <64-hex>
@@ -220,7 +220,7 @@ Automations trigger actions when events happen — labels change, sessions start
 - "Notify me when a session is labelled urgent"
 - "Every Friday at 5pm, summarise this week's completed tasks"
 
-Or configure manually in `~/.origincoworks-next/workspaces/{id}/automations.json`:
+Or configure manually in `~/.originai/workspaces/{id}/automations.json`:
 
 ```json
 {
@@ -259,11 +259,11 @@ The CLI authenticates with the gateway and connects to a headless server over We
 ### Authentication & connection
 
 ```bash
-# Gateway login (token persisted to ~/.origincoworks-next/cli.json)
+# Gateway login (token persisted to ~/.originai/cli.json)
 ocn login <username> --gateway-password '<password>'
 ocn login --token <64-hex>
 
-# Gateway base URL (default: $ORIGINCOWORKS_GATEWAY_URL or http://127.0.0.1:8847)
+# Gateway base URL (default: $ORIGINAI_GATEWAY_URL, $ORIGINCOWORKS_GATEWAY_URL, or http://127.0.0.1:8847)
 ocn --gateway-url http://127.0.0.1:8847 login <username>
 ```
 
@@ -348,8 +348,9 @@ CRAFT_SERVER_URL=wss://203.0.113.5:9100 CRAFT_SERVER_TOKEN=<token> bun run elect
 | `CRAFT_RPC_TLS_CERT` | No | — | Path to PEM certificate file (enables `wss://`) |
 | `CRAFT_RPC_TLS_KEY` | No | — | Path to PEM private key file (required with cert) |
 | `CRAFT_RPC_TLS_CA` | No | — | Path to PEM CA chain file (optional, for client cert verification) |
-| `ORIGINCOWORKS_GATEWAY_URL` | No | `http://127.0.0.1:8847` | Gateway base URL used by all surfaces |
-| `CRAFT_CONFIG_DIR` | No | `~/.origincoworks-next` | Override the data directory |
+| `ORIGINAI_GATEWAY_URL` | No | `http://127.0.0.1:8847` | Gateway base URL used by all surfaces (preferred) |
+| `ORIGINCOWORKS_GATEWAY_URL` | No | — | Legacy alias for `ORIGINAI_GATEWAY_URL` |
+| `CRAFT_CONFIG_DIR` | No | `~/.originai` | Override the data directory |
 | `CRAFT_DEBUG` | No | `false` | Enable debug logging |
 
 ### TLS (recommended for remote access)
@@ -390,7 +391,7 @@ To enable TLS in Docker, mount your certificates and set `CRAFT_RPC_TLS_CERT` / 
 
 ## Supported LLM Providers
 
-In OriginCoworks Next, the active LLM connection is provisioned by the gateway (`pi_compat` against the xiaomao proxy). The underlying Craft connection types are still available for advanced/standalone use:
+In OriginAI, the active LLM connection is provisioned by the gateway (`pi_compat` against the xiaomao proxy). The underlying Craft connection types are still available for advanced/standalone use:
 
 ### Direct connections
 
@@ -419,10 +420,10 @@ Additional providers connect through the **Claude / Anthropic API Key** connecti
 
 ## Configuration
 
-Configuration is stored at `~/.origincoworks-next/` (override with `CRAFT_CONFIG_DIR`):
+Configuration is stored at `~/.originai/` (override with `CRAFT_CONFIG_DIR`):
 
 ```
-~/.origincoworks-next/
+~/.originai/
 ├── config.json              # Main config (workspaces, LLM connections)
 ├── credentials.enc          # Encrypted credentials (AES-256-GCM), incl. gateway session
 ├── preferences.json         # User preferences
@@ -439,18 +440,18 @@ Configuration is stored at `~/.origincoworks-next/` (override with `CRAFT_CONFIG
         └── statuses/        # Status configuration
 ```
 
-> Backward compatibility: `CRAFT_*` environment variables are still honored as aliases, and the internal `@craft-agent/*` npm scope is unchanged. The legacy `~/.craft-agent` path is no longer the default data directory.
+> Backward compatibility: `CRAFT_*` environment variables are still honored as aliases, and the internal `@craft-agent/*` npm scope is unchanged. Existing installs keep using `~/.origincoworks-next` until `~/.originai` exists. The legacy `origincoworks://` deep-link scheme remains accepted.
 
 ### Deep linking
 
-External apps can navigate using `origincoworks://` URLs:
+External apps can navigate using `originai://` URLs:
 
 ```
-origincoworks://allSessions                      # All sessions view
-origincoworks://allSessions/session/session123   # Specific session
-origincoworks://settings                         # Settings
-origincoworks://sources/source/github            # Source info
-origincoworks://action/new-chat                  # Create new session
+originai://allSessions                      # All sessions view
+originai://allSessions/session/session123   # Specific session
+originai://settings                         # Settings
+originai://sources/source/github            # Source info
+originai://action/new-chat                  # Create new session
 ```
 
 ## Tech Stack
@@ -474,15 +475,15 @@ To launch the packaged app with verbose logging, use `-- --debug` (note the doub
 
 **macOS:**
 ```bash
-/Applications/OriginCoworks\ Next.app/Contents/MacOS/OriginCoworks\ Next -- --debug
+/Applications/OriginAI.app/Contents/MacOS/OriginAI -- --debug
 ```
 
-The main log uses the product app name ("OriginCoworks Next"):
-- **macOS:** `~/Library/Logs/OriginCoworks Next/main.log`
-- **Windows:** `%APPDATA%\OriginCoworks Next\logs\main.log`
-- **Linux:** `~/.config/OriginCoworks Next/logs/main.log`
+The main log uses the product app name ("OriginAI"):
+- **macOS:** `~/Library/Logs/OriginAI/main.log`
+- **Windows:** `%APPDATA%\OriginAI\logs\main.log`
+- **Linux:** `~/.config/OriginAI/logs/main.log`
 
-Always-on lifecycle logs (auto-update, messaging gateway) are written under the data directory at `~/.origincoworks-next/logs/`.
+Always-on lifecycle logs (auto-update, messaging gateway) are written under the data directory at `~/.originai/logs/`.
 
 ## License
 

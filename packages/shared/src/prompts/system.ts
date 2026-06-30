@@ -623,7 +623,7 @@ ${includeCoAuthoredBy ? `## Git Conventions
 When creating git commits, include Craft Agent as a co-author:
 
 \`\`\`
-Co-Authored-By: OriginCoworks Next <agents-noreply@origincoworks.local>
+Co-Authored-By: OriginAI <agents-noreply@origincoworks.local>
 \`\`\`
 ` : ''}## Permission Modes
 

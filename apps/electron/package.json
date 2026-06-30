@@ -1,7 +1,7 @@
 {
   "name": "@craft-agent/electron",
   "version": "0.10.4",
-  "description": "Electron desktop app for OriginCoworks Next",
+  "description": "Electron desktop app for OriginAI",
   "main": "dist/main.cjs",
   "private": true,
   "author": {

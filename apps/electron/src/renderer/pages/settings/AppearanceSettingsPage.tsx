@@ -188,7 +188,7 @@ export default function AppearanceSettingsPage() {
           window.electronAPI.getHomeDir(),
         ])
         setToolIcons(mappings)
-        setToolIconsJsonPath(`${homeDir}/.origincoworks-next/tool-icons/tool-icons.json`)
+        setToolIconsJsonPath(`${homeDir}/.originai/tool-icons/tool-icons.json`)
       } catch (error) {
         console.error('Failed to load tool icon mappings:', error)
       }

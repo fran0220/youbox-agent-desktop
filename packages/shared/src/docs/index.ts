@@ -93,7 +93,7 @@ export function getDocPath(filename: string): string {
 // IMPORTANT: This is intentionally a human-readable, non-instance-aware path.
 // Do NOT use APP_ROOT for real filesystem reads/writes.
 // For runtime filesystem paths, use CONFIG_DIR from config/paths.ts.
-export const APP_ROOT = '~/.origincoworks-next';
+export const APP_ROOT = '~/.originai';
 
 /**
  * Documentation file references for use in error messages and tool descriptions.

@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import {
   buildProductDeepLinkUrl,
   isProductDeepLinkProtocol,
+  isProductDeepLinkUrl,
   resolveDeeplinkScheme,
 } from '../deeplink-scheme.ts'
-import { DEFAULT_DEEPLINK_SCHEME } from '../product-identity.ts'
+import { DEFAULT_DEEPLINK_SCHEME, LEGACY_DEEPLINK_SCHEME } from '../product-identity.ts'
 
 describe('resolveDeeplinkScheme', () => {
   const prev = process.env.CRAFT_DEEPLINK_SCHEME
@@ -31,8 +32,8 @@ describe('resolveDeeplinkScheme', () => {
 describe('buildProductDeepLinkUrl', () => {
   it('builds URLs with the resolved scheme', () => {
     delete process.env.CRAFT_DEEPLINK_SCHEME
-    expect(buildProductDeepLinkUrl('allSessions')).toBe('origincoworks://allSessions')
-    expect(buildProductDeepLinkUrl('/settings/shortcuts')).toBe('origincoworks://settings/shortcuts')
+    expect(buildProductDeepLinkUrl('allSessions')).toBe('originai://allSessions')
+    expect(buildProductDeepLinkUrl('/settings/shortcuts')).toBe('originai://settings/shortcuts')
   })
 })
 
@@ -46,9 +47,9 @@ describe('resolveDeeplinkScheme without process (renderer)', () => {
 
       expect(resolveDeeplinkScheme()).toBe(DEFAULT_DEEPLINK_SCHEME)
       expect(buildProductDeepLinkUrl('sources?window=focused')).toBe(
-        'origincoworks://sources?window=focused',
+        'originai://sources?window=focused',
       )
-      expect(isProductDeepLinkProtocol('origincoworks:')).toBe(true)
+      expect(isProductDeepLinkProtocol('originai:')).toBe(true)
     } finally {
       globalThis.process = saved
     }
@@ -56,9 +57,19 @@ describe('resolveDeeplinkScheme without process (renderer)', () => {
 })
 
 describe('isProductDeepLinkProtocol', () => {
-  it('matches the effective scheme case-insensitively', () => {
-    expect(isProductDeepLinkProtocol('origincoworks:')).toBe(true)
+  it('matches the effective scheme and legacy alias case-insensitively', () => {
+    expect(isProductDeepLinkProtocol('originai:')).toBe(true)
+    expect(isProductDeepLinkProtocol('ORIGINAI:')).toBe(true)
+    expect(isProductDeepLinkProtocol(`${LEGACY_DEEPLINK_SCHEME}:`)).toBe(true)
     expect(isProductDeepLinkProtocol('ORIGINCOWORKS:')).toBe(true)
     expect(isProductDeepLinkProtocol('craftagents:')).toBe(false)
+  })
+})
+
+describe('isProductDeepLinkUrl', () => {
+  it('accepts current and legacy scheme URLs', () => {
+    expect(isProductDeepLinkUrl('originai://settings')).toBe(true)
+    expect(isProductDeepLinkUrl('origincoworks://settings')).toBe(true)
+    expect(isProductDeepLinkUrl('craftagents://settings')).toBe(false)
   })
 })

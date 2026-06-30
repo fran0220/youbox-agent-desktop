@@ -1,9 +1,17 @@
 import { describe, expect, test } from 'bun:test';
 import {
   DEFAULT_DATA_DIR_NAME,
+  LEGACY_DATA_DIR_NAME,
   getInstanceConfigDir,
   stripCraftDataDirWorkspacePath,
 } from '../paths.ts';
+
+describe('data directory names', () => {
+  test('uses OriginAI default and keeps legacy alias name', () => {
+    expect(DEFAULT_DATA_DIR_NAME).toBe('.originai');
+    expect(LEGACY_DATA_DIR_NAME).toBe('.origincoworks-next');
+  });
+});
 
 describe('getInstanceConfigDir', () => {
   test('derives numbered instance dir from default data dir name', () => {

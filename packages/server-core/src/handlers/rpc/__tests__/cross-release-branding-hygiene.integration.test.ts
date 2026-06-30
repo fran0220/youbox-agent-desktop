@@ -136,13 +136,13 @@ describe('cross-release branding hygiene (live)', () => {
     await logoutGateway();
   });
 
-  it('VAL-CROSS-023: unified OriginCoworks branding on desktop, WebUI, and CLI surfaces', () => {
+  it('VAL-CROSS-023: unified OriginAI branding on desktop, WebUI, and CLI surfaces', () => {
     const root = repoRoot();
 
     const electronPkg = JSON.parse(
       readFileSync(join(root, 'apps/electron/package.json'), 'utf8'),
     ) as { description?: string };
-    expect(electronPkg.description).toContain('OriginCoworks');
+    expect(electronPkg.description).toContain('OriginAI');
     expect(electronPkg.description).not.toContain('Craft Agents');
 
     const rendererHtml = readFileSync(join(root, 'apps/electron/src/renderer/index.html'), 'utf8');
@@ -150,15 +150,15 @@ describe('cross-release branding hygiene (live)', () => {
     expect(rendererHtml).not.toMatch(/Craft Agents/i);
 
     const webuiLogin = readFileSync(join(root, 'apps/webui/src/login.html'), 'utf8');
-    expect(webuiLogin).toMatch(/OriginCoworks/i);
+    expect(webuiLogin).toMatch(/OriginAI/i);
     expect(webuiLogin).not.toMatch(/Craft Agents|craft-cli|craft\.do/i);
 
     const webuiIndex = readFileSync(join(root, 'apps/webui/src/index.html'), 'utf8');
-    expect(webuiIndex).toMatch(/OriginCoworks/i);
+    expect(webuiIndex).toMatch(/OriginAI/i);
     expect(webuiIndex).not.toMatch(/Craft Agents/i);
 
     const builder = readFileSync(join(root, 'apps/electron/electron-builder.yml'), 'utf8');
-    expect(builder).toContain('productName: OriginCoworks Next');
+    expect(builder).toContain('productName: OriginAI');
     expect(builder).toContain('com.origincoworks.next');
     expect(builder).not.toMatch(/com\.lukilabs\.craft-agent/);
 
@@ -169,7 +169,7 @@ describe('cross-release branding hygiene (live)', () => {
     const cliHelp = execSync(`cd ${join(root, 'apps/cli')} && bun run src/index.ts --help`, {
       encoding: 'utf8',
     });
-    expect(cliHelp).toMatch(/OriginCoworks/i);
+    expect(cliHelp).toMatch(/OriginAI/i);
     expect(cliHelp).not.toMatch(/craft-cli|Craft Agents/i);
   });
 

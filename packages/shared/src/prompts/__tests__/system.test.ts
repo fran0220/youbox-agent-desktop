@@ -12,7 +12,7 @@ mock.module('../../config/preferences.ts', () => ({
 import { getSystemPrompt } from '../system'
 
 const GIT_CONVENTIONS_HEADING = '## Git Conventions'
-const CO_AUTHOR_TRAILER = 'Co-Authored-By: OriginCoworks Next <agents-noreply@origincoworks.local>'
+const CO_AUTHOR_TRAILER = 'Co-Authored-By: OriginAI <agents-noreply@origincoworks.local>'
 
 describe('system prompt guidance', () => {
   it('uses backend-neutral debug log querying guidance (rg/grep via Bash)', () => {

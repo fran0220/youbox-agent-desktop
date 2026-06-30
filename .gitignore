@@ -72,3 +72,12 @@ credentials.enc
 # act (local GitHub Actions runner)
 .secrets
 .actrc
+
+# Amp agent internal state
+.amp/
+
+# Bun download temp (Electron build)
+apps/electron/.bun-download-temp/
+
+# Stray generated artifacts at repo root
+mission-control-*.js

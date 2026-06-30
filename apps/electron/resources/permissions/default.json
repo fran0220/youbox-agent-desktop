@@ -954,6 +954,7 @@
   ],
   "allowedApiEndpoints": [],
   "allowedWritePaths": [
+    "~/.originai/**",
     "~/.origincoworks-next/**"
   ]
 }

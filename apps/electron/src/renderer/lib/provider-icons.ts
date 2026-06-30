@@ -55,8 +55,8 @@ const providerDisplayNames: Record<string, string> = {
   minimax: 'Minimax',
   ollama: 'Ollama',
   openrouter: 'OpenRouter',
-  pi: 'OriginCoworks backend',
-  pi_compat: 'OriginCoworks backend',
+  pi: 'OriginAI backend',
+  pi_compat: 'OriginAI backend',
   vercel: 'Vercel',
 }
 

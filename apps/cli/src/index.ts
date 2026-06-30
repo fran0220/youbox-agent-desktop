@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * OriginCoworks CLI (ocn) — terminal client for the headless Agent server.
+ * OriginAI CLI (ocn) — terminal client for the headless Agent server.
  *
  * Connects over WebSocket (ws:// or wss://) with gateway session token or server token.
  */
@@ -175,7 +175,9 @@ export function parseArgs(argv: string[]): CliArgs {
   if (!model) model = process.env.LLM_MODEL ?? ''
   if (!apiKey) apiKey = process.env.LLM_API_KEY ?? ''
   if (!baseUrl) baseUrl = process.env.LLM_BASE_URL ?? ''
-  if (!gatewayUrl) gatewayUrl = process.env.ORIGINCOWORKS_GATEWAY_URL ?? ''
+  if (!gatewayUrl) {
+    gatewayUrl = process.env.ORIGINAI_GATEWAY_URL ?? process.env.ORIGINCOWORKS_GATEWAY_URL ?? ''
+  }
 
   return {
     url,
@@ -2009,7 +2011,7 @@ async function cmdLogin(args: CliArgs): Promise<void> {
     out(
       args.json
         ? { ok: true, user: result.user, gatewayUrl }
-        : `OriginCoworks: signed in as ${result.user.name} (gateway session saved)`,
+        : `OriginAI: signed in as ${result.user.name} (gateway session saved)`,
       args.json,
     )
     return
@@ -2036,7 +2038,7 @@ async function cmdLogin(args: CliArgs): Promise<void> {
   out(
     args.json
       ? { ok: true, user: result.user, gatewayUrl }
-      : `OriginCoworks: signed in as ${result.user.name} (gateway session saved)`,
+      : `OriginAI: signed in as ${result.user.name} (gateway session saved)`,
     args.json,
   )
 }
@@ -2050,10 +2052,10 @@ function printHelp(): void {
 
 Usage: ${CLI_PROGRAM_NAME} [options] <command> [args...]
 
-Gateway login (persists token to ~/.origincoworks-next/cli.json):
+Gateway login (persists token to ~/.originai/cli.json):
   login <username>       Sign in via gateway (password: --gateway-password)
   login --token <hex>    Validate and store an existing gateway session token
-  --gateway-url <url>    Gateway base URL (default: $ORIGINCOWORKS_GATEWAY_URL or http://127.0.0.1:8847)
+  --gateway-url <url>    Gateway base URL (default: $ORIGINAI_GATEWAY_URL, $ORIGINCOWORKS_GATEWAY_URL, or http://127.0.0.1:8847)
   --gateway-user <name>  Username for login
   --gateway-password <p> Password for login
 

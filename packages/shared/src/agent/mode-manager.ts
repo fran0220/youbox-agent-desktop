@@ -1702,6 +1702,7 @@ export function getPathHint(targetPath: string, plansFolderPath: string, dataFol
 
   // Case: Writing to workspace root instead of session
   const inAppDataWorkspaces =
+    normalizedTarget.includes('/.originai/workspaces/') ||
     normalizedTarget.includes('/.origincoworks-next/workspaces/') ||
     normalizedTarget.includes('/.craft-agent/workspaces/');
   if (inAppDataWorkspaces && !normalizedTarget.includes('/sessions/')) {
@@ -1710,6 +1711,7 @@ export function getPathHint(targetPath: string, plansFolderPath: string, dataFol
 
   // Case: Writing outside app data dir entirely
   const inAppDataDir =
+    normalizedTarget.includes('/.originai/') ||
     normalizedTarget.includes('/.origincoworks-next/') ||
     normalizedTarget.includes('/.craft-agent/');
   if (!inAppDataDir) {

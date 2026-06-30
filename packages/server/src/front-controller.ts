@@ -4,10 +4,10 @@
  *
  *   CRAFT_WEBUI_FRONT_CONTROLLER=1 CRAFT_RPC_PORT=9100 CRAFT_WEBUI_DIR=... bun run packages/server/src/front-controller.ts
  */
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { resolveGatewayBaseUrl } from '@craft-agent/origincoworks/auth'
+import { getConfigDir } from '@craft-agent/shared/config'
 import { generateServerToken } from '@craft-agent/server-core/bootstrap'
 import {
   createFrontControllerHandler,
@@ -29,7 +29,7 @@ const jwtSecret = process.env.CRAFT_WEBUI_JWT_SECRET?.trim()
 const repoRoot = process.env.CRAFT_REPO_ROOT ?? join(import.meta.dir, '..', '..')
 const bundledAssetsRoot = process.env.CRAFT_BUNDLED_ASSETS_ROOT ?? join(repoRoot, 'apps', 'electron')
 const baseConfigDir = process.env.CRAFT_WEBUI_USERS_DIR
-  ?? join(homedir(), '.origincoworks-next', 'webui-users')
+  ?? join(getConfigDir(), 'webui-users')
 
 const logger = {
   info: console.log,

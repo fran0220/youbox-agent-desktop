@@ -2,7 +2,16 @@ import { describe, expect, it } from 'bun:test'
 import { parseDeepLink } from '../deep-link'
 
 describe('parseDeepLink', () => {
-  it('accepts origincoworks:// compound routes', () => {
+  it('accepts originai:// compound routes', () => {
+    expect(parseDeepLink('originai://settings/shortcuts')).toEqual({
+      workspaceId: undefined,
+      view: 'settings/shortcuts',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+  })
+
+  it('accepts legacy origincoworks:// compound routes', () => {
     expect(parseDeepLink('origincoworks://settings/shortcuts')).toEqual({
       workspaceId: undefined,
       view: 'settings/shortcuts',
@@ -11,7 +20,14 @@ describe('parseDeepLink', () => {
     })
   })
 
-  it('accepts origincoworks:// action routes', () => {
+  it('accepts originai:// action routes', () => {
+    expect(parseDeepLink('originai://action/new-session?input=hi')).toMatchObject({
+      action: 'new-session',
+      actionParams: { input: 'hi' },
+    })
+  })
+
+  it('accepts legacy origincoworks:// action routes', () => {
     expect(parseDeepLink('origincoworks://action/new-session?input=hi')).toMatchObject({
       action: 'new-session',
       actionParams: { input: 'hi' },

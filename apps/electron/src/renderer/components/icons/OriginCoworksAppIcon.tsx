@@ -9,7 +9,7 @@ export function OriginCoworksAppIcon({ className, size = 64 }: OriginCoworksAppI
   return (
     <img
       src={origincoworksLogo}
-      alt="OriginCoworks"
+      alt="OriginAI"
       width={size}
       height={size}
       className={className}

@@ -147,7 +147,7 @@ export function AddWorkspaceStep_ConnectRemote({
     }
 
     if (!homeDir) return
-    const defaultBasePath = `${homeDir}/.origincoworks-next/workspaces`
+    const defaultBasePath = `${homeDir}/.originai/workspaces`
 
     if (isCreateNew || isFreshServer) {
       // Create new workspace on remote server via direct RPC, then connect locally

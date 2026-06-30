@@ -1,0 +1,34 @@
+server:
+  host: "0.0.0.0"
+  port: 8847
+  public_url: "http://localhost:8847"
+
+auth:
+  admin_token: "change-me"
+  feishu_client_id: ""
+  feishu_client_secret: ""
+  session_ttl_hours: 720
+
+database:
+  url: "postgresql://postgres:YOUR_DB_PASSWORD@127.0.0.1:5432/jacoworks"
+
+llm:
+  proxy_url: "https://api.xiaomao.chat"
+  proxy_key: "change-me"
+  openai_api_key: ""      # OpenAI Embedding API (记忆向量搜索, 中转站不支持 Embedding)
+  exa_api_key: ""          # Exa 搜索 (可选)
+  tavily_api_key: ""       # Tavily 搜索 (可选)
+
+github:
+  token: ""                # GitHub PAT (repo scope), 用于反馈 Issue + 截图上传
+  repo: "fran0220/jacoworks"
+
+chat_agent:
+  url: "http://127.0.0.1:18790"
+  token: ""
+
+posthog:
+  api_key: ""                # PostHog project API key (phc_...)
+  endpoint: "https://us.i.posthog.com"  # PostHog endpoint
+
+oc_gateway_url: "https://gw.local.jingao.club"  # jaco-cloud oc-gateway URL for feishu bot proxy

@@ -3,7 +3,7 @@
  *
  * Handles checking for updates, downloading, and installing via the standard
  * electron-updater library when a publish feed is configured in electron-builder.
- * OriginCoworks Next uses the JAcoworks gateway generic feed at /api/desktop/release/ (not craft.do).
+ * OriginAI uses the JAcoworks gateway generic feed at /api/desktop/release/ (not craft.do).
  *
  * Platform behavior:
  * - macOS: Downloads zip, extracts and swaps app bundle atomically

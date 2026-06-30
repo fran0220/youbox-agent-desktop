@@ -131,19 +131,30 @@ describe('loginGateway', () => {
 });
 
 describe('resolveGatewayBaseUrl', () => {
-  const prev = process.env.ORIGINCOWORKS_GATEWAY_URL;
+  const prevOriginai = process.env.ORIGINAI_GATEWAY_URL;
+  const prevLegacy = process.env.ORIGINCOWORKS_GATEWAY_URL;
 
   afterEach(() => {
-    if (prev === undefined) delete process.env.ORIGINCOWORKS_GATEWAY_URL;
-    else process.env.ORIGINCOWORKS_GATEWAY_URL = prev;
+    if (prevOriginai === undefined) delete process.env.ORIGINAI_GATEWAY_URL;
+    else process.env.ORIGINAI_GATEWAY_URL = prevOriginai;
+    if (prevLegacy === undefined) delete process.env.ORIGINCOWORKS_GATEWAY_URL;
+    else process.env.ORIGINCOWORKS_GATEWAY_URL = prevLegacy;
   });
 
   it('defaults to local gateway', () => {
+    delete process.env.ORIGINAI_GATEWAY_URL;
     delete process.env.ORIGINCOWORKS_GATEWAY_URL;
     expect(resolveGatewayBaseUrl()).toBe('http://127.0.0.1:8847');
   });
 
-  it('strips trailing slashes from env override', () => {
+  it('prefers ORIGINAI_GATEWAY_URL over legacy alias', () => {
+    process.env.ORIGINAI_GATEWAY_URL = 'https://jacoapi.jingao.club';
+    process.env.ORIGINCOWORKS_GATEWAY_URL = 'http://example.test:9999';
+    expect(resolveGatewayBaseUrl()).toBe('https://jacoapi.jingao.club');
+  });
+
+  it('falls back to ORIGINCOWORKS_GATEWAY_URL when ORIGINAI is unset', () => {
+    delete process.env.ORIGINAI_GATEWAY_URL;
     process.env.ORIGINCOWORKS_GATEWAY_URL = 'http://example.test:9999///';
     expect(resolveGatewayBaseUrl()).toBe('http://example.test:9999');
   });

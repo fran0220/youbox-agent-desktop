@@ -1,5 +1,5 @@
 /**
- * CLI gateway login persistence (~/.origincoworks-next/cli.json).
+ * CLI gateway login persistence (~/.originai/cli.json).
  */
 import { mkdir, readFile, writeFile, chmod } from 'node:fs/promises'
 import { homedir } from 'node:os'

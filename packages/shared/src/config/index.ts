@@ -1,6 +1,7 @@
 export {
   CONFIG_DIR,
   DEFAULT_DATA_DIR_NAME,
+  LEGACY_DATA_DIR_NAME,
   getConfigDir,
   getInstanceConfigDir,
   stripCraftDataDirWorkspacePath,

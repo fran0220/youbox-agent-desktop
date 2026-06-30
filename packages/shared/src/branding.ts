@@ -1,5 +1,5 @@
 /**
- * Centralized branding assets for OriginCoworks Next
+ * Centralized branding assets for OriginAI
  * Used by OAuth callback pages
  */
 

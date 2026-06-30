@@ -49,7 +49,7 @@ export function getDocsSource(workspaceId: string, workspaceRootPath: string): L
       url: PRODUCT_DOCS_MCP_URL,
       authType: 'none',
     },
-    tagline: 'Search OriginCoworks Next documentation and source setup guides',
+    tagline: 'Search OriginAI documentation and source setup guides',
     icon: '📚',
     isAuthenticated: true,
     connectionStatus: 'connected',

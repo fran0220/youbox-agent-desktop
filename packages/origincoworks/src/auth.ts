@@ -12,8 +12,10 @@ export const GATEWAY_SESSION_CREDENTIAL: CredentialId = {
 const TOKEN_HEX = /^[0-9a-f]{64}$/i;
 
 export function resolveGatewayBaseUrl(): string {
-  const fromEnv = process.env.ORIGINCOWORKS_GATEWAY_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/+$/, '');
+  const fromOriginai = process.env.ORIGINAI_GATEWAY_URL?.trim();
+  if (fromOriginai) return fromOriginai.replace(/\/+$/, '');
+  const fromLegacy = process.env.ORIGINCOWORKS_GATEWAY_URL?.trim();
+  if (fromLegacy) return fromLegacy.replace(/\/+$/, '');
   return 'http://127.0.0.1:8847';
 }
 

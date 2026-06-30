@@ -2,7 +2,7 @@
   "name": "@craft-agent/origincoworks",
   "version": "0.10.4",
   "license": "Apache-2.0",
-  "description": "Gateway bridge for OriginCoworks Next — typed HTTP client to the Go gateway",
+  "description": "Gateway bridge for OriginAI — typed HTTP client to the Go gateway",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",

@@ -29,7 +29,7 @@ const CONFIG_FILE_PATTERNS: { pattern: RegExp; type: ConfigFileType }[] = [
 /**
  * Craft Agent specific config files that have known schemas.
  */
-const APP_DATA_DIR = '(?:\\.craft-agent|\\.origincoworks-next)';
+const APP_DATA_DIR = '(?:\\.craft-agent|\\.origincoworks-next|\\.originai)';
 
 const CRAFT_AGENT_CONFIG_PATTERNS = [
   new RegExp(`${APP_DATA_DIR}\\/config\\.json$`),

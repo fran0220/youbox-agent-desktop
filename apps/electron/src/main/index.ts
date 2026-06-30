@@ -114,7 +114,8 @@ import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-p
 import log, { isDebugMode, mainLog, getLogFilePath, getMessagingGatewayLogFilePath, messagingGatewayLog, autoUpdateLog } from './logger'
 import { setPerfEnabled, enableDebug } from '@craft-agent/shared/utils'
 import { registerPiModelResolver } from '@craft-agent/shared/config'
-import { DEFAULT_DEEPLINK_SCHEME, PRODUCT_NAME } from '@craft-agent/shared/product-identity'
+import { DEFAULT_DEEPLINK_SCHEME, LEGACY_DEEPLINK_SCHEME, PRODUCT_NAME } from '@craft-agent/shared/product-identity'
+import { isProductDeepLinkUrl } from '@craft-agent/shared/deeplink-scheme'
 import { getPiModelsForAuthProvider, getAllPiModels } from '@craft-agent/shared/config'
 import { initNotificationService, initBadgeIcon, initInstanceBadge, updateBadgeCount } from './notifications'
 import { checkForUpdatesOnLaunch, setAutoUpdateEventSink, isUpdating, setBeforeUpdateQuitHook } from './auto-update'
@@ -204,9 +205,19 @@ registerPiModelResolver((piAuthProvider) =>
   piAuthProvider ? getPiModelsForAuthProvider(piAuthProvider) : getAllPiModels()
 )
 
-// Custom URL scheme for deeplinks (e.g., origincoworks://auth-complete)
-// Supports multi-instance dev: CRAFT_DEEPLINK_SCHEME env var (origincoworks1, etc.)
+// Custom URL scheme for deeplinks (e.g., originai://auth-complete)
+// Supports multi-instance dev: CRAFT_DEEPLINK_SCHEME env var (originai1, etc.)
 const DEEPLINK_SCHEME = process.env.CRAFT_DEEPLINK_SCHEME || DEFAULT_DEEPLINK_SCHEME
+
+function registerDeepLinkProtocolClient(scheme: string): void {
+  if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+      app.setAsDefaultProtocolClient(scheme, process.execPath, [process.argv[1]])
+    }
+  } else {
+    app.setAsDefaultProtocolClient(scheme)
+  }
+}
 
 let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
@@ -226,24 +237,19 @@ let messagingHandle: MessagingBootstrapHandle | null = null
 let pendingDeepLink: string | null = null
 
 // Set app name early (before app.whenReady) to ensure correct macOS menu bar title
-// Supports multi-instance dev: CRAFT_APP_NAME env var (e.g., "OriginCoworks Next [1]")
+// Supports multi-instance dev: CRAFT_APP_NAME env var (e.g., "OriginAI [1]")
 app.setName(process.env.CRAFT_APP_NAME || PRODUCT_NAME)
 
-// Register as default protocol client for origincoworks:// URLs
-// This must be done before app.whenReady() on some platforms
-if (process.defaultApp) {
-  // Development mode: need to pass the app path
-  if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient(DEEPLINK_SCHEME, process.execPath, [process.argv[1]])
-  }
-} else {
-  // Production mode
-  app.setAsDefaultProtocolClient(DEEPLINK_SCHEME)
+// Register as default protocol client for originai:// (and legacy origincoworks://) URLs.
+// This must be done before app.whenReady() on some platforms.
+registerDeepLinkProtocolClient(DEEPLINK_SCHEME)
+if (DEEPLINK_SCHEME !== LEGACY_DEEPLINK_SCHEME) {
+  registerDeepLinkProtocolClient(LEGACY_DEEPLINK_SCHEME)
 }
 
 // Cold start on Windows/Linux: deep link may arrive on argv before open-url fires
 for (const arg of process.argv) {
-  if (arg.startsWith(`${DEEPLINK_SCHEME}://`)) {
+  if (isProductDeepLinkUrl(arg)) {
     pendingDeepLink = arg
     break
   }
@@ -317,7 +323,7 @@ if (!gotTheLock) {
   app.on('second-instance', (_event, commandLine, _workingDirectory) => {
     // Someone tried to run a second instance, we should focus our window.
     // On Windows/Linux, the deeplink is in commandLine
-    const url = commandLine.find(arg => arg.startsWith(`${DEEPLINK_SCHEME}://`))
+    const url = commandLine.find(arg => isProductDeepLinkUrl(arg))
     if (url && windowManager) {
       mainLog.info('Received deeplink from second instance:', url)
       handleDeepLink(url, windowManager, moduleSink ?? undefined, moduleClientResolver ?? undefined).catch(err => {

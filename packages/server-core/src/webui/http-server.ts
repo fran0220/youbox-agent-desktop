@@ -126,7 +126,7 @@ export interface WebuiHandlerOptions {
   webuiDir: string
   /** Secret used to sign session JWTs — typically CRAFT_SERVER_TOKEN (not the gateway password). */
   secret: string
-  /** Gateway base URL for login; defaults to ORIGINCOWORKS_GATEWAY_URL or http://127.0.0.1:8847 */
+  /** Gateway base URL for login; defaults to ORIGINAI_GATEWAY_URL / ORIGINCOWORKS_GATEWAY_URL or http://127.0.0.1:8847 */
   gatewayBaseUrl?: string
   /** Explicit Secure-cookie override. When unset, infer from the request / proxy headers. */
   secureCookies?: boolean

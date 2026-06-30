@@ -9,7 +9,7 @@ export const iconComponents: ComponentEntry[] = [
     id: 'origincoworks-app-icon',
     name: 'OriginCoworksAppIcon',
     category: 'Icons',
-    description: 'OriginCoworks Next app icon',
+    description: 'OriginAI app icon',
     component: OriginCoworksAppIcon,
     props: [
       {
@@ -29,7 +29,7 @@ export const iconComponents: ComponentEntry[] = [
     id: 'origincoworks-symbol',
     name: 'OriginCoworksSymbol',
     category: 'Icons',
-    description: 'OriginCoworks mark for onboarding and app chrome',
+    description: 'OriginAI mark for onboarding and app chrome',
     component: OriginCoworksSymbol,
     props: [
       {

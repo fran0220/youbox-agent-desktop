@@ -40,7 +40,7 @@ export type ConnectionGroup = [groupKey: ConnectionGroupKey, connections: LlmCon
 /**
  * Group connections by provider type for hierarchical picker rendering.
  * Each provider section can contain multiple connections (API Key, OAuth, …).
- * Order is significant for UI: Anthropic, Local, OriginCoworks backend.
+ * Order is significant for UI: Anthropic, Local, OriginAI backend.
  * Empty groups are dropped. Labels come from `chat.modelPicker.group.<key>`.
  */
 export function groupConnectionsByProvider<T extends LlmConnection>(

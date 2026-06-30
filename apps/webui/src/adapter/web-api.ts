@@ -218,6 +218,7 @@ export function createWebApi(options: WebApiOptions): {
     gatewayLogout: async () => {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
       window.location.href = '/login'
+      return { success: true }
     },
     showDeleteSessionConfirmation: (name: string) => Promise.resolve(window.confirm(i18n.t('dialog.deleteSessionConfirmation', { name }))),
 

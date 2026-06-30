@@ -3,7 +3,7 @@
  *
  * CRUD operations for workspaces.
  * Workspaces can be stored anywhere on disk via rootPath.
- * Default location: ~/.origincoworks-next/workspaces/
+ * Default location: ~/.originai/workspaces/
  */
 
 import {
@@ -39,7 +39,7 @@ import type {
 // ============================================================
 
 /**
- * Get the default workspaces directory (~/.origincoworks-next/workspaces/)
+ * Get the default workspaces directory (~/.originai/workspaces/)
  */
 export function getDefaultWorkspacesDir(): string {
   return join(getConfigDir(), 'workspaces');

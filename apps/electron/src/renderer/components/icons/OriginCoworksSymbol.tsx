@@ -2,7 +2,7 @@ interface OriginCoworksSymbolProps {
   className?: string
 }
 
-/** OriginCoworks mark for onboarding, splash, and app chrome. */
+/** OriginAI mark for onboarding, splash, and app chrome. */
 export function OriginCoworksSymbol({ className }: OriginCoworksSymbolProps) {
   return (
     <svg

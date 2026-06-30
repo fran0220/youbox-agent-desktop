@@ -1,9 +1,12 @@
 appId: com.origincoworks.next
-productName: OriginCoworks Next
-copyright: Copyright © 2026 OriginCoworks
+productName: OriginAI
+copyright: Copyright © 2026 OriginAI
 
 protocols:
-  - name: OriginCoworks Next
+  - name: OriginAI
+    schemes:
+      - originai
+  - name: OriginCoworks (legacy)
     schemes:
       - origincoworks
 
@@ -79,7 +82,7 @@ extraMetadata:
   main: dist/main.cjs
 
 # Auto-update: runtime setFeedURL points at gateway /api/desktop/release/ (see auto-update.ts).
-# Packaged app-update.yml uses a placeholder; main process overrides with ORIGINCOWORKS gateway URL.
+# Packaged app-update.yml uses a placeholder; main process overrides with gateway URL env.
 publish:
   provider: generic
   url: http://127.0.0.1:8847/api/desktop/release/
@@ -128,21 +131,21 @@ mac:
     - "!**/resources/bin/win32-*/**"
     - "!**/resources/bin/linux-*/**"
   # Use predictable naming for macOS packages (applies to zip; dmg uses its own config below)
-  artifactName: "OriginCoworks-Next-${arch}.${ext}"
+  artifactName: "OriginAI-${arch}.${ext}"
   # Code signing & notarization (disabled by default for local builds)
   # To enable: set CSC_LINK, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
   # notarize:
   #   teamId: ${APPLE_TEAM_ID}
 
 dmg:
-  # Use predictable naming: Craft-Agents-arm64.dmg, Craft-Agents-x64.dmg
-  artifactName: "OriginCoworks-Next-${arch}.dmg"
+  # Use predictable naming: OriginAI-arm64.dmg, OriginAI-x64.dmg
+  artifactName: "OriginAI-${arch}.dmg"
   # Custom background (multi-resolution TIFF with 1x+2x for retina support)
   background: resources/dmg-background.tiff
   # Use app icon as the mounted volume icon in Finder
   icon: resources/icon.icns
   iconSize: 80
-  title: "OriginCoworks Next"
+  title: "OriginAI"
   contents:
     - x: 130
       y: 200
@@ -160,8 +163,7 @@ win:
     - target: nsis
       arch:
         - x64
-  # Use predictable naming: Craft-Agents-x64.exe
-  artifactName: "OriginCoworks-Next-${arch}.${ext}"
+  artifactName: "OriginAI-${arch}.${ext}"
   files:
     # Exclude binaries for other platforms
     - "!**/resources/bin/darwin-*/**"
@@ -199,12 +201,12 @@ nsis:
 linux:
   icon: resources/icon.png
   category: Utility
-  maintainer: "OriginCoworks <support@origincoworks.local>"
+  maintainer: "OriginAI <support@origincoworks.local>"
   target:
     - target: AppImage
       arch:
         - x64
-  artifactName: "OriginCoworks-Next-${arch}.${ext}"
+  artifactName: "OriginAI-${arch}.${ext}"
   extraResources:
     - from: node_modules/@anthropic-ai/claude-agent-sdk
       to: app/node_modules/@anthropic-ai/claude-agent-sdk

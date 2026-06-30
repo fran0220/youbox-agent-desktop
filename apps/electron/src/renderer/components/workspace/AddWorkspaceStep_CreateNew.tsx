@@ -9,6 +9,7 @@ import { AddWorkspaceContainer, AddWorkspaceStepHeader, AddWorkspaceSecondaryBut
 import { AddWorkspace_RadioOption } from "./AddWorkspace_RadioOption"
 import { useDirectoryPicker } from "@/hooks/useDirectoryPicker"
 import { ServerDirectoryBrowser } from "@/components/ServerDirectoryBrowser"
+import { DEFAULT_DATA_DIR_NAME } from "@craft-agent/shared/config/path-display"
 
 type LocationOption = 'default' | 'custom'
 
@@ -44,7 +45,7 @@ export function AddWorkspaceStep_CreateNew({
   }, [])
 
   const slug = slugify(name)
-  const defaultBasePath = homeDir ? `${homeDir}/.origincoworks-next/workspaces` : null
+  const defaultBasePath = homeDir ? `${homeDir}/${DEFAULT_DATA_DIR_NAME}/workspaces` : null
   const finalPath = locationOption === 'default'
     ? (defaultBasePath && slug ? `${defaultBasePath}/${slug}` : null)
     : customPath && slug

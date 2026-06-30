@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { resolveGatewayBaseUrl } from '../auth.ts';
 import { GatewayClient, GatewayHttpError } from '../gateway-client.ts';
 import type { LoginResponse } from '../types.ts';
 import { assertLoginResponse, isGatewayUser } from '../types.ts';
 
-const LIVE_GATEWAY = process.env.ORIGINCOWORKS_GATEWAY_URL ?? 'http://127.0.0.1:8847';
+const LIVE_GATEWAY = resolveGatewayBaseUrl();
 const RUN_LIVE = process.env.ORIGINCOWORKS_LIVE_TESTS === '1';
 
 describe('package exports', () => {
