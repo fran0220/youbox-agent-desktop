@@ -1,7 +1,7 @@
 /**
  * @craft-agent/shared
  *
- * Shared business logic for Craft Agent.
+ * Shared business logic for YouBox Agent.
  * Used by the Electron app.
  *
  * Import specific modules via subpath exports:
@@ -14,7 +14,7 @@
  *   import { createWorkspace, loadWorkspace } from '@craft-agent/shared/workspaces';
  *
  * Available modules:
- *   - agent: CraftAgent SDK wrapper, plan tools
+ *   - agent: YouBox Agent runtime wrapper, plan tools
  *   - auth: OAuth, token management, auth state
  *   - clients: Craft API client
  *   - config: Storage, models, preferences

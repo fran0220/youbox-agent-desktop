@@ -89,6 +89,10 @@ export interface StoredConfig {
   gitBashPath?: string;
   // User chose "Setup later" during onboarding — skip showing onboarding on next launch
   setupDeferred?: boolean;
+  // YouBox Agent desktop identity metadata. Secrets live in credentials.enc.
+  youboxAgent?: {
+    deviceId?: string;
+  };
   // Server mode — embedded remote server settings
   serverConfig?: import('./server-config.ts').ServerConfig;
   // One-shot migration markers. Used by migrations that should run at most
@@ -113,7 +117,7 @@ let configDefaultsSynced = false;
 /** Minimal config-defaults used when bundled assets aren't available (CI, standalone server). */
 const FALLBACK_CONFIG_DEFAULTS: ConfigDefaults = {
   version: '1.0',
-  description: 'Default configuration values for Craft Agents',
+  description: 'Default configuration values for YouBox Agent',
   defaults: {
     notificationsEnabled: true,
     colorTheme: 'default',
@@ -2956,6 +2960,21 @@ export function setSetupDeferred(deferred: boolean): void {
   } else {
     delete config.setupDeferred;
   }
+  saveConfig(config);
+}
+
+// ============================================
+// YouBox Agent device identity
+// ============================================
+
+export function getYouBoxAgentDeviceId(): string | null {
+  return loadStoredConfig()?.youboxAgent?.deviceId ?? null;
+}
+
+export function setYouBoxAgentDeviceId(deviceId: string): void {
+  const config = loadStoredConfig();
+  if (!config) return;
+  config.youboxAgent = { ...(config.youboxAgent ?? {}), deviceId };
   saveConfig(config);
 }
 

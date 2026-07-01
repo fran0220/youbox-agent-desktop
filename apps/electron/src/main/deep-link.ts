@@ -39,6 +39,7 @@ import { mainLog } from './logger'
 import type { WindowManager } from './window-manager'
 import { RPC_CHANNELS } from '../shared/types'
 import type { EventSink } from '@craft-agent/server-core/transport'
+import { handleYouBoxAgentAuthDeepLink } from '@craft-agent/shared/auth'
 
 export interface DeepLinkTarget {
   /** Workspace ID - undefined means use active window */
@@ -71,6 +72,10 @@ export interface DeepLinkNavigation {
   actionParams?: Record<string, string>
 }
 
+function configuredDeepLinkScheme(): string {
+  return process.env.YOUBOX_DEEPLINK_SCHEME || process.env.CRAFT_DEEPLINK_SCHEME || 'youbox-agent'
+}
+
 /**
  * Parse window mode from URL search params
  */
@@ -96,7 +101,9 @@ export function parseDeepLink(url: string): DeepLinkTarget | null {
   try {
     const parsed = new URL(url)
 
-    if (parsed.protocol !== 'craftagents:') {
+    const protocol = parsed.protocol.replace(/:$/, '')
+    const legacyProtocol = 'craftagents'
+    if (protocol !== configuredDeepLinkScheme() && protocol !== legacyProtocol) {
       return null
     }
 
@@ -239,6 +246,20 @@ export async function handleDeepLink(
   resolveClientId?: (webContentsId: number) => string | undefined,
   preferredClientId?: string,
 ): Promise<DeepLinkResult> {
+  const authResult = await handleYouBoxAgentAuthDeepLink(url)
+  if (authResult.handled) {
+    if (!authResult.success) {
+      mainLog.error('[DeepLink] YouBox auth callback failed:', authResult.error)
+      return { success: false, error: authResult.error }
+    }
+    const focusedWindow = windowManager.getFocusedWindow() ?? windowManager.getAllWindows()[0]?.window
+    if (focusedWindow) {
+      if (focusedWindow.isMinimized()) focusedWindow.restore()
+      focusedWindow.focus()
+    }
+    return { success: true, windowId: focusedWindow?.id }
+  }
+
   const target = parseDeepLink(url)
 
   if (!target) {

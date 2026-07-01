@@ -4,13 +4,19 @@
  * Handles workspace setup and configuration persistence.
  */
 import { getAuthState, getSetupNeeds } from '@craft-agent/shared/auth'
-import { getCredentialManager } from '@craft-agent/shared/credentials'
 import { setSetupDeferred } from '@craft-agent/shared/config'
-import { prepareClaudeOAuth, exchangeClaudeCode, hasValidOAuthState, clearOAuthState, prepareMcpOAuth } from '@craft-agent/shared/auth'
+import {
+  cancelYouBoxAgentAuth,
+  prepareMcpOAuth,
+  prepareYouBoxAgentAuth,
+  waitForYouBoxAgentAuth,
+} from '@craft-agent/shared/auth'
 import { validateMcpConnection } from '@craft-agent/shared/mcp'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
 import type { RpcServer } from '@craft-agent/server-core/transport'
 import type { HandlerDeps } from '../handler-deps'
+
+const YOUBOX_ONLY_AUTH_ERROR = 'YouBox Agent only supports YouBox sign-in.'
 
 // ============================================
 // IPC Handlers
@@ -20,6 +26,9 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.onboarding.GET_AUTH_STATE,
   RPC_CHANNELS.onboarding.VALIDATE_MCP,
   RPC_CHANNELS.onboarding.START_MCP_OAUTH,
+  RPC_CHANNELS.onboarding.START_YOUBOX_AUTH,
+  RPC_CHANNELS.onboarding.WAIT_YOUBOX_AUTH,
+  RPC_CHANNELS.onboarding.CANCEL_YOUBOX_AUTH,
   RPC_CHANNELS.onboarding.START_CLAUDE_OAUTH,
   RPC_CHANNELS.onboarding.EXCHANGE_CLAUDE_CODE,
   RPC_CHANNELS.onboarding.HAS_CLAUDE_OAUTH_STATE,
@@ -91,79 +100,46 @@ export function registerOnboardingHandlers(server: RpcServer, deps: HandlerDeps)
     }
   })
 
-  // Prepare Claude OAuth flow (server-side only — no browser open).
-  // Returns authUrl for the client to open locally via shell.openExternal.
+  server.handle(RPC_CHANNELS.onboarding.START_YOUBOX_AUTH, async () => {
+    try {
+      log.info('[Onboarding] Preparing YouBox Agent sign-in flow...')
+      return prepareYouBoxAgentAuth()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      log.error('[Onboarding] Prepare YouBox Agent sign-in error:', message)
+      return { success: false, error: message }
+    }
+  })
+
+  server.handle(RPC_CHANNELS.onboarding.WAIT_YOUBOX_AUTH, async () => {
+    try {
+      return await waitForYouBoxAgentAuth()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      return { success: false, error: message }
+    }
+  })
+
+  server.handle(RPC_CHANNELS.onboarding.CANCEL_YOUBOX_AUTH, async () => {
+    return cancelYouBoxAgentAuth()
+  })
+
+  // Legacy provider OAuth is intentionally disabled in the YouBox fork. Keep
+  // these channels registered so older renderer/preload builds fail closed
+  // instead of reaching Anthropic/Craft account flows.
   server.handle(RPC_CHANNELS.onboarding.START_CLAUDE_OAUTH, async () => {
-    try {
-      log.info('[Onboarding] Preparing Claude OAuth flow...')
-
-      const authUrl = prepareClaudeOAuth()
-
-      log.info('[Onboarding] Claude OAuth URL generated (client will open browser)')
-      return { success: true, authUrl }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      log.error('[Onboarding] Prepare Claude OAuth error:', message)
-      return { success: false, error: message }
-    }
+    return { success: false, error: YOUBOX_ONLY_AUTH_ERROR }
   })
 
-  // Exchange authorization code for tokens
-  server.handle(RPC_CHANNELS.onboarding.EXCHANGE_CLAUDE_CODE, async (_ctx, authorizationCode: string, connectionSlug: string) => {
-    try {
-      log.info(`[Onboarding] Exchanging Claude authorization code for connection: ${connectionSlug}`)
-
-      if (!hasValidOAuthState()) {
-        log.error('[Onboarding] No valid OAuth state found')
-        return { success: false, error: 'OAuth session expired. Please start again.' }
-      }
-
-      const tokens = await exchangeClaudeCode(authorizationCode, (status) => {
-        log.info('[Onboarding] Claude code exchange status:', status)
-      })
-
-      // Save credentials with refresh token support
-      const manager = getCredentialManager()
-
-      // Save to new LLM connection system
-      await manager.setLlmOAuth(connectionSlug, {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresAt: tokens.expiresAt,
-      })
-
-      // Also save to legacy key for validation compatibility
-      await manager.setClaudeOAuthCredentials({
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        expiresAt: tokens.expiresAt,
-        source: 'native',
-      })
-
-      const expiresAtDate = tokens.expiresAt ? new Date(tokens.expiresAt).toISOString() : 'never'
-      log.info(`[Onboarding] Claude OAuth saved to LLM connection (expires: ${expiresAtDate})`)
-      // Forward resolved identity (issue #838) so the renderer can thread it into
-      // the SETUP payload, which is where it actually gets persisted. Credentials
-      // are stored above via setLlmOAuth; identity is not a credential.
-      const identity = (tokens.account || tokens.organization)
-        ? { account: tokens.account, organization: tokens.organization }
-        : undefined
-      return { success: true, token: tokens.accessToken, identity }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      log.error('[Onboarding] Exchange Claude code error:', message)
-      return { success: false, error: message }
-    }
+  server.handle(RPC_CHANNELS.onboarding.EXCHANGE_CLAUDE_CODE, async () => {
+    return { success: false, error: YOUBOX_ONLY_AUTH_ERROR }
   })
 
-  // Check if there's a valid OAuth state in progress
   server.handle(RPC_CHANNELS.onboarding.HAS_CLAUDE_OAUTH_STATE, async () => {
-    return hasValidOAuthState()
+    return false
   })
 
-  // Clear OAuth state (for cancel/reset)
   server.handle(RPC_CHANNELS.onboarding.CLEAR_CLAUDE_OAUTH_STATE, async () => {
-    clearOAuthState()
     return { success: true }
   })
 

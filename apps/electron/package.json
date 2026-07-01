@@ -1,14 +1,14 @@
 {
   "name": "@craft-agent/electron",
   "version": "0.10.4",
-  "description": "Electron desktop app for Craft Agents",
+  "description": "Electron desktop app for YouBox Agent",
   "main": "dist/main.cjs",
   "private": true,
   "author": {
-    "name": "Craft Docs Ltd.",
-    "email": "support@craft.do"
+    "name": "YouBox",
+    "email": "support@you-box.com"
   },
-  "homepage": "https://agents.craft.do",
+  "homepage": "https://api.you-box.com",
   "license": "Apache-2.0",
   "type": "module",
   "engines": {

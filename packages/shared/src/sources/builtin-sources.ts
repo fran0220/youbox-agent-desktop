@@ -5,9 +5,9 @@
  * These sources are not shown in the sources list UI but are available
  * for the agent to use.
  *
- * NOTE: craft-agents-docs is now an always-available MCP server configured
- * directly in craft-agent.ts, not a source. This file is kept for backwards
- * compatibility but returns empty results.
+ * NOTE: built-in docs MCP is disabled in the YouBox fork unless
+ * YOUBOX_AGENT_DOCS_MCP_URL is explicitly configured. This file is kept for
+ * backwards compatibility but returns empty results.
  */
 
 import type { LoadedSource, FolderSourceConfig } from './types.ts';
@@ -15,8 +15,7 @@ import type { LoadedSource, FolderSourceConfig } from './types.ts';
 /**
  * Get all built-in sources for a workspace.
  *
- * Currently returns empty array - craft-agents-docs has been moved to
- * an always-available MCP server in craft-agent.ts.
+ * Currently returns an empty array; YouBox does not auto-connect to Craft docs.
  *
  * @param _workspaceId - The workspace ID (unused)
  * @param _workspaceRootPath - Absolute path to workspace root folder (unused)
@@ -27,27 +26,26 @@ export function getBuiltinSources(_workspaceId: string, _workspaceRootPath: stri
 }
 
 /**
- * Get the built-in Craft Agents docs source.
+ * Get the optional built-in YouBox Agent docs source placeholder.
  *
- * @deprecated craft-agents-docs is now an always-available MCP server
- * configured directly in craft-agent.ts. This function is kept for
- * backwards compatibility but returns a placeholder.
+ * @deprecated docs MCP is disabled by default. This function is kept for
+ * upstream compatibility but returns a disabled placeholder.
  */
 export function getDocsSource(workspaceId: string, workspaceRootPath: string): LoadedSource {
   // Return a placeholder - this shouldn't be called anymore
   const placeholderConfig: FolderSourceConfig = {
-    id: 'builtin-craft-agents-docs',
-    name: 'Craft Agents Docs',
-    slug: 'craft-agents-docs',
+    id: 'builtin-youbox-agent-docs',
+    name: 'YouBox Agent Docs',
+    slug: 'youbox-agent-docs',
     enabled: false,
     provider: 'mintlify',
     type: 'mcp',
     mcp: {
       transport: 'http',
-      url: 'https://agents.craft.do/docs/mcp',
+      url: process.env.YOUBOX_AGENT_DOCS_MCP_URL || 'https://api.you-box.com/docs/agent/mcp',
       authType: 'none',
     },
-    tagline: 'Search Craft Agents documentation and source setup guides',
+    tagline: 'Search YouBox Agent documentation and source setup guides',
     icon: '📚',
     isAuthenticated: true,
     connectionStatus: 'connected',
@@ -66,8 +64,7 @@ export function getDocsSource(workspaceId: string, workspaceRootPath: string): L
 /**
  * Check if a source slug is a built-in source.
  *
- * Returns false - craft-agents-docs is now an always-available MCP server,
- * not a source in the sources system.
+ * Returns false - docs MCP is not a built-in source in the YouBox fork.
  *
  * @param _slug - Source slug to check (unused)
  * @returns false (no built-in sources)

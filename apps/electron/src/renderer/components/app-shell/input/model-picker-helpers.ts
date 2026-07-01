@@ -1,5 +1,4 @@
 import {
-  isLocalConnection,
   type LlmConnection,
 } from '@config/llm-connections'
 
@@ -28,28 +27,13 @@ export function stripPiPrefixForDisplay(value: string): string {
 export type ConnectionGroup = [groupName: string, connections: LlmConnection[]]
 
 /**
- * Group connections by provider type for hierarchical picker rendering.
- * Each provider section can contain multiple connections (API Key, OAuth, …).
- * Order is significant for UI: Anthropic, Local, Craft Agents Backend.
- * Empty groups are dropped.
+ * Group connections for hierarchical picker rendering.
+ * YouBox Agent exposes a single product provider, even though the runtime keeps
+ * upstream-compatible provider identifiers internally.
  */
 export function groupConnectionsByProvider<T extends LlmConnection>(
   connections: readonly T[],
 ): Array<[string, T[]]> {
-  const groups: Record<string, T[]> = {
-    'Anthropic': [],
-    'Local': [],
-    'Craft Agents Backend': [],
-  }
-  for (const conn of connections) {
-    const provider = conn.providerType || 'anthropic'
-    if (provider === 'anthropic') {
-      groups['Anthropic'].push(conn)
-    } else if (provider === 'pi_compat' && isLocalConnection(conn)) {
-      groups['Local'].push(conn)
-    } else if (provider === 'pi' || provider === 'pi_compat') {
-      groups['Craft Agents Backend'].push(conn)
-    }
-  }
-  return Object.entries(groups).filter(([, conns]) => conns.length > 0)
+  if (connections.length === 0) return []
+  return [['YouBox Gateway', [...connections]]]
 }

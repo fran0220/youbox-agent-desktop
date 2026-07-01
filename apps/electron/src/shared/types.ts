@@ -389,6 +389,9 @@ export interface ElectronAPI {
   getAuthState(): Promise<AuthState>
   getSetupNeeds(): Promise<SetupNeeds>
   startWorkspaceMcpOAuth(mcpUrl: string): Promise<OAuthResult & { clientId?: string }>
+  startYouBoxAuth(): Promise<{ success: boolean; error?: string; warning?: string; grantId?: number; deviceId?: string }>
+  waitYouBoxAuth(): Promise<{ success: boolean; error?: string; warning?: string; grantId?: number; deviceId?: string }>
+  cancelYouBoxAuth(): Promise<{ success: boolean }>
   // Claude OAuth (two-step flow)
   startClaudeOAuth(): Promise<{ success: boolean; authUrl?: string; error?: string }>
   exchangeClaudeCode(code: string, connectionSlug: string): Promise<ClaudeOAuthResult>

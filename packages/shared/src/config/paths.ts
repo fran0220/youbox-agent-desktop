@@ -1,19 +1,16 @@
 /**
- * Centralized path configuration for Craft Agent.
+ * Centralized path configuration for YouBox Agent.
  *
- * Supports multi-instance development via CRAFT_CONFIG_DIR environment variable.
- * When running from a numbered folder (e.g., craft-tui-agent-1), the detect-instance.sh
- * script sets CRAFT_CONFIG_DIR to ~/.craft-agent-1, allowing multiple instances to run
- * simultaneously with separate configurations.
+ * Supports multi-instance development via YOUBOX_AGENT_CONFIG_DIR or the
+ * upstream-compatible CRAFT_CONFIG_DIR environment variable.
  *
- * Default (non-numbered folders): ~/.craft-agent/
- * Instance 1 (-1 suffix): ~/.craft-agent-1/
- * Instance 2 (-2 suffix): ~/.craft-agent-2/
+ * Default: ~/.youbox-agent/
  */
 
 import { homedir } from 'os';
 import { join } from 'path';
 
-// Allow override via environment variable for multi-instance dev
-// Falls back to default ~/.craft-agent/ for production and non-numbered dev folders
-export const CONFIG_DIR = process.env.CRAFT_CONFIG_DIR || join(homedir(), '.craft-agent');
+// Allow override via environment variable for multi-instance dev. Keep
+// CRAFT_CONFIG_DIR as a compatibility escape hatch for upstream scripts while
+// using a YouBox-owned default so this fork never writes into Craft's data dir.
+export const CONFIG_DIR = process.env.YOUBOX_AGENT_CONFIG_DIR || process.env.CRAFT_CONFIG_DIR || join(homedir(), '.youbox-agent');

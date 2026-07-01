@@ -65,6 +65,42 @@ const DRIVER_REGISTRY: Record<AgentProvider, ProviderDriver> = {
   pi: piDriver,
 };
 
+const YOUBOX_GATEWAY_CONNECTION_SLUG = 'youbox-gateway';
+
+function youBoxGatewayOnlyError(slug?: string): string {
+  return slug
+    ? `YouBox Agent only supports the managed YouBox Gateway connection, got "${slug}".`
+    : 'Sign in with YouBox to configure the managed YouBox Gateway connection.';
+}
+
+function isYouBoxGatewayConnection(connection: LlmConnection | null | undefined): boolean {
+  return connection?.slug === YOUBOX_GATEWAY_CONNECTION_SLUG
+    && connection.providerType === 'pi_compat'
+    && connection.authType === 'api_key_with_endpoint'
+    && connection.customEndpoint?.api === 'openai-completions'
+    && !!connection.baseUrl?.trim();
+}
+
+function assertYouBoxGatewayConnection(connection: LlmConnection | null | undefined, requestedSlug?: string): LlmConnection {
+  if (!connection) {
+    throw new Error(youBoxGatewayOnlyError(requestedSlug));
+  }
+  if (!isYouBoxGatewayConnection(connection)) {
+    throw new Error(youBoxGatewayOnlyError(connection.slug));
+  }
+  return connection;
+}
+
+function resolveYouBoxGatewayCandidate(slug: string | null | undefined, strict = false): LlmConnection | null {
+  if (!slug) return null;
+  if (slug !== YOUBOX_GATEWAY_CONNECTION_SLUG) {
+    if (!strict) return null;
+    throw new Error(youBoxGatewayOnlyError(slug));
+  }
+  const connection = getLlmConnection(slug);
+  return connection ? assertYouBoxGatewayConnection(connection, slug) : null;
+}
+
 function getProviderDriver(provider: AgentProvider): ProviderDriver {
   const driver = DRIVER_REGISTRY[provider];
   if (!driver) {
@@ -324,21 +360,20 @@ export function resolveSessionConnection(
   workspaceDefaultConnection?: string
 ): LlmConnection | null {
   // 1. Session-level connection (locked after first message)
-  if (sessionConnection) {
-    const connection = getLlmConnection(sessionConnection);
-    if (connection) return connection;
-  }
+  const sessionResolved = resolveYouBoxGatewayCandidate(sessionConnection, true);
+  if (sessionResolved) return sessionResolved;
 
   // 2. Workspace default
-  if (workspaceDefaultConnection) {
-    const connection = getLlmConnection(workspaceDefaultConnection);
-    if (connection) return connection;
-  }
+  const workspaceResolved = resolveYouBoxGatewayCandidate(workspaceDefaultConnection);
+  if (workspaceResolved) return workspaceResolved;
 
   // 3. Global default
   const defaultSlug = getDefaultLlmConnection();
-  if (!defaultSlug) return null;
-  return getLlmConnection(defaultSlug);
+  const globalResolved = resolveYouBoxGatewayCandidate(defaultSlug);
+  if (globalResolved) return globalResolved;
+
+  // 4. Managed YouBox fallback, even if legacy config points elsewhere.
+  return resolveYouBoxGatewayCandidate(YOUBOX_GATEWAY_CONNECTION_SLUG);
 }
 
 /**
@@ -359,19 +394,16 @@ export function resolveBackendContext(args: {
     args.sessionConnectionSlug,
     args.workspaceDefaultConnectionSlug
   );
+  const youBoxConnection = assertYouBoxGatewayConnection(connection);
 
-  const provider = connection
-    ? providerTypeToAgentProvider(connection.providerType || 'anthropic')
-    : 'anthropic';
+  const provider = providerTypeToAgentProvider(youBoxConnection.providerType || 'anthropic');
 
-  const authType = connection
-    ? connectionAuthTypeToBackendAuthType(connection.authType)
-    : undefined;
+  const authType = connectionAuthTypeToBackendAuthType(youBoxConnection.authType);
 
-  const resolvedModel = resolveModelForProvider(provider, args.managedModel, connection);
+  const resolvedModel = resolveModelForProvider(provider, args.managedModel, youBoxConnection);
 
   return {
-    connection,
+    connection: youBoxConnection,
     provider,
     authType,
     resolvedModel,
@@ -419,6 +451,7 @@ export async function fetchBackendModels(args: {
   hostRuntime: BackendHostRuntimeContext;
   timeoutMs?: number;
 }): Promise<ModelFetchResult> {
+  assertYouBoxGatewayConnection(args.connection);
   const provider = providerTypeToAgentProvider(args.connection.providerType);
   const { driver, resolvedPaths } = resolveDriverRuntime(provider, args.hostRuntime);
   const timeoutMs = args.timeoutMs ?? 30_000;
@@ -450,10 +483,14 @@ export async function validateStoredBackendConnection(args: {
   hostRuntime: BackendHostRuntimeContext;
 }): Promise<StoredConnectionValidationResult> {
   try {
+    if (args.slug !== YOUBOX_GATEWAY_CONNECTION_SLUG) {
+      return { success: false, error: youBoxGatewayOnlyError(args.slug) };
+    }
     const connection = getLlmConnection(args.slug);
     if (!connection) {
       return { success: false, error: 'Connection not found' };
     }
+    assertYouBoxGatewayConnection(connection, args.slug);
 
     const credentialManager = getCredentialManager();
     const hasCredentials = await credentialManager.hasLlmCredentials(
@@ -502,6 +539,7 @@ export function createConfigFromConnection(
   connection: LlmConnection,
   baseConfig: Omit<BackendConfig, 'provider' | 'authType' | 'providerType'>
 ): BackendConfig {
+  assertYouBoxGatewayConnection(connection);
   // Use new providerType if available, fall back to legacy type
   const providerType = connection.providerType || (connection.type ? connectionTypeToProvider(connection.type) as unknown as LlmProviderType : 'anthropic');
   const provider = providerTypeToAgentProvider(providerType);
@@ -531,10 +569,14 @@ export function createBackendFromConnection(
   hostRuntime?: BackendHostRuntimeContext,
   providerOptions?: BackendProviderOptions,
 ): AgentBackend {
+  if (connectionSlug !== YOUBOX_GATEWAY_CONNECTION_SLUG) {
+    throw new Error(youBoxGatewayOnlyError(connectionSlug));
+  }
   const connection = getLlmConnection(connectionSlug);
   if (!connection) {
     throw new Error(`LLM connection not found: ${connectionSlug}`);
   }
+  assertYouBoxGatewayConnection(connection, connectionSlug);
 
   // Validate provider-auth combination before creating backend
   // This catches invalid configurations early with a clear error message

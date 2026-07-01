@@ -103,6 +103,14 @@ import { sanitizeForTitle, shouldActivateBrowserOverlay, normalizeBrowserToolNam
 import { resizeImageForAPI, resizeIconBuffer } from '@craft-agent/server-core/services'
 export { sanitizeForTitle }
 
+const YOUBOX_GATEWAY_CONNECTION_SLUG = 'youbox-gateway'
+
+function assertYouBoxGatewayConnectionSlug(connectionSlug: string): void {
+  if (connectionSlug !== YOUBOX_GATEWAY_CONNECTION_SLUG) {
+    throw new Error('YouBox Agent only supports the managed YouBox Gateway connection')
+  }
+}
+
 // Module-level platform ref — set once during init via setSessionPlatform()
 let _platform: PlatformServices | null = null
 
@@ -1856,7 +1864,12 @@ export class SessionManager implements ISessionManager {
 
           // Migration: clear orphaned llmConnection references (e.g., after connection was deleted)
           if (managed.llmConnection) {
-            const conn = resolveSessionConnection(managed.llmConnection, undefined)
+            let conn = null
+            try {
+              conn = resolveSessionConnection(managed.llmConnection, undefined)
+            } catch (error) {
+              sessionLog.warn(`Session ${meta.id} has unsupported llmConnection "${managed.llmConnection}", clearing: ${error instanceof Error ? error.message : error}`)
+            }
             if (!conn) {
               sessionLog.warn(`Session ${meta.id} has orphaned llmConnection "${managed.llmConnection}", clearing`)
               managed.llmConnection = undefined
@@ -4398,6 +4411,8 @@ export class SessionManager implements ISessionManager {
    * This determines which LLM provider/backend will be used for this session.
    */
   async setSessionConnection(sessionId: string, connectionSlug: string): Promise<void> {
+    assertYouBoxGatewayConnectionSlug(connectionSlug)
+
     const managed = this.sessions.get(sessionId)
     if (!managed) {
       sessionLog.warn(`setSessionConnection: session ${sessionId} not found`)
@@ -5098,6 +5113,8 @@ export class SessionManager implements ISessionManager {
    */
   async updateSessionModel(sessionId: string, workspaceId: string, model: string | null, connection?: string): Promise<void> {
     sessionLog.info(`[updateSessionModel] sessionId=${sessionId}, model=${model}, connection=${connection}`)
+    if (connection) assertYouBoxGatewayConnectionSlug(connection)
+
     const managed = this.sessions.get(sessionId)
     if (managed) {
       managed.model = model ?? undefined

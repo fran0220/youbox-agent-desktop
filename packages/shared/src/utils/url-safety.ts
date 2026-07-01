@@ -30,7 +30,10 @@ const DANGEROUS_SCHEMES: ReadonlyMap<string, string> = new Map([
   ],
 ])
 
-const INTERNAL_DEEPLINK_SCHEME = 'craftagents:'
+function internalDeeplinkSchemes(): string[] {
+  const configured = process.env.YOUBOX_DEEPLINK_SCHEME || process.env.CRAFT_DEEPLINK_SCHEME || 'youbox-agent'
+  return [`${configured.toLowerCase()}:`, 'craftagents:']
+}
 
 export function classifyExternalUrl(rawUrl: string): UrlClassification {
   if (typeof rawUrl !== 'string' || rawUrl.trim() === '') {
@@ -51,7 +54,7 @@ export function classifyExternalUrl(rawUrl: string): UrlClassification {
     return { kind: 'dangerous', scheme: protocol, reason: blockedReason }
   }
 
-  if (protocol === INTERNAL_DEEPLINK_SCHEME) {
+  if (internalDeeplinkSchemes().includes(protocol)) {
     return { kind: 'internal-deeplink' }
   }
 

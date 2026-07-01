@@ -43,7 +43,7 @@ import type { Workspace } from '../config/storage.ts';
 import { PiEventAdapter } from './backend/pi/event-adapter.ts';
 import { EventQueue } from './backend/event-queue.ts';
 
-// System prompt for Craft Agent context
+// System prompt for YouBox Agent context
 import { getSystemPrompt } from '../prompts/system.ts';
 import { getCoAuthorPreference } from '../config/preferences.ts';
 
@@ -127,7 +127,7 @@ function mapBrowserToolErrorCode(code: string): string | null {
     case 'BROWSER_NO_CAPABLE_CLIENT':
     case 'CAPABILITY_UNAVAILABLE':
       return 'No connected desktop client supports browser tools, or no client is currently connected. ' +
-        'Ask the user to open this workspace from the Craft Agent desktop app.';
+        'Ask the user to open this workspace from the YouBox Agent desktop app.';
     case 'CLIENT_DISCONNECTED':
       return 'The desktop client that owned this browser session disconnected. ' +
         'Ask the user to reconnect and retry.';
@@ -155,7 +155,7 @@ function mapBrowserToolErrorCode(code: string): string | null {
  * planning heuristics, config watching, usage tracking).
  */
 export class PiAgent extends BaseAgent {
-  protected backendName = 'Craft Agents Backend';
+  protected backendName = 'YouBox Agent Runtime';
 
   // ============================================================
   // Subprocess State
@@ -267,7 +267,7 @@ export class PiAgent extends BaseAgent {
     reject: (error: Error) => void;
   }> = new Map();
 
-  // Pending runtime config updates (custom endpoint model capability refresh)
+  // Pending runtime config updates (managed endpoint model capability refresh)
   private pendingRuntimeConfigUpdates: Map<string, {
     resolve: (updated: boolean) => void;
     reject: (error: Error) => void;
@@ -1849,7 +1849,7 @@ export class PiAgent extends BaseAgent {
   }
 
   /**
-   * Ask subprocess to refresh runtime-affecting custom endpoint config in-place.
+   * Ask subprocess to refresh runtime-affecting endpoint config in-place.
    */
   private async requestRuntimeConfigUpdate(update: BackendRuntimeUpdate): Promise<boolean> {
     if (!this.subprocess) return true;
@@ -1998,7 +1998,7 @@ export class PiAgent extends BaseAgent {
         this.config.workspace.rootPath,
         this.config.session?.workingDirectory,
         this.config.systemPromptPreset,
-        'Craft Agents Backend', // backendName
+        this.backendName,
         getCoAuthorPreference() // respect user's includeCoAuthoredBy preference (#576)
       );
 

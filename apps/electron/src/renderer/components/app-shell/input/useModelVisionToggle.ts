@@ -14,7 +14,7 @@ export type ToggleModelVision = (
 ) => Promise<void>
 
 /**
- * Toggle per-model image support on a pi_compat (custom endpoint) connection.
+ * Toggle per-model image support on a managed runtime connection.
  *
  * Same implementation as the inline callback that used to live in
  * `FreeFormInput.tsx` — extracted so the desktop dropdown and the compact

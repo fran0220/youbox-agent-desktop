@@ -269,23 +269,31 @@ function createSessionTools(includeDeveloperFeedback: boolean): Tool[] {
 }
 
 // ============================================================
-// Craft Agents Docs Upstream Proxy
+// Optional YouBox docs upstream proxy
 // ============================================================
 
-const DOCS_MCP_URL = 'https://agents.craft.do/docs/mcp';
+// Disabled by default so the YouBox fork never calls Craft-hosted docs tools in
+// product runs. Set YOUBOX_AGENT_DOCS_MCP_URL to enable a YouBox-owned docs MCP.
+const DOCS_MCP_URL = process.env.YOUBOX_AGENT_DOCS_MCP_URL;
 
 /** Cached upstream client + tool list */
 let docsClient: Client | null = null;
 let docsTools: Tool[] = [];
 
 /**
- * Connect to the craft-agents-docs MCP server and fetch its tool definitions.
+ * Connect to the optional docs MCP server and fetch its tool definitions.
  * Falls back gracefully if the server is unreachable (tools will just be empty).
  */
 async function connectDocsUpstream(): Promise<void> {
+  if (!DOCS_MCP_URL) {
+    docsClient = null;
+    docsTools = [];
+    return;
+  }
+
   try {
     const client = new Client(
-      { name: 'craft-agent-session-proxy', version: '1.0.0' },
+      { name: 'youbox-agent-session-proxy', version: '1.0.0' },
       { capabilities: {} }
     );
 
@@ -296,9 +304,9 @@ async function connectDocsUpstream(): Promise<void> {
     docsTools = (result.tools || []) as Tool[];
     docsClient = client;
 
-    console.error(`Craft Agents Docs proxy connected: ${docsTools.length} tools`);
+    console.error(`YouBox docs proxy connected: ${docsTools.length} tools`);
   } catch (err) {
-    console.error(`Craft Agents Docs proxy connection failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+    console.error(`YouBox docs proxy connection failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
     docsClient = null;
     docsTools = [];
   }
@@ -312,7 +320,7 @@ async function callDocsUpstream(
   args: Record<string, unknown>
 ): Promise<{ content: Array<{ type: 'text'; text: string }>; isError?: boolean }> {
   if (!docsClient) {
-    return errorResponse(`Craft Agents Docs server is not connected. Tool '${name}' unavailable.`);
+    return errorResponse(`YouBox docs server is not connected. Tool '${name}' unavailable.`);
   }
 
   try {

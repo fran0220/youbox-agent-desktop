@@ -886,16 +886,23 @@ export class ClaudeAgent extends BaseAgent {
         debug('[chat] Source proxy servers created for', sourceProxyCount, 'sources');
       }
 
+      const docsMcpUrl = process.env.YOUBOX_AGENT_DOCS_MCP_URL;
+      const docsMcpServers: Options['mcpServers'] = docsMcpUrl
+        ? {
+            'youbox-agent-docs': {
+              type: 'http',
+              url: docsMcpUrl,
+            },
+          }
+        : {};
+
       // Build full MCP servers set first, then filter for mini agents
       const fullMcpServers: Options['mcpServers'] = {
         // Session-scoped tools (SubmitPlan, source_test, update_user_preferences, transform_data, etc.)
         session: getSessionScopedTools(sessionId, this.workspaceRootPath),
-        // Craft Agents documentation - always available for searching setup guides
-        // This is a public Mintlify MCP server, no auth needed
-        'craft-agents-docs': {
-          type: 'http',
-          url: 'https://agents.craft.do/docs/mcp',
-        },
+        // Optional YouBox-owned docs MCP. Disabled by default so this fork never
+        // calls Craft-hosted docs tools in product runs.
+        ...docsMcpServers,
         // Per-source proxy servers from centralized MCP pool (MCP + API sources)
         // Each source gets its own SDK server keyed by slug (e.g., 'linear', 'github', 'gmail')
         // so the SDK produces correct tool names: mcp__{slug}__{toolName}
@@ -1977,7 +1984,7 @@ This is a branched conversation. All prior messages in this conversation are par
               message:
                 'The Claude Agent SDK binary expected on disk is not present. ' +
                 'This usually means the app bundle is incomplete (interrupted download, partial update, ' +
-                'or a security tool removed it). Reinstalling Craft Agents typically fixes this.',
+                'or a security tool removed it). Reinstalling YouBox Agent typically fixes this.',
               details: [
                 probedBinary ? `Expected binary: ${probedBinary}` : 'Binary path: unknown',
                 probedCwd ? `Subprocess cwd: ${probedCwd} (${cwdExists ? 'exists' : 'missing'})` : '',

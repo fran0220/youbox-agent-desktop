@@ -132,9 +132,13 @@ const OPENAI_PRESETS: Preset[] = [
 
 // Pi provider presets - unified API for 20+ LLM providers
 const PI_PRESETS: Preset[] = [
-  { key: 'pi', label: 'Craft Agents Backend (Direct)', url: '' },
+  { key: 'pi', label: 'YouBox Gateway', url: '' },
   { key: 'openrouter', label: 'OpenRouter', url: 'https://openrouter.ai/api' },
   { key: 'custom', label: 'Custom', url: '' },
+]
+
+const YOUBOX_PRESETS: Preset[] = [
+  { key: 'pi', label: 'YouBox Gateway', url: '' },
 ]
 
 // Google AI Studio preset - single endpoint, no custom URL needed
@@ -142,7 +146,7 @@ const GOOGLE_PRESETS: Preset[] = [
   { key: 'google', label: 'Google AI Studio', url: '' },
 ]
 
-/** Presets that require the Pi SDK for authentication — hidden in Anthropic API Key mode */
+/** Presets that require the Pi SDK for authentication — hidden in legacy API key mode */
 const PI_ONLY_PRESET_KEYS: ReadonlySet<string> = new Set(['minimax-global', 'minimax-cn'])
 
 const COMPAT_ANTHROPIC_DEFAULTS = 'claude-opus-4-8, claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5'
@@ -151,6 +155,9 @@ const COMPAT_MINIMAX_DEFAULTS = 'MiniMax-M2.5, MiniMax-M2.5-highspeed'
 const COMPAT_KIMI_DEFAULTS = 'k2p5, kimi-k2-thinking'
 
 function getPresetsForProvider(providerType: 'anthropic' | 'openai' | 'pi' | 'google' | 'pi_api_key'): Preset[] {
+  // YouBox product builds expose only the managed gateway. The legacy branches
+  // are retained behind an explicit dev flag for upstream rebase diagnostics.
+  if (process.env.YOUBOX_EXPOSE_LEGACY_PROVIDER_SETUP !== '1') return YOUBOX_PRESETS
   if (providerType === 'pi_api_key') return ANTHROPIC_PRESETS
   if (providerType === 'google') return GOOGLE_PRESETS
   if (providerType === 'pi') return PI_PRESETS
@@ -393,7 +400,7 @@ export function ApiKeyInput({
     const isUsingDefaultEndpoint = isDefaultProviderPreset || !effectiveBaseUrl
     const requiresModel = !isDefaultProviderPreset && !!effectiveBaseUrl
     if (requiresModel && parsedModels.length === 0) {
-      setModelError('Default model is required for custom endpoints.')
+      setModelError('Default model is required for manual endpoints.')
       return
     }
 
@@ -816,7 +823,7 @@ export function ApiKeyInput({
           </p>
           {(activePreset === 'custom' || !activePreset) && (
             <p className="text-xs text-foreground/30">
-              Required for custom endpoints. Use the provider-specific model ID.
+              Required for manual endpoints. Use the model ID.
             </p>
           )}
         </div>

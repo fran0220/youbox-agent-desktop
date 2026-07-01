@@ -46,17 +46,17 @@ export type ProviderIconKey = keyof typeof providerIcons
 
 /** Human-readable provider names */
 const providerDisplayNames: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  openai_compat: 'OpenAI',
-  copilot: 'GitHub Copilot',
+  anthropic: 'YouBox',
+  openai: 'YouBox',
+  openai_compat: 'YouBox',
+  copilot: 'YouBox',
   deepseek: 'DeepSeek',
   kimi: 'Kimi',
   minimax: 'Minimax',
   ollama: 'Ollama',
   openrouter: 'OpenRouter',
-  pi: 'Craft Agents Backend',
-  pi_compat: 'Craft Agents Backend',
+  pi: 'YouBox',
+  pi_compat: 'YouBox',
   vercel: 'Vercel',
 }
 

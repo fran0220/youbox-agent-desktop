@@ -2,8 +2,8 @@
  * Error diagnostics - runs quick checks to identify the specific cause
  * of a generic "process exited" error from the SDK.
  *
- * Provider-aware: routes checks based on providerType so non-Anthropic
- * sessions don't run Anthropic-specific credential/endpoint checks.
+ * Provider-aware: keeps upstream routing compatibility while YouBox Agent
+ * presents YouBox as the single product provider.
  */
 
 import { getLastApiError } from '../interceptor-common.ts';
@@ -122,9 +122,8 @@ async function checkCapturedApiError(providerLabel: string): Promise<CheckResult
  * Used in diagnostics messages so errors reference the correct provider.
  */
 function getProviderLabel(baseUrl: string): string {
-  if (baseUrl.includes('openrouter')) return 'OpenRouter';
-  if (baseUrl.includes('anthropic')) return 'Anthropic';
-  return 'API endpoint';
+  if (baseUrl.includes('you-box.com')) return 'YouBox';
+  return 'YouBox Gateway';
 }
 
 /**
@@ -134,9 +133,9 @@ function getProviderLabel(baseUrl: string): string {
 function getProviderLabelFromType(providerType?: LlmProviderType, baseUrl?: string): string {
   if (providerType) {
     switch (providerType) {
-      case 'anthropic': return 'Anthropic';
+      case 'anthropic': return 'YouBox';
       case 'pi':
-      case 'pi_compat': return 'Craft Agents Backend';
+      case 'pi_compat': return 'YouBox';
     }
   }
   // Fallback: derive from base URL or default

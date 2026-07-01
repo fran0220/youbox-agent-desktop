@@ -28,7 +28,7 @@ export function parseTestConnectionError(msg: string): string {
     return 'Cannot connect to API server. Check the URL and ensure the server is running.'
   }
   if (lower.includes('no api key found for')) {
-    return 'Provider mismatch during setup. Select a provider preset in Craft Agents Backend API Key mode, or use Anthropic API Key mode for arbitrary compatible endpoints.'
+    return 'YouBox Gateway credential is missing. Sign in with YouBox again.'
   }
   if (lower.includes('401') || lower.includes('unauthorized') || lower.includes('authentication')) {
     return 'Invalid API key'
@@ -50,7 +50,8 @@ export function parseTestConnectionError(msg: string): string {
 }
 
 /**
- * Guard against ambiguous Pi custom endpoint tests where no provider routing is selected.
+ * Legacy setup guard retained for upstream test helpers. Product setup is
+ * YouBox-only and is rejected at the RPC layer before these helpers run.
  */
 export function validateSetupTestInput(params: {
   provider: 'anthropic' | 'pi'
@@ -61,7 +62,7 @@ export function validateSetupTestInput(params: {
   if (params.provider === 'pi' && hasCustomEndpoint && !params.piAuthProvider) {
     return {
       valid: false,
-      error: 'Custom endpoint in Craft Agents Backend mode requires selecting a provider preset. For arbitrary Anthropic-compatible endpoints, use Anthropic API Key mode.',
+      error: 'Manual provider setup is disabled. Sign in with YouBox to configure the gateway.',
     }
   }
 
@@ -129,7 +130,9 @@ export function resolveCustomEndpointSetup(input: {
 
 /**
  * Built-in connection templates for the onboarding flow.
- * Each template defines the default configuration for a known connection slug.
+ *
+ * YouBox is the only product provider. The `pi_compat` fields below are the
+ * internal runtime adapter contract used to reach the YouBox Gateway.
  */
 export const BUILT_IN_CONNECTION_TEMPLATES: Record<string, {
   name: string | ((hasCustomEndpoint: boolean) => string)
@@ -137,33 +140,11 @@ export const BUILT_IN_CONNECTION_TEMPLATES: Record<string, {
   authType: LlmConnection['authType'] | ((hasCustomEndpoint: boolean) => LlmConnection['authType'])
   piAuthProvider?: string
 }> = {
-  'anthropic-api': {
-    name: (h) => h ? 'Custom Anthropic-Compatible' : 'Anthropic (API Key)',
-    providerType: (h) => h ? 'pi_compat' : 'anthropic',
-    authType: (h) => h ? 'api_key_with_endpoint' : 'api_key',
-  },
-  'claude-max': {
-    name: 'Claude Max',
-    providerType: 'anthropic',
-    authType: 'oauth',
-  },
-  'chatgpt-plus': {
-    name: 'ChatGPT Plus',
-    providerType: 'pi',
-    authType: 'oauth',
-    piAuthProvider: 'openai-codex',
-  },
-  'github-copilot': {
-    name: 'GitHub Copilot',
-    providerType: 'pi',
-    authType: 'oauth',
-    piAuthProvider: 'github-copilot',
-  },
-  'pi-api-key': {
-    name: 'Craft Agents Backend (API Key)',
-    providerType: 'pi',
-    authType: 'api_key',
-    // piAuthProvider set dynamically from setup.piAuthProvider
+  'youbox-gateway': {
+    name: 'YouBox Gateway',
+    providerType: 'pi_compat',
+    authType: 'api_key_with_endpoint',
+    piAuthProvider: 'openai',
   },
 }
 
@@ -172,23 +153,7 @@ export const BUILT_IN_CONNECTION_TEMPLATES: Record<string, {
 // ============================================================
 
 const PI_AUTH_PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  'openai-codex': 'OpenAI',
-  google: 'Google AI Studio',
-  openrouter: 'OpenRouter',
-  'azure-openai-responses': 'Azure OpenAI',
-  'amazon-bedrock': 'Amazon Bedrock',
-  groq: 'Groq',
-  mistral: 'Mistral',
-  xai: 'xAI',
-  cerebras: 'Cerebras',
-  zai: 'z.ai',
-  huggingface: 'Hugging Face',
-  minimax: 'Minimax',
-  'minimax-cn': 'Minimax CN',
-  'kimi-coding': 'Kimi (Coding)',
-  'vercel-ai-gateway': 'Vercel AI Gateway',
+  openai: 'YouBox',
 }
 
 /** Get a human-readable display name for a Pi auth provider key */
@@ -202,15 +167,12 @@ export function piAuthProviderDisplayName(piAuthProvider: string): string | null
 
 /**
  * Create an LLM connection configuration from a connection slug.
- * Uses built-in templates for known slugs, throws for unknown slugs
- * (custom connections are created through the settings UI).
+ * Uses the YouBox gateway template, throws for all legacy provider slugs.
  */
 export function createBuiltInConnection(slug: string, baseUrl?: string | null): LlmConnection {
-  // Try exact match first, then strip numeric suffix for derived slugs (e.g. 'anthropic-api-2' → 'anthropic-api')
-  const baseSlug = slug.replace(/-\d+$/, '')
-  const template = BUILT_IN_CONNECTION_TEMPLATES[slug] ?? BUILT_IN_CONNECTION_TEMPLATES[baseSlug]
+  const template = BUILT_IN_CONNECTION_TEMPLATES[slug]
   if (!template) {
-    throw new Error(`Unknown built-in connection slug: ${slug}. Custom connections should be created through settings.`)
+    throw new Error(`YouBox Agent only supports the managed YouBox Gateway connection, got "${slug}".`)
   }
 
   const hasCustomEndpoint = !!baseUrl
@@ -223,12 +185,6 @@ export function createBuiltInConnection(slug: string, baseUrl?: string | null): 
   let name = typeof template.name === 'function'
     ? template.name(hasCustomEndpoint)
     : template.name
-
-  // Append suffix number to name for derived connections (e.g. 'anthropic-api-2' → 'Anthropic (API Key) 2')
-  const suffixMatch = slug.match(/-(\d+)$/)
-  if (suffixMatch && !BUILT_IN_CONNECTION_TEMPLATES[slug]) {
-    name = `${name} ${suffixMatch[1]}`
-  }
 
   return {
     slug,

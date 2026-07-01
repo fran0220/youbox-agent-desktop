@@ -1,30 +1,19 @@
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
-import { Check, CreditCard, Key, Cpu } from "lucide-react"
+import { Check, CreditCard } from "lucide-react"
 import { StepFormLayout, BackButton, ContinueButton } from "./primitives"
 import type { LlmAuthType, LlmProviderType } from "@craft-agent/shared/config/llm-connections"
 
-/** Provider segment for the segmented control */
+/** Retained for upstream-compatible prop types; YouBox product builds render only YouBox. */
 export type ProviderSegment = 'anthropic' | 'pi'
-
-const BetaBadge = ({ label }: { label: string }) => (
-  <span className="inline px-1.5 pt-[2px] pb-[3px] text-[10px] font-accent font-bold rounded-[4px] bg-accent text-background ml-1 relative -top-[1px]">
-    {label}
-  </span>
-)
 
 /**
  * API setup method for onboarding.
- * Maps to specific LlmProviderType + LlmAuthType combinations.
- *
- * - 'claude_oauth' → anthropic + oauth
- * - 'anthropic_api_key' → anthropic + api_key
- * - 'pi_chatgpt_oauth' → pi + oauth
- * - 'pi_copilot_oauth' → pi + oauth
- * - 'pi_api_key' → pi + api_key
+ * YouBox product path exposes only `youbox_gateway`; other upstream method names
+ * are retained as inert compatibility types for easier upstream rebases.
  */
 export type ApiSetupMethod =
+  | 'youbox_gateway'
   | 'anthropic_api_key'
   | 'claude_oauth'
   | 'pi_chatgpt_oauth'
@@ -32,24 +21,16 @@ export type ApiSetupMethod =
   | 'pi_api_key'
 
 /**
- * Map ApiSetupMethod to the underlying LLM connection types.
+ * Map ApiSetupMethod to the underlying runtime adapter.
+ *
+ * YouBox is the only product provider. Legacy upstream method IDs are inert
+ * aliases and all resolve to the managed YouBox Gateway adapter.
  */
-export function apiSetupMethodToConnectionTypes(method: ApiSetupMethod): {
+export function apiSetupMethodToConnectionTypes(_method: ApiSetupMethod): {
   providerType: LlmProviderType;
   authType: LlmAuthType;
 } {
-  switch (method) {
-    case 'claude_oauth':
-      return { providerType: 'anthropic', authType: 'oauth' };
-    case 'anthropic_api_key':
-      return { providerType: 'anthropic', authType: 'api_key' };
-    case 'pi_chatgpt_oauth':
-      return { providerType: 'pi', authType: 'oauth' };
-    case 'pi_copilot_oauth':
-      return { providerType: 'pi', authType: 'oauth' };
-    case 'pi_api_key':
-      return { providerType: 'pi', authType: 'api_key' };
-  }
+  return { providerType: 'pi_compat', authType: 'api_key_with_endpoint' };
 }
 
 interface ApiSetupOption {
@@ -61,11 +42,12 @@ interface ApiSetupOption {
 }
 
 const API_SETUP_ICONS: Record<ApiSetupMethod, React.ReactNode> = {
+  youbox_gateway: <CreditCard className="size-4" />,
   claude_oauth: <CreditCard className="size-4" />,
-  anthropic_api_key: <Key className="size-4" />,
-  pi_chatgpt_oauth: <Cpu className="size-4" />,
-  pi_copilot_oauth: <Cpu className="size-4" />,
-  pi_api_key: <Key className="size-4" />,
+  anthropic_api_key: <CreditCard className="size-4" />,
+  pi_chatgpt_oauth: <CreditCard className="size-4" />,
+  pi_copilot_oauth: <CreditCard className="size-4" />,
+  pi_api_key: <CreditCard className="size-4" />,
 }
 
 interface APISetupStepProps {
@@ -137,119 +119,31 @@ function OptionButton({
 }
 
 /**
- * Segmented control for provider selection
- */
-function ProviderSegmentedControl({
-  activeSegment,
-  onSegmentChange,
-  segmentLabels,
-}: {
-  activeSegment: ProviderSegment
-  onSegmentChange: (segment: ProviderSegment) => void
-  segmentLabels: Record<ProviderSegment, string>
-}) {
-  const segments: ProviderSegment[] = ['anthropic', 'pi']
-
-  return (
-    <div className="flex rounded-xl bg-foreground/[0.03] p-1 mb-4">
-      {segments.map((segment) => (
-        <button
-          key={segment}
-          onClick={() => onSegmentChange(segment)}
-          className={cn(
-            "flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all",
-            activeSegment === segment
-              ? "bg-background shadow-minimal text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          {segmentLabels[segment]}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-/**
- * APISetupStep - Choose how to connect your AI agents
- *
- * Features a segmented control to filter by provider:
- * - Anthropic - Claude Pro/Max or API Key
- * - OpenAI - ChatGPT Plus/Pro or API Key
- * - GitHub Copilot - Copilot subscription
+ * APISetupStep - YouBox-only gateway setup entry.
  */
 export function APISetupStep({
   selectedMethod,
   onSelect,
   onContinue,
   onBack,
-  initialSegment = 'anthropic',
+  initialSegment: _initialSegment = 'anthropic',
 }: APISetupStepProps) {
   const { t } = useTranslation()
-  const [activeSegment, setActiveSegment] = useState<ProviderSegment>(initialSegment)
-
-  const SEGMENT_LABELS: Record<ProviderSegment, string> = {
-    anthropic: t("onboarding.apiSetup.claude"),
-    pi: t("onboarding.apiSetup.craftAgentsBackend"),
-  }
-
-  const SEGMENT_DESCRIPTIONS: Record<ProviderSegment, React.ReactNode> = {
-    anthropic: <>{t("onboarding.apiSetup.claudeDesc")}</>,
-    pi: <>{t("onboarding.apiSetup.piDesc")}<BetaBadge label={t("onboarding.apiSetup.beta")} /></>,
-  }
 
   const API_SETUP_OPTIONS: ApiSetupOption[] = [
     {
-      id: 'claude_oauth',
-      name: t("onboarding.apiSetup.claudeProMax"),
-      description: t("onboarding.apiSetup.claudeProMaxDesc"),
-      icon: API_SETUP_ICONS.claude_oauth,
-      providerType: 'anthropic',
-    },
-    {
-      id: 'anthropic_api_key',
-      name: t("onboarding.apiSetup.anthropicApiKey"),
-      description: t("onboarding.apiSetup.anthropicApiKeyDesc"),
-      icon: API_SETUP_ICONS.anthropic_api_key,
-      providerType: 'anthropic',
-    },
-    {
-      id: 'pi_chatgpt_oauth',
-      name: 'ChatGPT Plus',
-      description: t("onboarding.apiSetup.chatGPTPlusDesc"),
-      icon: API_SETUP_ICONS.pi_chatgpt_oauth,
-      providerType: 'pi',
-    },
-    {
-      id: 'pi_copilot_oauth',
-      name: 'GitHub Copilot',
-      description: t("onboarding.apiSetup.githubCopilotDesc"),
-      icon: API_SETUP_ICONS.pi_copilot_oauth,
-      providerType: 'pi',
-    },
-    {
-      id: 'pi_api_key',
-      name: t("onboarding.apiSetup.apiKey"),
-      description: t("onboarding.apiSetup.apiKeyDesc"),
-      icon: API_SETUP_ICONS.pi_api_key,
-      providerType: 'pi',
+      id: 'youbox_gateway',
+      name: t("onboarding.providerSelect.youbox"),
+      description: t("onboarding.providerSelect.youboxDesc"),
+      icon: API_SETUP_ICONS.youbox_gateway,
+      providerType: 'pi_compat',
     },
   ]
 
-  // Filter options based on active segment
-  const filteredOptions = API_SETUP_OPTIONS.filter(o => o.providerType === activeSegment)
-
-  // Handle segment change - clear selection if it doesn't belong to new segment
-  const handleSegmentChange = (segment: ProviderSegment) => {
-    setActiveSegment(segment)
-    // If current selection doesn't match the new segment, don't auto-clear
-    // (user might want to keep it and switch back)
-  }
-
   return (
     <StepFormLayout
-      title={t("onboarding.apiSetup.title")}
-      description={t("onboarding.apiSetup.description")}
+      title={t("onboarding.credentials.connectYouBox")}
+      description={t("onboarding.credentials.connectYouBoxDesc")}
       actions={
         <>
           <BackButton onClick={onBack} />
@@ -257,23 +151,14 @@ export function APISetupStep({
         </>
       }
     >
-      {/* Provider segmented control */}
-      <ProviderSegmentedControl
-        activeSegment={activeSegment}
-        onSegmentChange={handleSegmentChange}
-        segmentLabels={SEGMENT_LABELS}
-      />
-
-      {/* Segment description */}
       <div className="bg-foreground-2 rounded-[8px] p-4 mb-3">
         <p className="text-sm text-muted-foreground text-center">
-          {SEGMENT_DESCRIPTIONS[activeSegment]}
+          {t("onboarding.credentials.youboxInstructions")}
         </p>
       </div>
 
-      {/* Filtered options for selected provider - min-h keeps size consistent across tabs */}
       <div className="space-y-3 min-h-[180px]">
-        {filteredOptions.map((option) => (
+        {API_SETUP_OPTIONS.map((option) => (
           <OptionButton
             key={option.id}
             option={option}

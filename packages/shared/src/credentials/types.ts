@@ -17,6 +17,8 @@
 
 /** Types of credentials we store */
 export type CredentialType =
+  // YouBox account / desktop grant credentials
+  | 'youbox_agent'       // YouBox Agent access/refresh/gateway token bundle
   // Global credentials (legacy, kept for backwards compatibility)
   | 'anthropic_api_key'  // Anthropic API key for Claude
   | 'claude_oauth'       // Claude OAuth token (Max subscription)
@@ -37,6 +39,7 @@ export type CredentialType =
 
 /** Valid credential types for validation */
 const VALID_CREDENTIAL_TYPES: readonly CredentialType[] = [
+  'youbox_agent',
   'anthropic_api_key',
   'claude_oauth',
   'llm_api_key',
@@ -96,6 +99,16 @@ export interface StoredCredential {
   clientSecret?: string;
   /** Token type (e.g., "Bearer") */
   tokenType?: string;
+  /** YouBox Agent gateway token returned by Core for LLM gateway calls */
+  gatewayToken?: string;
+  /** YouBox Agent Core grant id, bound to device_id and refresh_token */
+  grantId?: number;
+  /** Stable YouBox Agent device id */
+  deviceId?: string;
+  /** YouBox Core base URL that issued this credential */
+  coreUrl?: string;
+  /** YouBox Agent Service base URL paired with this credential */
+  agentServiceUrl?: string;
   /** Where the credential came from: 'native' (our OAuth), 'cli' (Claude CLI import) */
   source?: 'native' | 'cli';
   /**

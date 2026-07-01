@@ -98,11 +98,11 @@ describe('groupConnectionsByProvider', () => {
     expect(groupConnectionsByProvider([])).toEqual([])
   })
 
-  test('groups anthropic providers into "Anthropic"', () => {
+  test('groups all runtime provider identifiers under "YouBox Gateway"', () => {
     const a = conn('a', 'anthropic')
-    const b = conn('b', 'anthropic')
+    const b = conn('b', 'pi_compat')
     const result = groupConnectionsByProvider([a, b])
-    expect(result).toEqual([['Anthropic', [a, b]]])
+    expect(result).toEqual([['YouBox Gateway', [a, b]]])
   })
 
   test('preserves intra-group order', () => {
@@ -113,43 +113,21 @@ describe('groupConnectionsByProvider', () => {
     expect(result[0][1].map(c => c.slug)).toEqual(['first', 'second', 'third'])
   })
 
-  test('places "Anthropic" group before pi groups (display order)', () => {
-    const piConn = conn('pi-1', 'pi')
-    const anth = conn('anthropic-1', 'anthropic')
-    const result = groupConnectionsByProvider([piConn, anth])
-    expect(result.map(([k]) => k)).toEqual(['Anthropic', 'Craft Agents Backend'])
-  })
-
-  test('"pi_compat" with localhost baseUrl goes to "Local"', () => {
-    const local = conn('ollama', 'pi_compat', { baseUrl: 'http://localhost:11434' })
-    const result = groupConnectionsByProvider([local])
-    expect(result).toEqual([['Local', [local]]])
-  })
-
-  test('"pi_compat" with remote baseUrl goes to "Craft Agents Backend"', () => {
-    const remote = conn('openrouter', 'pi_compat', { baseUrl: 'https://openrouter.ai/api/v1' })
-    const result = groupConnectionsByProvider([remote])
-    expect(result).toEqual([['Craft Agents Backend', [remote]]])
-  })
-
-  test('drops empty groups from the output', () => {
+  test('drops the group when there are no connections', () => {
     const a = conn('a', 'anthropic')
+    expect(groupConnectionsByProvider([])).toEqual([])
     const result = groupConnectionsByProvider([a])
-    // Only "Anthropic" appears; "Local" and "Craft Agents Backend" are dropped.
-    expect(result.length).toBe(1)
-    expect(result[0][0]).toBe('Anthropic')
+    expect(result).toEqual([['YouBox Gateway', [a]]])
   })
 
-  test('full mixed input — anthropic + local + remote pi_compat + pi', () => {
+  test('full mixed input still renders as one product provider', () => {
     const anth = conn('a', 'anthropic')
     const local = conn('ollama', 'pi_compat', { baseUrl: 'http://127.0.0.1:1234' })
     const remote = conn('or', 'pi_compat', { baseUrl: 'https://openrouter.ai' })
     const pi = conn('p', 'pi')
     const result = groupConnectionsByProvider([anth, local, remote, pi])
     expect(result.map(([k, conns]) => [k, conns.map(c => c.slug)])).toEqual([
-      ['Anthropic', ['a']],
-      ['Local', ['ollama']],
-      ['Craft Agents Backend', ['or', 'p']],
+      ['YouBox Gateway', ['a', 'ollama', 'or', 'p']],
     ])
   })
 })

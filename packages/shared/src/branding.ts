@@ -1,5 +1,5 @@
 /**
- * Centralized branding assets for Craft Agent
+ * Centralized branding assets for YouBox Agent
  * Used by OAuth callback pages
  */
 
@@ -15,4 +15,4 @@ export const CRAFT_LOGO = [
 export const CRAFT_LOGO_HTML = CRAFT_LOGO.map((line) => line.trimEnd()).join('\n');
 
 /** Session viewer base URL */
-export const VIEWER_URL = 'https://agents.craft.do';
+export const VIEWER_URL = 'https://api.you-box.com/agent';

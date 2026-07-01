@@ -218,6 +218,60 @@ export class CredentialManager {
   // Convenience Methods
   // ============================================================
 
+  /** Get YouBox Agent desktop credentials. */
+  async getYouBoxAgentCredentials(): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    gatewayToken?: string;
+    expiresAt?: number;
+    grantId?: number;
+    deviceId?: string;
+    coreUrl?: string;
+    agentServiceUrl?: string;
+  } | null> {
+    const cred = await this.get({ type: 'youbox_agent' });
+    if (!cred?.value) return null;
+    return {
+      accessToken: cred.value,
+      refreshToken: cred.refreshToken,
+      gatewayToken: cred.gatewayToken,
+      expiresAt: cred.expiresAt,
+      grantId: cred.grantId,
+      deviceId: cred.deviceId,
+      coreUrl: cred.coreUrl,
+      agentServiceUrl: cred.agentServiceUrl,
+    };
+  }
+
+  /** Store YouBox Agent desktop credentials. */
+  async setYouBoxAgentCredentials(credentials: {
+    accessToken: string;
+    refreshToken: string;
+    gatewayToken: string;
+    expiresAt: number;
+    grantId: number;
+    deviceId: string;
+    coreUrl: string;
+    agentServiceUrl: string;
+  }): Promise<void> {
+    await this.set({ type: 'youbox_agent' }, {
+      value: credentials.accessToken,
+      refreshToken: credentials.refreshToken,
+      gatewayToken: credentials.gatewayToken,
+      expiresAt: credentials.expiresAt,
+      grantId: credentials.grantId,
+      deviceId: credentials.deviceId,
+      coreUrl: credentials.coreUrl,
+      agentServiceUrl: credentials.agentServiceUrl,
+      tokenType: 'Bearer',
+    });
+  }
+
+  /** Delete the YouBox Agent desktop credential bundle. */
+  async deleteYouBoxAgentCredentials(): Promise<boolean> {
+    return this.delete({ type: 'youbox_agent' });
+  }
+
   /** Get Anthropic API key */
   async getApiKey(): Promise<string | null> {
     const cred = await this.get({ type: 'anthropic_api_key' });

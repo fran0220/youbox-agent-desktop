@@ -67,6 +67,17 @@ function formatTokenCount(n: number): string {
   return `${(n / 1_000_000).toFixed(1)}M`
 }
 
+const YOUBOX_GATEWAY_CONNECTION_SLUG = 'youbox-gateway'
+
+function isYouBoxManagedConnection(connection: Pick<LlmConnectionWithStatus, 'slug'>): boolean {
+  return connection.slug === YOUBOX_GATEWAY_CONNECTION_SLUG
+}
+
+function getConnectionDescription(connection: LlmConnectionWithStatus): string {
+  if (isYouBoxManagedConnection(connection)) return 'YouBox Gateway'
+  return 'Unsupported provider'
+}
+
 /**
  * Derive model dropdown options from a connection's models array,
  * falling back to registry models for the connection's provider type.
@@ -156,29 +167,6 @@ function CredentialHealthBanner({ issues, onReauthenticate }: CredentialHealthBa
 }
 
 // ============================================
-// Pi Auth Provider Display Names
-// ============================================
-
-const PI_AUTH_PROVIDER_LABELS: Record<string, string> = {
-  anthropic: 'Anthropic API',
-  openai: 'OpenAI API',
-  'openai-codex': 'OpenAI API',
-  google: 'Google AI Studio',
-  openrouter: 'OpenRouter',
-  'azure-openai-responses': 'Azure OpenAI',
-  'amazon-bedrock': 'Amazon Bedrock',
-  groq: 'Groq',
-  mistral: 'Mistral',
-  deepseek: 'DeepSeek',
-  xai: 'xAI',
-  cerebras: 'Cerebras',
-  zai: 'z.ai',
-  huggingface: 'Hugging Face',
-  'vercel-ai-gateway': 'Vercel AI Gateway',
-  'github-copilot': 'GitHub Copilot',
-}
-
-// ============================================
 // Connection Row Component
 // ============================================
 
@@ -203,7 +191,7 @@ interface ConnectionRowProps {
 function ConnectionRow({ connection, isLastConnection, onRenameClick, onDelete, onSetDefault, onValidate, onReauthenticate, onEdit, onSetMidStreamBehavior, validationState, validationError, isDuplicateAccount }: ConnectionRowProps) {
   const { t } = useTranslation()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [piBaseUrl, setPiBaseUrl] = useState<string | undefined>(undefined)
+  const isYouBoxManaged = isYouBoxManagedConnection(connection)
 
   // Opening dialog/overlay flows directly from a dropdown item can race with
   // menu teardown and leave a transient interaction lock behind on some systems.
@@ -215,14 +203,6 @@ function ConnectionRow({ connection, isLastConnection, onRenameClick, onDelete, 
     })
   }, [])
 
-  // Load Pi provider base URL via IPC (Pi SDK can't run in renderer)
-  useEffect(() => {
-    const provider = connection.providerType || connection.type
-    if (provider === 'pi' && connection.piAuthProvider && !connection.baseUrl) {
-      window.electronAPI.getPiProviderBaseUrl(connection.piAuthProvider).then(url => setPiBaseUrl(url))
-    }
-  }, [connection.providerType, connection.type, connection.piAuthProvider, connection.baseUrl])
-
   // Build description with provider, default indicator, auth status, and validation state
   const getDescription = () => {
     // Show validation state if not idle
@@ -230,58 +210,19 @@ function ConnectionRow({ connection, isLastConnection, onRenameClick, onDelete, 
     if (validationState === 'success') return t("settings.ai.connectionValid")
     if (validationState === 'error') return validationError || t("settings.ai.validationFailed")
 
-    const parts: string[] = []
-
-    // Provider type (fall back to legacy 'type' field if providerType missing)
-    // OAuth = subscription (Pro/Plus/Max), API key = API
-    const provider = connection.providerType || connection.type
-    const isSubscription = connection.authType === 'oauth'
-    switch (provider) {
-      case 'anthropic': parts.push(isSubscription ? 'Anthropic Subscription' : 'Anthropic API'); break
-      case 'pi': {
-        // Show upstream provider name for API key connections (e.g. "Google AI Studio")
-        const piLabel = !isSubscription && connection.piAuthProvider
-          ? PI_AUTH_PROVIDER_LABELS[connection.piAuthProvider]
-          : null
-        parts.push(piLabel ?? 'Craft Agents Backend')
-        break
-      }
-      case 'pi_compat':
-        parts.push(connection.baseUrl?.toLowerCase().includes('manifest.build')
-          ? 'Manifest'
-          : 'Craft Agents Backend Compatible')
-        break
-      default: parts.push(provider || 'Unknown')
+    if (isYouBoxManaged) {
+      const endpoint = connection.baseUrl
+        ? (() => {
+            try { return new URL(connection.baseUrl).host } catch { return connection.baseUrl }
+          })()
+        : 'api.you-box.com'
+      return `YouBox Gateway · ${endpoint}`
     }
 
-    // Base URL for API key connections (show custom endpoint or default for provider)
-    if (connection.authType !== 'oauth') {
-      let endpoint = connection.baseUrl
-      // Use default endpoints for standard providers if no custom baseUrl
-      if (!endpoint) {
-        if (provider === 'anthropic') endpoint = 'https://api.anthropic.com'
-        else if (provider === 'pi' && connection.piAuthProvider) {
-          endpoint = piBaseUrl
-        }
-      }
-      if (endpoint) {
-        // Extract hostname from URL for cleaner display
-        try {
-          const url = new URL(endpoint)
-          parts.push(url.host)
-        } catch {
-          parts.push(endpoint)
-        }
-      }
-    }
-
-    // Auth status
-    if (!connection.isAuthenticated) parts.push(t("settings.ai.notAuthenticated"))
-
-    return parts.join(' · ')
+    return 'Unsupported provider'
   }
 
-  // Resolved Anthropic identity (issue #838): render `email · org` independently of
+  // Resolved legacy OAuth identity: render `email · org` independently of
   // validation state. It cannot live in getDescription() — that short-circuits for
   // validating/success/error and would hide the identity during those states.
   const oauthIdentityLine = connection.authType === 'oauth' && connection.oauthAccountEmail
@@ -328,17 +269,21 @@ function ConnectionRow({ connection, isLastConnection, onRenameClick, onDelete, 
           </button>
         </DropdownMenuTrigger>
         <StyledDropdownMenuContent align="end">
-          <StyledDropdownMenuItem onClick={() => runAfterMenuClose(onRenameClick)}>
-            <Pencil className="h-3.5 w-3.5" />
-            <span>{t("common.rename")}</span>
-          </StyledDropdownMenuItem>
-          {!connection.isDefault && (
-            <StyledDropdownMenuItem onClick={onSetDefault}>
-              <Star className="h-3.5 w-3.5" />
-              <span>{t("settings.ai.setAsDefault")}</span>
-            </StyledDropdownMenuItem>
+          {!isYouBoxManaged && (
+            <>
+              <StyledDropdownMenuItem onClick={() => runAfterMenuClose(onRenameClick)}>
+                <Pencil className="h-3.5 w-3.5" />
+                <span>{t("common.rename")}</span>
+              </StyledDropdownMenuItem>
+              {!connection.isDefault && (
+                <StyledDropdownMenuItem onClick={onSetDefault}>
+                  <Star className="h-3.5 w-3.5" />
+                  <span>{t("settings.ai.setAsDefault")}</span>
+                </StyledDropdownMenuItem>
+              )}
+            </>
           )}
-          {connection.authType === 'oauth' ? (
+          {isYouBoxManaged || connection.authType === 'oauth' ? (
             <StyledDropdownMenuItem onClick={() => runAfterMenuClose(onReauthenticate)}>
               <RefreshCcw className="h-3.5 w-3.5" />
               <span>{t("settings.ai.reAuthenticate")}</span>
@@ -379,15 +324,19 @@ function ConnectionRow({ connection, isLastConnection, onRenameClick, onDelete, 
               </DropdownMenuSub>
             )
           })()}
-          <StyledDropdownMenuSeparator />
-          <StyledDropdownMenuItem
-            onClick={onDelete}
-            variant="destructive"
-            disabled={isLastConnection}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>{t("common.delete")}</span>
-          </StyledDropdownMenuItem>
+          {!isYouBoxManaged && (
+            <>
+              <StyledDropdownMenuSeparator />
+              <StyledDropdownMenuItem
+                onClick={onDelete}
+                variant="destructive"
+                disabled={isLastConnection}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>{t("common.delete")}</span>
+              </StyledDropdownMenuItem>
+            </>
+          )}
         </StyledDropdownMenuContent>
       </DropdownMenu>
     </SettingsRow>
@@ -484,7 +433,9 @@ function WorkspaceOverrideCard({ workspace, llmConnections, onSettingsChange }: 
   )
 
   // Get display values
-  const currentConnection = settings?.defaultLlmConnection || 'global'
+  const currentConnection = settings?.defaultLlmConnection && llmConnections.some(c => c.slug === settings.defaultLlmConnection)
+    ? settings.defaultLlmConnection
+    : 'global'
   const currentModel = settings?.model || 'global'
   const currentThinking = settings?.thinkingLevel || 'global'
 
@@ -568,9 +519,7 @@ function WorkspaceOverrideCard({ workspace, llmConnections, onSettingsChange }: 
                   ...llmConnections.map((conn) => ({
                     value: conn.slug,
                     label: conn.name,
-                    description: conn.providerType === 'anthropic' ? 'Anthropic' :
-                                 conn.providerType === 'pi' ? 'Craft Agents Backend' :
-                                 conn.providerType || 'Unknown',
+                    description: getConnectionDescription(conn),
                   })),
                 ]}
               />
@@ -609,23 +558,16 @@ function WorkspaceOverrideCard({ workspace, llmConnections, onSettingsChange }: 
 }
 
 // ============================================
-// Helpers
-// ============================================
-
-/** Map a connection's provider type to the corresponding API key setup method. */
-function getApiKeyMethodForConnection(conn: LlmConnectionWithStatus): ApiSetupMethod {
-  const provider = conn.providerType || conn.type
-  if (provider === 'pi' || provider === 'pi_compat') return 'pi_api_key'
-  return 'anthropic_api_key'
-}
-
-// ============================================
 // Main Component
 // ============================================
 
 export default function AiSettingsPage() {
   const { t } = useTranslation()
   const { llmConnections, refreshLlmConnections, activeWorkspaceId } = useAppShellContext()
+  const managedLlmConnections = useMemo(
+    () => llmConnections.filter(isYouBoxManagedConnection),
+    [llmConnections],
+  )
 
   // API Setup overlay state
   const [showApiSetup, setShowApiSetup] = useState(false)
@@ -738,6 +680,12 @@ export default function AiSettingsPage() {
     existingSlugs,
   })
 
+  const openYouBoxSetup = useCallback(() => {
+    openApiSetup(YOUBOX_GATEWAY_CONNECTION_SLUG)
+    apiSetupOnboarding.reset()
+    apiSetupOnboarding.jumpToCredentials('youbox_gateway')
+  }, [openApiSetup, apiSetupOnboarding])
+
   const handleApiSetupFinish = useCallback(() => {
     closeApiSetup()
     refreshLlmConnections?.()
@@ -758,14 +706,8 @@ export default function AiSettingsPage() {
 
   // Handler for re-authenticate button in credential health banner
   const handleReauthenticate = useCallback(() => {
-    // Open API setup for the default connection (or first connection if available)
-    const defaultConn = llmConnections.find(c => c.isDefault) || llmConnections[0]
-    if (defaultConn) {
-      openApiSetup(defaultConn.slug)
-    } else {
-      openApiSetup()
-    }
-  }, [llmConnections, openApiSetup])
+    openYouBoxSetup()
+  }, [openYouBoxSetup])
 
   // Connection action handlers
   const handleRenameClick = useCallback((connection: LlmConnectionWithStatus) => {
@@ -804,53 +746,12 @@ export default function AiSettingsPage() {
   }, [renamingConnection, renameValue, refreshLlmConnections])
 
   const handleReauthenticateConnection = useCallback((connection: LlmConnectionWithStatus) => {
-    openApiSetup(connection.slug)
-    apiSetupOnboarding.reset()
-
-    if (connection.authType === 'oauth') {
-      const method = connection.providerType === 'pi'
-                   ? (connection.piAuthProvider === 'github-copilot' ? 'pi_copilot_oauth' : 'pi_chatgpt_oauth')
-                   : 'claude_oauth'
-      apiSetupOnboarding.handleStartOAuth(method, connection.slug)
-    }
-  }, [apiSetupOnboarding, openApiSetup])
+    openYouBoxSetup()
+  }, [openYouBoxSetup])
 
   const handleEditConnection = useCallback(async (connection: LlmConnectionWithStatus) => {
-    // Fetch stored API key (best-effort — if IPC not available yet, skip pre-fill)
-    let apiKey: string | undefined
-    try {
-      apiKey = (await window.electronAPI.getLlmConnectionApiKey(connection.slug)) ?? undefined
-    } catch {
-      // IPC method may not exist if app wasn't restarted after code change
-    }
-
-    // Build model string from connection's models array
-    const modelStr = connection.models
-      ?.map((m: string | ModelDefinition) => typeof m === 'string' ? m : m.id)
-      .join(', ') || connection.defaultModel || ''
-
-    // Set initial values before opening overlay so ApiKeyInput mounts with them
-    const modelIds = connection.models
-      ?.map((m: string | ModelDefinition) => typeof m === 'string' ? m : m.id)
-      .filter(Boolean)
-
-    const isCustomEndpointConnection = !!connection.customEndpoint && !!connection.baseUrl?.trim()
-
-    setEditInitialValues({
-      apiKey,
-      baseUrl: connection.baseUrl,
-      connectionDefaultModel: modelStr,
-      activePreset: isCustomEndpointConnection ? 'custom' : (connection.piAuthProvider || undefined),
-      models: modelIds,
-      customApi: connection.customEndpoint?.api,
-    })
-
-    // Open overlay and jump directly to credentials step (no reset — jumpToCredentials sets state)
-    openApiSetup(connection.slug)
-    setIsDirectEdit(true)
-    const method = getApiKeyMethodForConnection(connection)
-    apiSetupOnboarding.jumpToCredentials(method)
-  }, [apiSetupOnboarding, openApiSetup])
+    openYouBoxSetup()
+  }, [openYouBoxSetup])
 
   const handleDeleteConnection = useCallback(async (slug: string) => {
     if (!window.electronAPI) return
@@ -942,19 +843,19 @@ export default function AiSettingsPage() {
 
   // Get the default connection for display
   const defaultConnection = useMemo(() => {
-    return llmConnections.find(c => c.isDefault)
-  }, [llmConnections])
+    return managedLlmConnections.find(c => c.isDefault) || managedLlmConnections[0]
+  }, [managedLlmConnections])
 
   // Anthropic account UUIDs that resolve from 2+ connections (issue #838).
   // Surfaces a warning when several Claude connections share one account/quota.
   const duplicateAccountUuids = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const conn of llmConnections) {
+    for (const conn of managedLlmConnections) {
       const uuid = conn.oauthAccountUuid
       if (uuid) counts.set(uuid, (counts.get(uuid) ?? 0) + 1)
     }
     return new Set([...counts].filter(([, n]) => n > 1).map(([uuid]) => uuid))
-  }, [llmConnections])
+  }, [managedLlmConnections])
 
   const defaultModel = defaultConnection?.defaultModel ?? ''
 
@@ -1050,7 +951,7 @@ export default function AiSettingsPage() {
 
             <div className="space-y-8">
               {/* Default Settings - only show if connections exist */}
-              {llmConnections.length > 0 && (
+              {managedLlmConnections.length > 0 && (
               <SettingsSection title={t("settings.ai.defaultSection")} description={t("settings.ai.defaultSectionDesc")}>
                 <SettingsCard>
                   <SettingsMenuSelectRow
@@ -1058,13 +959,10 @@ export default function AiSettingsPage() {
                     description={t("settings.ai.connectionDesc")}
                     value={defaultConnection?.slug || ''}
                     onValueChange={handleSetDefaultConnection}
-                    options={llmConnections.map((conn) => ({
+                    options={managedLlmConnections.map((conn) => ({
                       value: conn.slug,
                       label: conn.name,
-                      description: conn.providerType === 'anthropic' ? 'Anthropic API' :
-                                   conn.providerType === 'pi' ? 'Craft Agents Backend' :
-                                   conn.providerType === 'pi_compat' ? (conn.baseUrl?.toLowerCase().includes('manifest.build') ? 'Manifest' : 'Craft Agents Backend Compatible') :
-                                   conn.providerType || 'Unknown',
+                      description: getConnectionDescription(conn),
                     }))}
                   />
                   <SettingsMenuSelectRow
@@ -1092,14 +990,14 @@ export default function AiSettingsPage() {
               )}
 
               {/* Workspace Overrides - only show if connections exist */}
-              {workspaces.length > 0 && llmConnections.length > 0 && (
+              {workspaces.length > 0 && managedLlmConnections.length > 0 && (
                 <SettingsSection title={t("settings.ai.workspaceOverrides")} description={t("settings.ai.workspaceOverridesDesc")}>
                   <div className="space-y-2">
                     {workspaces.map((workspace) => (
                       <WorkspaceOverrideCard
                         key={workspace.id}
                         workspace={workspace}
-                        llmConnections={llmConnections}
+                        llmConnections={managedLlmConnections}
                         onSettingsChange={handleWorkspaceSettingsChange}
                       />
                     ))}
@@ -1110,12 +1008,12 @@ export default function AiSettingsPage() {
               {/* Connections Management */}
               <SettingsSection title={t("settings.ai.connections")} description={t("settings.ai.connectionsDesc")}>
                 <SettingsCard>
-                  {llmConnections.length === 0 ? (
+                  {managedLlmConnections.length === 0 ? (
                     <div className="px-4 py-6 text-center text-sm text-muted-foreground">
                       {t("settings.ai.noConnections")}
                     </div>
                   ) : (
-                    [...llmConnections]
+                    [...managedLlmConnections]
                       .sort((a, b) => {
                         if (a.isDefault && !b.isDefault) return -1
                         if (!a.isDefault && b.isDefault) return 1
@@ -1142,10 +1040,10 @@ export default function AiSettingsPage() {
                 </SettingsCard>
                 <div className="pt-0">
                   <button
-                    onClick={() => openApiSetup()}
+                    onClick={openYouBoxSetup}
                     className="inline-flex items-center h-8 px-3 text-sm rounded-lg bg-background shadow-minimal hover:bg-foreground/[0.02] transition-colors"
                   >
-                    {t("settings.ai.addConnection")}
+                    {managedLlmConnections.length === 0 ? t("onboarding.credentials.signInYouBox") : t("settings.ai.reAuthenticate")}
                   </button>
                 </div>
               </SettingsSection>

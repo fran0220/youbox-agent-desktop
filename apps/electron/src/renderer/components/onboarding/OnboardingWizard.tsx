@@ -44,7 +44,7 @@ interface OnboardingWizardProps {
   onStartOAuth?: (methodOverride?: ApiSetupMethod) => void
   onFinish: () => void
 
-  // Claude OAuth (two-step flow)
+  // Upstream OAuth compatibility state (unused in YouBox product flow)
   isWaitingForCode?: boolean
   onSubmitAuthCode?: (code: string) => void
   onCancelOAuth?: () => void
@@ -82,10 +82,10 @@ interface OnboardingWizardProps {
 /**
  * OnboardingWizard - Full-screen onboarding flow container
  *
- * Manages the step-by-step flow for setting up Craft Agent:
+ * Manages the step-by-step flow for setting up YouBox Agent:
  * 1. Welcome
- * 2. Provider Select (Claude / ChatGPT / Copilot / API Key / Local)
- * 3. Credentials (API Key or OAuth) or Local Model
+ * 2. Provider Select (YouBox)
+ * 3. YouBox PKCE auth
  * 4. Completion
  */
 export function OnboardingWizard({
