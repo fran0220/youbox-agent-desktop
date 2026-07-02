@@ -19,10 +19,10 @@ export const LEGACY_DEEPLINK_SCHEME = 'origincoworks';
 export const PRODUCT_BUNDLE_ID = 'com.origincoworks.next';
 
 /** Product documentation base URL (no craft.do). Feeds every "Learn more" / help link. */
-export const PRODUCT_DOCS_URL = 'https://origincoworks.local/docs';
+export const PRODUCT_DOCS_URL = 'https://jaco.jingao.club/docs';
 
-/** Runtime desktop version manifest feed (no craft.do). Empty until a release feed is hosted. */
-export const PRODUCT_VERSIONS_URL = 'https://origincoworks.local/electron';
+/** Public desktop version manifest feed for fresh installs (in-app updates use gateway auth). */
+export const PRODUCT_VERSIONS_URL = 'https://jaco.jingao.club/electron';
 
 /** MCP endpoint for bundled product docs server (placeholder until hosted). */
-export const PRODUCT_DOCS_MCP_URL = 'https://origincoworks.local/docs/mcp';
+export const PRODUCT_DOCS_MCP_URL = 'https://jaco.jingao.club/docs/mcp';

@@ -12,7 +12,7 @@ pub struct Release {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, sqlx::FromRow, Serialize)]
+#[derive(Clone, Debug, sqlx::FromRow, Serialize)]
 pub struct ReleaseAsset {
     pub id: String,
     pub release_id: String,

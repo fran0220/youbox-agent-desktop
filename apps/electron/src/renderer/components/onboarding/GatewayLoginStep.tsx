@@ -33,10 +33,12 @@ export function GatewayLoginStep({
   const [usernameError, setUsernameError] = useState<string | undefined>()
   const [passwordError, setPasswordError] = useState<string | undefined>()
   const [pendingMethod, setPendingMethod] = useState<'password' | 'feishu' | null>(null)
+  const [showPasswordLogin, setShowPasswordLogin] = useState(false)
 
   const isSubmitting = loginStatus === 'waiting'
   const isPasswordSubmitting = isSubmitting && pendingMethod !== 'feishu'
   const isFeishuSubmitting = isSubmitting && pendingMethod === 'feishu'
+  const shouldShowPasswordLogin = showPasswordLogin || !onFeishuLogin
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -81,67 +83,35 @@ export function GatewayLoginStep({
       title={t('onboarding.gatewayLogin.title')}
       description={t('onboarding.gatewayLogin.description')}
       actions={
-        <form onSubmit={handleSubmit} className="flex w-full max-w-[320px] flex-col gap-4">
-          <div className="flex flex-col gap-2 text-left">
-            <Label htmlFor="gateway-username">{t('onboarding.gatewayLogin.username')}</Label>
-            <Input
-              id="gateway-username"
-              name="username"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => {
-                setUsername(e.target.value)
-                if (usernameError) setUsernameError(undefined)
-              }}
+        <div className="flex w-full max-w-[320px] flex-col gap-4">
+          {onFeishuLogin ? (
+            <Button
+              type="button"
               disabled={isSubmitting}
-              aria-invalid={!!usernameError}
-            />
-            {usernameError ? (
-              <p className="text-sm text-destructive" role="alert">{usernameError}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2 text-left">
-            <Label htmlFor="gateway-password">{t('onboarding.gatewayLogin.password')}</Label>
-            <Input
-              id="gateway-password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                if (passwordError) setPasswordError(undefined)
-              }}
-              disabled={isSubmitting}
-              aria-invalid={!!passwordError}
-            />
-            {passwordError ? (
-              <p className="text-sm text-destructive" role="alert">{passwordError}</p>
-            ) : null}
-          </div>
+              className="w-full bg-background shadow-minimal text-foreground hover:bg-foreground/5 rounded-lg"
+              size="lg"
+              onClick={handleFeishuLogin}
+            >
+              {isFeishuSubmitting ? (
+                <>
+                  <Spinner className="mr-2" />
+                  {t('onboarding.gatewayLogin.feishuSigningIn')}
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 size-4" />
+                  {t('onboarding.gatewayLogin.feishuSignIn')}
+                </>
+              )}
+            </Button>
+          ) : null}
+
           {displayError ? (
             <p className="text-sm text-destructive text-center" role="alert">
               {displayError}
             </p>
           ) : null}
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-background shadow-minimal text-foreground hover:bg-foreground/5 rounded-lg"
-            size="lg"
-          >
-            {isPasswordSubmitting ? (
-              <>
-                <Spinner className="mr-2" />
-                {t('onboarding.gatewayLogin.signingIn')}
-              </>
-            ) : (
-              <>
-                <LogIn className="mr-2 size-4" />
-                {t('onboarding.gatewayLogin.signIn')}
-              </>
-            )}
-          </Button>
+
           {onFeishuLogin ? (
             <>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -149,29 +119,85 @@ export function GatewayLoginStep({
                 <span>{t('onboarding.gatewayLogin.or')}</span>
                 <div className="h-px flex-1 bg-border" />
               </div>
-              <Button
+              <button
                 type="button"
+                disabled={isSubmitting}
+                className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setShowPasswordLogin((value) => !value)}
+              >
+                {showPasswordLogin
+                  ? t('onboarding.gatewayLogin.hidePasswordLogin')
+                  : t('onboarding.gatewayLogin.passwordLogin')}
+              </button>
+            </>
+          ) : null}
+
+          {shouldShowPasswordLogin ? (
+            <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4">
+              {onFeishuLogin ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  {t('onboarding.gatewayLogin.passwordLoginHint')}
+                </p>
+              ) : null}
+              <div className="flex flex-col gap-2 text-left">
+                <Label htmlFor="gateway-username">{t('onboarding.gatewayLogin.username')}</Label>
+                <Input
+                  id="gateway-username"
+                  name="username"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value)
+                    if (usernameError) setUsernameError(undefined)
+                  }}
+                  disabled={isSubmitting}
+                  aria-invalid={!!usernameError}
+                />
+                {usernameError ? (
+                  <p className="text-sm text-destructive" role="alert">{usernameError}</p>
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-2 text-left">
+                <Label htmlFor="gateway-password">{t('onboarding.gatewayLogin.password')}</Label>
+                <Input
+                  id="gateway-password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    if (passwordError) setPasswordError(undefined)
+                  }}
+                  disabled={isSubmitting}
+                  aria-invalid={!!passwordError}
+                />
+                {passwordError ? (
+                  <p className="text-sm text-destructive" role="alert">{passwordError}</p>
+                ) : null}
+              </div>
+              <Button
+                type="submit"
                 variant="outline"
                 disabled={isSubmitting}
                 className="w-full rounded-lg"
                 size="lg"
-                onClick={handleFeishuLogin}
               >
-                {isFeishuSubmitting ? (
+                {isPasswordSubmitting ? (
                   <>
                     <Spinner className="mr-2" />
-                    {t('onboarding.gatewayLogin.feishuSigningIn')}
+                    {t('onboarding.gatewayLogin.signingIn')}
                   </>
                 ) : (
                   <>
                     <LogIn className="mr-2 size-4" />
-                    {t('onboarding.gatewayLogin.feishuSignIn')}
+                    {t('onboarding.gatewayLogin.signIn')}
                   </>
                 )}
               </Button>
-            </>
+            </form>
           ) : null}
-        </form>
+        </div>
       }
     />
   )

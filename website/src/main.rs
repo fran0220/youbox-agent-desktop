@@ -60,6 +60,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(routes::pages::index))
         .route("/download", get(routes::pages::download))
         .route("/about", get(routes::pages::about))
+        .route("/install-app.sh", get(routes::desktop_release::install_sh))
+        .route(
+            "/install-app.ps1",
+            get(routes::desktop_release::install_ps1),
+        )
+        .route(
+            "/electron/latest/{file}",
+            get(routes::desktop_release::latest_file),
+        )
         .route("/docs", get(routes::docs::index))
         .route("/docs/{*path}", get(routes::docs::page))
         .route("/games", get(routes::games::gallery))
