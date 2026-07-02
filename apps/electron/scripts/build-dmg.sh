@@ -57,6 +57,7 @@ Environment variables (from .env or environment):
   APPLE_ID                  - Apple ID for notarization
   APPLE_TEAM_ID             - Apple Team ID
   APPLE_APP_SPECIFIC_PASSWORD - App-specific password
+  MAC_CODESIGN_TIMESTAMP    - Timestamp server URL; set to "none" to disable timestamping
   S3_VERSIONS_BUCKET_*      - S3 credentials (for --upload)
 EOF
     exit 0
@@ -219,6 +220,14 @@ export CSC_IDENTITY_AUTO_DISCOVERY=true
 
 # Build electron-builder arguments
 BUILDER_ARGS="--mac --${ARCH}"
+
+# Apple timestamp service can be intermittently unavailable. Keep the default
+# behavior unless the release operator explicitly overrides it; `none` maps to
+# codesign's timestamp-disable mode through @electron/osx-sign.
+if [ -n "${MAC_CODESIGN_TIMESTAMP:-}" ]; then
+    echo "Using code signing timestamp setting: ${MAC_CODESIGN_TIMESTAMP}"
+    BUILDER_ARGS="$BUILDER_ARGS -c.mac.timestamp=${MAC_CODESIGN_TIMESTAMP}"
+fi
 
 # Add code signing if identity is available
 if [ -n "$APPLE_SIGNING_IDENTITY" ]; then
