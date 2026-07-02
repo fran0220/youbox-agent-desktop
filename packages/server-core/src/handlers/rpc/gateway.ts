@@ -9,7 +9,6 @@ import {
 } from '@craft-agent/origincoworks/auth';
 import type { HandlerDeps } from '../handler-deps';
 import { syncGatewayLlmConfigForSession } from './gateway-llm-sync.ts';
-import { syncGatewaySkillsForSession } from './gateway-skills-sync.ts';
 import { syncGatewayMemoryForSession } from './gateway-memory-sync.ts';
 import { syncGatewayClassicSessionsForSession } from './gateway-classic-sessions-sync.ts';
 import { syncGatewayStateAfterAuth } from './gateway-post-auth-sync.ts';
@@ -19,7 +18,6 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gateway.LOGIN,
   RPC_CHANNELS.gateway.LOGOUT,
   RPC_CHANNELS.gateway.SYNC_LLM_CONFIG,
-  RPC_CHANNELS.gateway.SYNC_SKILLS,
   RPC_CHANNELS.gateway.SYNC_MEMORY,
   RPC_CHANNELS.gateway.SYNC_CLASSIC_SESSIONS,
 ] as const;
@@ -81,10 +79,6 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
 
   server.handle(RPC_CHANNELS.gateway.SYNC_LLM_CONFIG, async () => {
     return syncGatewayLlmConfigForSession(server, deps);
-  });
-
-  server.handle(RPC_CHANNELS.gateway.SYNC_SKILLS, async () => {
-    return syncGatewaySkillsForSession(server, deps);
   });
 
   server.handle(RPC_CHANNELS.gateway.SYNC_MEMORY, async () => {

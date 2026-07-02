@@ -1,0 +1,79 @@
+{% for release in releases %}
+<div class="bg-white rounded-2xl shadow-sm p-6">
+  <div class="flex items-start justify-between mb-4">
+    <div class="flex items-center gap-3">
+      <h3 class="text-xl font-bold text-gray-900">v{{ release.version }}</h3>
+      {% if release.is_latest %}
+      <span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">最新</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2">
+      {% if !release.is_latest %}
+      <button hx-post="/admin/releases/{{ release.id }}/set-latest"
+              hx-target="#releases-list"
+              hx-swap="innerHTML"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-500 text-white hover:bg-green-600 transition-colors">
+        设为最新
+      </button>
+      {% endif %}
+      <a href="/admin/releases/{{ release.id }}/edit"
+         class="px-3 py-1.5 rounded-lg text-xs font-medium text-terra hover:bg-terra/10 transition-colors">
+        编辑
+      </a>
+      <a href="/admin/releases/{{ release.id }}/edit"
+         class="px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors">
+        上传安装包
+      </a>
+      <button hx-delete="/admin/releases/{{ release.id }}"
+              hx-target="#releases-list"
+              hx-swap="innerHTML"
+              hx-confirm="确定删除版本 v{{ release.version }}？"
+              class="px-3 py-1.5 rounded-lg text-xs font-medium text-red-500 hover:bg-red-50 transition-colors">
+        删除
+      </button>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3 mb-3">
+    <span class="text-sm text-gray-400">{{ release.created_at }}</span>
+    {% if release.asset_count > 0 %}
+    <span class="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">{{ release.asset_count }} 个平台</span>
+    {% else %}
+    <span class="inline-flex px-2 py-0.5 rounded-lg text-xs font-medium bg-orange-50 text-orange-600">等待构建同步</span>
+    {% endif %}
+  </div>
+
+  {% if !release.notes.is_empty() %}
+  <div class="prose-custom text-sm text-gray-600 mb-4">
+    {{ release.notes }}
+  </div>
+  {% endif %}
+
+  {% if release.assets.len() > 0 %}
+  <div class="border-t border-gray-100 pt-4">
+    <h4 class="text-sm font-medium text-gray-700 mb-2">安装包</h4>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {% for asset in release.assets %}
+      <div class="flex items-center justify-between px-4 py-3 rounded-xl bg-cream text-sm">
+        <div>
+          <span class="text-gray-700 font-medium">{{ asset.platform_label }}</span>
+          {% if !asset.file_size.is_empty() %}
+          <span class="text-gray-400 ml-2">{{ asset.file_size }}</span>
+          {% endif %}
+        </div>
+        {% if asset.download_count > 0 %}
+        <span class="text-gray-400 text-xs">{{ asset.download_count }} 次下载</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if releases.is_empty() %}
+<div class="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400 text-sm">
+  暂无版本发布
+</div>
+{% endif %}

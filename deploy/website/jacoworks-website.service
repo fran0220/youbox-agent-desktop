@@ -1,0 +1,16 @@
+[Unit]
+Description=OriginAI Website and Admin
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/jacoworks/www/jacoworks-website
+WorkingDirectory=/opt/jacoworks/www
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

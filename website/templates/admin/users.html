@@ -1,0 +1,62 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}用户管理{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+
+{% block header_actions %}
+<div class="text-sm text-gray-500">共 {{ total }} 位用户</div>
+{% endblock %}
+
+{% block admin_content %}
+<!-- Search -->
+<div class="mb-6">
+  <form action="/admin/users" method="get" class="flex gap-3">
+    <input type="text" name="q" value="{{ query }}" placeholder="搜索用户名或邮箱…"
+           class="flex-1 max-w-md px-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors text-sm">
+    <button type="submit"
+            class="px-5 py-2.5 rounded-xl bg-terra text-white text-sm font-medium hover:bg-terra-dark transition-colors">
+      搜索
+    </button>
+  </form>
+</div>
+
+<!-- Users Table -->
+<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500 bg-gray-50/50">
+          <th class="px-6 py-3.5 font-medium">ID</th>
+          <th class="px-6 py-3.5 font-medium">姓名</th>
+          <th class="px-6 py-3.5 font-medium">邮箱</th>
+          <th class="px-6 py-3.5 font-medium">角色</th>
+          <th class="px-6 py-3.5 font-medium">注册时间</th>
+          <th class="px-6 py-3.5 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for user in users %}
+        {% include "admin/partials/user_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if users.is_empty() %}
+  <div class="py-12 text-center text-gray-400 text-sm">暂无用户</div>
+  {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total > 20 %}
+<div class="mt-6 flex items-center justify-center gap-2">
+  {% if page > 1 %}
+  <a href="/admin/users?page={{ page - 1 }}{% if !query.is_empty() %}&q={{ query }}{% endif %}"
+     class="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors">上一页</a>
+  {% endif %}
+  <span class="px-4 py-2 text-sm text-gray-500">第 {{ page }} 页</span>
+  <a href="/admin/users?page={{ page + 1 }}{% if !query.is_empty() %}&q={{ query }}{% endif %}"
+     class="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors">下一页</a>
+</div>
+{% endif %}
+{% endblock %}

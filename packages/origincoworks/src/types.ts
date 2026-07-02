@@ -92,60 +92,6 @@ function isDesktopConfigModelEntry(value: unknown): value is DesktopConfigModelE
   );
 }
 
-/** One row from GET /api/skills/pull `files[]`. */
-export interface GatewaySkillFile {
-  file_path: string;
-  content?: string;
-  checksum: string;
-}
-
-/** GET /api/skills/checksum */
-export type GatewaySkillsChecksumResponse = {
-  system: string;
-  user: string;
-};
-
-export function assertGatewaySkillsChecksumResponse(
-  value: unknown,
-): asserts value is GatewaySkillsChecksumResponse {
-  if (!value || typeof value !== 'object') {
-    throw new Error('skills checksum response must be an object');
-  }
-  const o = value as Record<string, unknown>;
-  if (typeof o.system !== 'string') {
-    throw new Error('skills checksum missing system');
-  }
-  if (typeof o.user !== 'string') {
-    throw new Error('skills checksum missing user');
-  }
-}
-
-export function assertGatewaySkillPullResponse(value: unknown): {
-  checksum: string;
-  files: GatewaySkillFile[];
-} {
-  if (!value || typeof value !== 'object') {
-    throw new Error('skills pull response must be an object');
-  }
-  const o = value as Record<string, unknown>;
-  const checksum = typeof o.checksum === 'string' ? o.checksum : '';
-  if (!Array.isArray(o.files)) {
-    throw new Error('skills pull missing files array');
-  }
-  const files: GatewaySkillFile[] = [];
-  for (const entry of o.files) {
-    if (!entry || typeof entry !== 'object') continue;
-    const f = entry as Record<string, unknown>;
-    if (typeof f.file_path !== 'string') continue;
-    files.push({
-      file_path: f.file_path,
-      content: typeof f.content === 'string' ? f.content : '',
-      checksum: typeof f.checksum === 'string' ? f.checksum : '',
-    });
-  }
-  return { checksum, files };
-}
-
 /** GET /api/desktop/classic-sessions summary row */
 export interface ClassicSessionSummary {
   id: string;

@@ -80,7 +80,7 @@ done
 # Configuration
 BUN_VERSION="bun-v1.3.9"  # Pinned version for reproducible builds
 
-echo "=== Building Craft Agents DMG (${ARCH}) using electron-builder ==="
+echo "=== Building OriginAI DMG (${ARCH}) using electron-builder ==="
 if [ "$UPLOAD" = true ]; then
     echo "Will upload to S3 after build"
 fi
@@ -244,13 +244,22 @@ fi
 # Run electron-builder
 npx electron-builder $BUILDER_ARGS
 
-# 8. Verify the DMG was built
-# electron-builder.yml uses artifactName to output: Craft-Agents-${arch}.dmg
-DMG_NAME="Craft-Agents-${ARCH}.dmg"
+# 8. Verify the DMG and ZIP were built.
+# electron-builder.yml uses artifactName to output: OriginAI-${arch}.{dmg,zip}
+DMG_NAME="OriginAI-${ARCH}.dmg"
 DMG_PATH="$ELECTRON_DIR/release/$DMG_NAME"
+ZIP_NAME="OriginAI-${ARCH}.zip"
+ZIP_PATH="$ELECTRON_DIR/release/$ZIP_NAME"
 
 if [ ! -f "$DMG_PATH" ]; then
     echo "ERROR: Expected DMG not found at $DMG_PATH"
+    echo "Contents of release directory:"
+    ls -la "$ELECTRON_DIR/release/"
+    exit 1
+fi
+
+if [ ! -f "$ZIP_PATH" ]; then
+    echo "ERROR: Expected updater ZIP not found at $ZIP_PATH"
     echo "Contents of release directory:"
     ls -la "$ELECTRON_DIR/release/"
     exit 1
@@ -260,6 +269,8 @@ echo ""
 echo "=== Build Complete ==="
 echo "DMG: $ELECTRON_DIR/release/${DMG_NAME}"
 echo "Size: $(du -h "$ELECTRON_DIR/release/${DMG_NAME}" | cut -f1)"
+echo "ZIP: $ELECTRON_DIR/release/${ZIP_NAME}"
+echo "Size: $(du -h "$ELECTRON_DIR/release/${ZIP_NAME}" | cut -f1)"
 
 # 9. Create manifest.json for upload script
 # Read version from package.json

@@ -1,0 +1,119 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}{% if is_new %}新建技能{% else %}编辑技能{% endif %}{% endblock %}
+{% block page_title %}{% if is_new %}新建技能{% else %}编辑技能{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<nav class="flex items-center gap-1 text-sm text-gray-400 mt-1">
+  <a href="/admin/skills" class="hover:text-terra transition-colors">技能管理</a>
+  <span>/</span>
+  <span class="text-gray-600">{% if is_new %}新建{% else %}{{ file_path }}{% endif %}</span>
+</nav>
+{% endblock %}
+
+{% block head %}
+<style>
+  .skill-editor {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    tab-size: 2;
+    line-height: 1.6;
+    resize: vertical;
+  }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+{% if let Some(error) = save_error %}
+<div class="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+  <svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+  <p class="text-red-700 text-sm">{{ error }}</p>
+</div>
+{% endif %}
+
+<form method="post" action="/admin/skills/save" class="space-y-6">
+  {% if !is_new %}
+  <input type="hidden" name="original_path" value="{{ file_path }}">
+  {% endif %}
+
+  <!-- File path -->
+  <div class="bg-white rounded-2xl shadow-sm p-6">
+    <label for="file_path" class="block text-sm font-medium text-gray-700 mb-2">
+      文件路径
+      <span class="text-gray-400 font-normal ml-2">格式: 分类/技能名/SKILL.md</span>
+    </label>
+    <input type="text"
+           id="file_path"
+           name="file_path"
+           value="{{ file_path }}"
+           placeholder="创作/poster/SKILL.md"
+           required
+           class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-cream/30 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors">
+    <p class="text-xs text-gray-400 mt-2">
+      示例: 创作/poster/SKILL.md、办公/contract-review/SKILL.md、工具/web-search/SKILL.md
+    </p>
+  </div>
+
+  <!-- Content editor -->
+  <div class="bg-white rounded-2xl shadow-sm p-6">
+    <div class="flex items-center justify-between mb-2">
+      <label for="content" class="block text-sm font-medium text-gray-700">
+        技能内容 (Markdown)
+      </label>
+      <span id="char-count" class="text-xs text-gray-400"></span>
+    </div>
+    <textarea id="content"
+              name="content"
+              rows="30"
+              required
+              class="skill-editor w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors">{{ content }}</textarea>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex items-center justify-between">
+    <a href="/admin/skills"
+       class="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">
+      ← 返回列表
+    </a>
+    <div class="flex gap-3">
+      {% if !is_new %}
+      <button type="button"
+              onclick="if(confirm('确定删除此技能？')) window.location='/admin/skills/delete?path={{ file_path|urlencode }}'"
+              class="px-5 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors">
+        删除
+      </button>
+      {% endif %}
+      <button type="submit"
+              class="px-6 py-2.5 rounded-xl bg-terra text-white text-sm font-medium hover:bg-terra-dark transition-colors shadow-sm">
+        {% if is_new %}创建技能{% else %}保存修改{% endif %}
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Character count
+  const editor = document.getElementById('content');
+  const counter = document.getElementById('char-count');
+  function updateCount() {
+    const len = editor.value.length;
+    counter.textContent = len > 1024
+      ? (len / 1024).toFixed(1) + ' KB'
+      : len + ' 字符';
+  }
+  editor.addEventListener('input', updateCount);
+  updateCount();
+
+  // Tab key support in textarea
+  editor.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = this.selectionStart;
+      const end = this.selectionEnd;
+      this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = start + 2;
+    }
+  });
+</script>
+{% endblock %}

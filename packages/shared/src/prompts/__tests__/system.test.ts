@@ -15,6 +15,36 @@ const GIT_CONVENTIONS_HEADING = '## Git Conventions'
 const CO_AUTHOR_TRAILER = 'Co-Authored-By: OriginAI <agents-noreply@origincoworks.local>'
 
 describe('system prompt guidance', () => {
+  it('uses youbox agent as the assistant identity', () => {
+    const prompt = getSystemPrompt(
+      undefined,
+      undefined,
+      '/tmp/workspace',
+      '/tmp/workspace',
+      undefined,
+      undefined,
+      false
+    )
+
+    expect(prompt).toContain('You are youbox agent')
+    expect(prompt).toContain('refer to yourself as youbox agent')
+    expect(prompt).not.toContain('You are Craft Agent')
+    expect(prompt).not.toContain('refer to yourself as Craft Agent')
+  })
+
+  it('uses youbox agent in the mini prompt identity', () => {
+    const prompt = getSystemPrompt(
+      undefined,
+      undefined,
+      '/tmp/workspace',
+      '/tmp/workspace',
+      'mini'
+    )
+
+    expect(prompt).toContain('quick configuration edits in youbox agent')
+    expect(prompt).not.toContain('quick configuration edits in Craft Agent')
+  })
+
   it('uses backend-neutral debug log querying guidance (rg/grep via Bash)', () => {
     const prompt = getSystemPrompt(
       undefined,

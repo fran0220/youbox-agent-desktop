@@ -21,7 +21,7 @@ llm:
 
 github:
   token: ""                # GitHub PAT (repo scope), 用于反馈 Issue + 截图上传
-  repo: "fran0220/jacoworks"
+  repo: "fran0220/JAcoworks-Next"
 
 chat_agent:
   url: "http://127.0.0.1:18790"

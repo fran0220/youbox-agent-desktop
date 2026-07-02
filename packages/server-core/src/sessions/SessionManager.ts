@@ -105,7 +105,6 @@ import {
   formatSkippedRequiredSourcesWarning,
   resolveRequiredSourceEnables,
 } from '@craft-agent/origincoworks/required-sources'
-import { scheduleGatewaySkillWriteback } from '../gateway-skill-writeback.ts'
 import { scheduleGatewaySessionMetadataWriteback } from '../gateway-session-metadata-writeback.ts'
 import { buildMemoryMcpServerForSource } from '../gateway-memory-mcp.ts'
 import { createMemoryDestructiveConfirmHandler } from '../memory-sync-sessions.ts'
@@ -1544,9 +1543,6 @@ export class SessionManager implements ISessionManager {
       },
       onSkillChange: async (slug, skill) => {
         sessionLog.info(`Skill '${slug}' changed:`, skill ? 'updated' : 'deleted')
-        if (skill) {
-          scheduleGatewaySkillWriteback(workspaceRootPath, slug, sessionLog)
-        }
         // Broadcast updated list to UI
         const { loadAllSkills } = await import('@craft-agent/shared/skills')
         const skills = loadAllSkills(workspaceRootPath)

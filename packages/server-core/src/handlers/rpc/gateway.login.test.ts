@@ -82,7 +82,6 @@ describe('registerGatewayHandlers gateway LOGIN', () => {
     });
     postAuthSpy = spyOn(gatewayPostAuth, 'syncGatewayStateAfterAuth').mockResolvedValue({
       llm: { success: true },
-      skills: { success: true },
       memory: { success: true },
     });
     classicSyncSpy = spyOn(gatewayClassicSync, 'syncGatewayClassicSessionsForSession').mockResolvedValue({

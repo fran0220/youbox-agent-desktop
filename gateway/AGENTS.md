@@ -1,6 +1,6 @@
-# Gateway — 桌面端管控面网关
+# Gateway — OriginAI 桌面端管控面网关
 
-> `gateway` (jingao `:8847`) 是 JAcoworks 桌面端与管理后台共用的管控面 API，负责认证、桌面会话 CRUD、LLM 配置下发、memory / skills / cron / feedback / games，以及系统设置与激活码管理。WebChat、oc-gateway、云端运行时已迁至 `jaco-cloud`；本仓仅保留少量历史路由作为 `410 Gone` 兼容桩。`OcGatewayURL` 配置仍然有效，用于飞书 Bot 将消息转发到 `jaco-cloud` 侧的聊天入口。
+> `gateway` (jingao `:8847`) 是当前 JAcoworks-Next / OriginAI 桌面端与管理后台共用的管控面 API，负责认证、桌面会话 CRUD/导入、LLM 配置下发、memory 同步、feedback、release，以及系统设置与激活码管理。旧 `~/JAcoworks` 仓库只作为历史归档，不再作为生产 gateway source of truth。WebChat、oc-gateway、云端运行时已迁至 `jaco-cloud`；skills sync、cloud cron、games 等非本地优先能力在本仓只保留 `410 Gone` 兼容桩。`OcGatewayURL` 配置仍然有效，用于飞书 Bot 将消息转发到 `jaco-cloud` 侧的聊天入口。
 
 ## 代码结构
 
@@ -19,8 +19,7 @@ internal/
   config/config.go             YAML + env override；含 LLM、PostHog、OcGatewayURL、历史 PiVM 元数据
   feishubot/
     client.go                  飞书 API 客户端
-    handler.go                 webhook、cron 通知、转发到 jaco-cloud
-  games/handler.go             游戏画廊 API
+    handler.go                 webhook、转发到 jaco-cloud
   github/client.go             GitHub Issue / 附件上传
   middleware/middleware.go     PanicRecovery / RequestID / RequestLog
   store/
@@ -31,9 +30,6 @@ internal/
     invites.go                 激活码
     settings.go                `system_settings`
     memory.go                  记忆同步
-    skills.go                  技能 CRUD / 校验和 / 拉取
-    games.go                   游戏元数据
-    cron.go                    云端定时任务
     providers.go               `llm_providers` / `llm_models`
     bot_config.go              历史容器配置记录（保留 DB 兼容）
 ```
@@ -64,22 +60,7 @@ internal/
 | POST | `/api/memory/sync` | 记忆双向同步 |
 | GET | `/api/memory/stats` | 记忆统计 |
 | DELETE | `/api/memory` | 清空用户记忆 |
-| GET | `/api/skills` | 技能列表 |
-| PUT | `/api/skills/{skillId}` | 创建/更新用户技能 |
-| DELETE | `/api/skills/{skillId}` | 删除用户技能 |
-| POST | `/api/skills/upload` | 旧版 system skill 上传接口；`push-skills.sh` 仍使用 |
-| GET | `/api/skills/checksum` | 旧版技能校验和接口 |
-| GET | `/api/skills/pull` | 旧版 system skills 拉取接口 |
 | GET | `/api/cowork/container-status` | 返回历史容器记录状态；旧桌面客户端仍会查询 |
-| POST | `/api/cron/announce` | 接收 sidecar / runtime 的定时任务结果并推送飞书 |
-| POST | `/api/cron/jobs` | 创建云端定时任务 |
-| GET | `/api/cron/jobs` | 列出用户定时任务 |
-| DELETE | `/api/cron/jobs/{id}` | 删除定时任务 |
-| POST | `/api/cron/jobs/{id}/run` | 手动触发定时任务（stub） |
-| GET | `/api/cron/jobs/{id}/history` | 查询执行历史（stub） |
-| GET | `/api/games` | 游戏列表（公开） |
-| POST | `/api/games/deploy` | 上传游戏包 |
-| DELETE | `/api/games/{id}` | 删除游戏 |
 | POST | `/api/feedback` | 提交桌面端反馈并同步 GitHub Issue |
 | POST | `/api/agent/ws-ticket` | 桌面端 ticket 签发 |
 | POST | `/api/admin/invite-codes` | 创建激活码（管理员） |
@@ -110,6 +91,21 @@ internal/
 | POST | `/api/admin/containers/{id}/install-template` | 已迁至 `jaco-cloud` |
 | POST | `/api/admin/containers/{id}/restart` | 已迁至 `jaco-cloud` |
 | GET | `/api/admin/logs` | 已迁至 `jaco-cloud` |
+| GET | `/api/skills` | 已移除；桌面端 skills 以本地 workspace 为准 |
+| PUT | `/api/skills/{skillId}` | 已移除；不再写回 gateway |
+| DELETE | `/api/skills/{skillId}` | 已移除；不再写回 gateway |
+| POST | `/api/skills/upload` | 已移除；不再维护 gateway skills sync |
+| GET | `/api/skills/checksum` | 已移除；不再维护 gateway skills sync |
+| GET | `/api/skills/pull` | 已移除；不再维护 gateway skills sync |
+| POST | `/api/cron/announce` | 已移除；定时任务以 Craft local automations 为准 |
+| POST | `/api/cron/jobs` | 已移除；定时任务以 Craft local automations 为准 |
+| GET | `/api/cron/jobs` | 已移除；定时任务以 Craft local automations 为准 |
+| DELETE | `/api/cron/jobs/{id}` | 已移除；定时任务以 Craft local automations 为准 |
+| POST | `/api/cron/jobs/{id}/run` | 已移除；定时任务以 Craft local automations 为准 |
+| GET | `/api/cron/jobs/{id}/history` | 已移除；定时任务以 Craft local automations 为准 |
+| GET | `/api/games` | 已移除；不属于本地优先桌面端契约 |
+| POST | `/api/games/deploy` | 已移除；不属于本地优先桌面端契约 |
+| DELETE | `/api/games/{id}` | 已移除；不属于本地优先桌面端契约 |
 
 ## 环境变量
 
@@ -169,7 +165,7 @@ openclaw:               # 历史键名；config.go 仍映射到 PiVMConfig，供
 
 ## CORS
 
-- 允许 Tauri 桌面端 origin：`tauri://localhost`、`https://tauri.localhost`
+- 允许 legacy Tauri 桌面端 origin：`tauri://localhost`、`https://tauri.localhost`
 - 允许本地开发：`http://localhost:*`、`127.0.0.1`、`::1`
 - 允许官网后台：`https://jaco.jingao.club`
 - 本仓默认不再为 `chat.jingao.club` 维护专门浏览器 CORS 规则
@@ -190,7 +186,7 @@ go vet ./...
 go test ./...
 ```
 
-主要覆盖：auth、handlers、config、`ws_ticket`、store、feishu bot、games 与各 API 路径。文档改动无需额外 E2E；改动网关行为时以 `go test ./...` 为最低验证标准。
+主要覆盖：auth、handlers、config、`ws_ticket`、store、feishu bot 与各 API 路径。文档改动无需额外 E2E；改动网关行为时以 `go test ./...` 为最低验证标准。
 
 ## 开发规范
 
@@ -200,7 +196,7 @@ go test ./...
 - **Feishu 云端对话是转发，不是本地实现**：若问题落在 `OcGatewayURL` 对端，请到 `jaco-cloud` 排查
 - **历史 410 路由不要随意删除**：它们用于老版本客户端的明确错误提示与迁移过渡
 - **本地开发**：`make dev-gateway` → `localhost:8847`
-- **部署**：`make deploy-jingao`（gateway + website），`make push-skills` 负责 system skills 入库
+- **部署**：`make deploy-jingao`（gateway + website）；桌面端 skills 以本地 workspace 为准，不再通过 gateway 入库同步
 
 ## 新增 system_settings 配置项 Checklist
 

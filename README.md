@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-**OriginAI** is an Apache-2.0 fork of [Craft Agents](https://github.com/lukilabs/craft-agents-oss) integrated end-to-end with the **JAcoworks Go gateway**. It keeps Craft's agent-native workbench (Electron desktop app, multi-tenant WebUI, headless server, and a Bun CLI) and replaces per-machine, static-token onboarding with a single gateway-driven control plane: one sign-in delivers your LLM configuration, permission policy, skills, memory, classic-session history, and release updates.
+**OriginAI** is an Apache-2.0 fork of [Craft Agents](https://github.com/lukilabs/craft-agents-oss) integrated end-to-end with the **JAcoworks Go gateway**. It keeps Craft's agent-native workbench (Electron desktop app, multi-tenant WebUI, headless server, and a Bun CLI) and replaces per-machine, static-token onboarding with a local-first control plane: one sign-in delivers your LLM configuration, permission policy, memory sync, classic-session history, and release updates, while runtime features such as skills and automations stay local to the workspace.
 
 Like upstream, it runs the [Claude Agent SDK](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk) and the Pi SDK side by side.
 
@@ -14,13 +14,13 @@ Everything below routes through the new `packages/origincoworks` adapter (the on
 - **Gateway-driven auth on every surface.** Desktop, WebUI, and the CLI all authenticate against the gateway (`POST /api/auth/login`) and store a session token; identity is verified via `GET /api/users/me`. There is no static `CRAFT_SERVER_TOKEN` onboarding gate anymore.
 - **Gateway-backed LLM config.** `GET /api/desktop/config` (secret-redacted) auto-provisions a single managed `pi_compat` LLM connection (`OriginAI Gateway`) that hits the real xiaomao proxy (default model `gpt-5.5`, base `https://api.xiaomao.chat`). No manual provider/API-key onboarding.
 - **Permission policy + audit.** Gateway role and workspace-trust checks run in pre-tool-use; high-risk commands are surfaced, and audit events `POST /api/desktop/audit`.
-- **Skills sync + Memory source.** Checksum-based skills sync (system + user) keeps workspaces current, and a first-class `memory` source type is backed by gateway memory sync (read / search / write-with-permission).
+- **Local skills + Memory sync.** Skills are local workspace `SKILL.md` files (matching upstream Craft behavior), and a first-class `memory` source type is backed by gateway memory sync (read / search / write-with-permission).
 - **Classic session import.** Read-only import of legacy sessions via `GET /api/desktop/classic-sessions`, continue-from-old via a transferred-session summary, and metadata write-back via `POST /api/desktop/session-metadata`.
 - **Multi-tenant WebUI.** A front controller authenticates users via the gateway and spawns an isolated per-user headless backend (process-level tenant isolation, each with its own config dir). Logout tears the backend down.
-- **Release + feedback.** Gateway `GET /api/desktop/release/latest` (DB-backed `releases` / `release_assets`) plus an auto-update feed pointed at the gateway, and `POST /api/desktop/feedback`.
+- **Release + feedback.** Gateway `GET /api/desktop/release/latest` (DB-backed `releases` / `release_assets`) plus an auto-update feed pointed at the gateway, `POST /api/desktop/feedback`, and production release/deploy scripts under `deploy/`.
 - **Branding & data dir.** Product identity "OriginAI", bundle id `com.origincoworks.next`, deep-link scheme `originai://` (legacy `origincoworks://`), default data dir `~/.originai`, and a branded CLI (`ocn`).
 
-> **Out of scope.** Release signing, macOS notarization, Windows NSIS signing, object-storage upload, and production deployment are **not** included. Release support covers only the `release/latest` endpoint + tables and the updater feed configuration.
+> **Source of truth.** This repository now owns the production gateway, website/admin, deploy scripts, and release pipeline. The old `~/JAcoworks` checkout is historical only.
 
 ## Architecture
 
@@ -40,12 +40,15 @@ JAcoworks-Next/
 │   ├── ui/                    # Shared React UI
 │   ├── pi-agent-server/       # Pi backend subprocess
 │   └── session-mcp-server/    # Session tools MCP subprocess
-└── gateway/                   # JAcoworks Go gateway (auth, config, skills, memory, audit, releases)
-    ├── cmd/gateway/           # Entry point + route registration
-    └── internal/              # auth, store, audit, config, ...
+├── gateway/                   # JAcoworks Go gateway (auth, config, memory, sessions, audit, releases)
+│   ├── cmd/gateway/           # Entry point + route registration
+│   └── internal/              # auth, store, audit, config, ...
+├── website/                   # Rust website + admin console (download/release/settings/users)
+├── deploy/                    # SQL schema, systemd, deploy and release scripts
+└── skills/                    # Local/default skills source, not gateway-synced
 ```
 
-The `packages/origincoworks` adapter plugs into Craft's existing seams (login/onboarding, `LlmConnection`, `runPreToolUseChecks`, Sources, Skills, Sessions, WebUI auth). `gateway-client.ts` is the single HTTP client to the gateway.
+The `packages/origincoworks` adapter plugs into Craft's existing seams (login/onboarding, `LlmConnection`, `runPreToolUseChecks`, Sources, Sessions, WebUI auth). `gateway-client.ts` is the single HTTP client to the gateway.
 
 ## Prerequisites
 
@@ -66,7 +69,7 @@ Then bring up the supporting services in order: **PostgreSQL → gateway → a s
 
 ### 1. PostgreSQL
 
-Start a PostgreSQL instance that holds the JAcoworks schema (users, sessions, skills, memory, audit, releases). Provide its connection string to the gateway via the `GATEWAY_DATABASE_URL` environment variable (see below) so secrets never need to live in the repo.
+Start a PostgreSQL instance that holds the JAcoworks schema (users, sessions, memory, audit, releases, and legacy tables). Provide its connection string to the gateway via the `GATEWAY_DATABASE_URL` environment variable (see below) so secrets never need to live in the repo.
 
 ### 2. Gateway
 
@@ -147,6 +150,9 @@ bun test
 
 # Gateway (Go)
 cd gateway && go vet ./... && go test ./...
+
+# Website/admin (Rust)
+cd website && cargo check && cargo test
 ```
 
 For TypeScript, run **scoped, per-package** typechecks, e.g.:
@@ -172,7 +178,7 @@ When you change anything under `apps/electron/src/renderer/**`, `packages/ui/**`
 - **Dynamic Status System**: Customizable session workflow states (Todo, In Progress, Done, etc.)
 - **Theme System**: Cascading themes at app and workspace levels
 - **Multi-File Diff**: VS Code-style window for viewing all file changes in a turn
-- **Skills**: Specialized agent instructions, kept in sync from the gateway (system + user) and per-workspace
+- **Skills**: Specialized agent instructions from local/default `SKILL.md` files and each workspace
 - **File Attachments**: Drag-drop images, PDFs, Office documents with auto-conversion
 - **Automations**: Event-driven automation — create agent sessions on label changes, schedules, tool use, and more
 - **Classic session import**: Read-only import of legacy sessions, with continue-from-old support
@@ -436,7 +442,7 @@ Configuration is stored at `~/.originai/` (override with `CRAFT_CONFIG_DIR`):
         ├── automations.json # Event-driven automations
         ├── sessions/        # Session data (JSONL)
         ├── sources/         # Connected sources
-        ├── skills/          # Skills (synced from gateway + custom)
+        ├── skills/          # Local workspace skills
         └── statuses/        # Status configuration
 ```
 

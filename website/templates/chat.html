@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AI 对话 — JAcoworks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/chat/assets/index.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    window.__GATEWAY_URL__ = "{{ gateway_url }}";
+    window.__AUTH_TOKEN__ = "{{ auth_token }}";
+    window.__USER_NAME__ = "{{ user_name }}";
+    window.__OPENCLAW_TOKEN__ = "{{ openclaw_token }}";
+    window.__OPENCLAW_WS_PORT__ = {{ openclaw_ws_port }};
+    window.__OPENCLAW_VNC_URL__ = "{{ openclaw_vnc_url }}";
+    window.__POSTHOG_KEY__ = "{{ posthog_key }}";
+    window.__POSTHOG_HOST__ = "{{ posthog_host }}";
+  </script>
+  <script type="module" src="/static/chat/chat.js"></script>
+</body>
+</html>

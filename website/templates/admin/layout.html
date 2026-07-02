@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}管理后台{% endblock %} — OriginAI Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        },
+        colors: {
+          cream: '#F5F0EB',
+          'cream-dark': '#EDE5DC',
+          terra: '#C4724A',
+          'terra-dark': '#A85D3A',
+          'terra-light': '#D4956F',
+          'admin-bg': '#f8f9fa',
+          'admin-sidebar': '#1a1a2e',
+          'admin-sidebar-hover': '#16213e',
+        },
+        borderRadius: {
+          'xl': '1rem',
+          '2xl': '1.5rem',
+        }
+      }
+    }
+  }
+  </script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-admin-bg text-gray-800 font-sans">
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-admin-sidebar text-white flex flex-col shrink-0 fixed inset-y-0 left-0 z-30">
+      <!-- Logo -->
+      <div class="px-6 py-5 border-b border-white/10">
+        <a href="/admin" class="block">
+          <span class="text-xl font-bold text-white">OriginAI</span>
+          <span class="ml-1 text-terra-light text-sm font-normal">Console</span>
+          <span class="block mt-1 text-xs text-gray-500">生产控制面</span>
+        </a>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <a href="/admin"
+           class='flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {% if active_page == "dashboard" %}bg-white/10 text-white{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}'>
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> 控制台总览
+        </a>
+
+        <p class="px-3 pt-5 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">工作中心</p>
+        <a href="/admin/operations"
+           class='flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {% if active_page == "operations" %}bg-white/10 text-white{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}'>
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> 运营中心
+        </a>
+        <a href="/admin/releases"
+           class='flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {% if active_page == "releases" %}bg-white/10 text-white{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}'>
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7l8.7 5 8.7-5M12 22V12"/></svg> 发布中心
+        </a>
+        <a href="/admin/runtime"
+           class='flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {% if active_page == "runtime" %}bg-white/10 text-white{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}'>
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg> 运行中心
+        </a>
+        <a href="/admin/config"
+           class='flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {% if active_page == "config" %}bg-white/10 text-white{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}'>
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> 配置中心
+        </a>
+
+        <p class="px-3 pt-5 pb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">审计</p>
+        <a href="/admin/audit"
+           class='flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {% if active_page == "audit" %}bg-white/10 text-white{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}'>
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> 审计日志
+        </a>
+      </nav>
+
+      <!-- User info -->
+      <div class="px-4 py-4 border-t border-white/10">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 min-w-0">
+            <div class="w-8 h-8 bg-terra rounded-lg flex items-center justify-center text-white text-sm font-medium shrink-0">
+              {{ admin_name.chars().next().unwrap_or('A') }}
+            </div>
+            <span class="text-sm text-gray-300 truncate">{{ admin_name }}</span>
+          </div>
+          <form method="post" action="/admin/logout">
+            <button type="submit"
+                    class="text-gray-500 hover:text-white transition-colors p-1"
+                    title="退出登录">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <div class="flex-1 ml-64">
+      <!-- Top bar -->
+      <header class="sticky top-0 z-20 bg-white border-b border-gray-200 px-8 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl font-semibold text-gray-900">{% block page_title %}管理后台{% endblock %}</h1>
+            {% block breadcrumb %}{% endblock %}
+          </div>
+          {% block header_actions %}{% endblock %}
+        </div>
+      </header>
+
+      <!-- Page content -->
+      <main class="p-8">
+        {% block admin_content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

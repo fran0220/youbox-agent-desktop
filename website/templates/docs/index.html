@@ -1,0 +1,38 @@
+{% extends "docs/layout.html" %}
+
+{% block doc_content %}
+<h1 class="text-3xl font-bold text-gray-900 mb-6">JAcoworks 文档</h1>
+<p class="text-lg text-gray-600 mb-8">
+  欢迎阅读 JAcoworks 文档。在这里你可以找到安装指南、使用教程和常见问题解答。
+</p>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 not-prose">
+  <a href="/docs/getting-started" class="block bg-cream rounded-2xl p-6 hover:shadow-md transition-shadow group">
+    <h3 class="text-lg font-semibold text-gray-900 group-hover:text-terra transition-colors mb-2">
+      🚀 快速开始
+    </h3>
+    <p class="text-sm text-gray-500">5 分钟内完成安装和首次对话</p>
+  </a>
+
+  <a href="/docs/guide/overview" class="block bg-cream rounded-2xl p-6 hover:shadow-md transition-shadow group">
+    <h3 class="text-lg font-semibold text-gray-900 group-hover:text-terra transition-colors mb-2">
+      📖 用户指南
+    </h3>
+    <p class="text-sm text-gray-500">深入了解功能与使用技巧</p>
+  </a>
+
+  <a href="/docs/guide/skills" class="block bg-cream rounded-2xl p-6 hover:shadow-md transition-shadow group">
+    <h3 class="text-lg font-semibold text-gray-900 group-hover:text-terra transition-colors mb-2">
+      🧩 内置技能
+    </h3>
+    <p class="text-sm text-gray-500">查看每个内置技能的适用场景和示例</p>
+  </a>
+
+  <a href="/docs/faq" class="block bg-cream rounded-2xl p-6 hover:shadow-md transition-shadow group">
+    <h3 class="text-lg font-semibold text-gray-900 group-hover:text-terra transition-colors mb-2">
+      ❓ FAQ
+    </h3>
+    <p class="text-sm text-gray-500">常见问题解答</p>
+  </a>
+</div>
+{% endblock %}

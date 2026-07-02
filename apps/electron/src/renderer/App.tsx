@@ -621,10 +621,6 @@ export default function App() {
         setAppState('reauth')
         return
       }
-      const skillsSync = await window.electronAPI.gatewaySyncSkills()
-      if (!skillsSync.success) {
-        console.warn('[App] Gateway skills sync failed:', skillsSync.error)
-      }
       const memorySync = await window.electronAPI.gatewaySyncMemory()
       if (!memorySync.success) {
         console.warn('[App] Gateway memory sync failed:', memorySync.error)

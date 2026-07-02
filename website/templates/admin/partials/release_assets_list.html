@@ -1,0 +1,23 @@
+{% for asset in assets %}
+<div class="flex items-center justify-between px-4 py-3 rounded-xl bg-cream">
+  <div>
+    <span class="text-sm font-medium text-gray-700">{{ asset.platform_label }}</span>
+    {% if !asset.file_size.is_empty() %}
+    <span class="text-xs text-gray-400 ml-2">{{ asset.file_size }}</span>
+    {% endif %}
+    <span class="text-xs text-gray-400">{{ asset.download_count }} 次下载</span>
+    <a href="{{ asset.download_url }}" class="text-xs text-terra hover:underline truncate block max-w-xs" target="_blank">{{ asset.download_url }}</a>
+  </div>
+  <button hx-delete="/admin/releases/{{ release_id }}/assets/{{ asset.id }}"
+          hx-target="#assets-list"
+          hx-swap="innerHTML"
+          hx-confirm="确定删除？"
+          class="text-red-500 hover:text-red-700 text-xs font-medium transition-colors">
+    删除
+  </button>
+</div>
+{% endfor %}
+
+{% if assets.is_empty() %}
+<p class="text-sm text-gray-400 text-center py-4">暂无安装包</p>
+{% endif %}

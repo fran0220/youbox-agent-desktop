@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — JAcoworks 文档{% endblock %}
+
+{% block head %}
+<style>
+  .doc-sidebar { scrollbar-width: thin; scrollbar-color: #d4d4d8 transparent; }
+  .doc-content img { max-width: 100%; border-radius: 0.75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex gap-8">
+    <!-- Left Sidebar: Navigation -->
+    <aside id="doc-sidebar"
+           class="hidden lg:block w-64 shrink-0 sticky top-24 self-start max-h-[calc(100vh-6rem)] overflow-y-auto doc-sidebar">
+      <nav class="space-y-1 pb-8">
+        {% for item in nav_items %}
+        <div>
+          <a href="{{ item.path }}"
+             class="block px-3 py-2 rounded-lg text-sm transition-colors {% if item.active %}bg-terra/10 text-terra font-medium{% else %}text-gray-600 hover:bg-cream-dark hover:text-gray-900{% endif %}">
+            {{ item.title }}
+          </a>
+          {% if item.children.len() > 0 %}
+          <div class="ml-4 mt-1 space-y-1">
+            {% for child in item.children %}
+            <a href="{{ child.path }}"
+               class="block px-3 py-1.5 rounded-lg text-sm transition-colors {% if child.active %}text-terra font-medium{% else %}text-gray-500 hover:text-gray-800{% endif %}">
+              {{ child.title }}
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </nav>
+    </aside>
+
+    <!-- Mobile sidebar toggle -->
+    <button id="doc-sidebar-toggle"
+            class="lg:hidden fixed bottom-6 left-6 z-40 p-3 bg-terra text-white rounded-full shadow-lg hover:bg-terra-dark transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+
+    <!-- Mobile sidebar overlay -->
+    <div id="doc-sidebar-overlay" class="hidden fixed inset-0 z-30 bg-black/30 lg:hidden"></div>
+    <aside id="doc-sidebar-mobile"
+           class="hidden fixed inset-y-0 left-0 z-40 w-72 bg-white shadow-xl p-6 overflow-y-auto lg:hidden">
+      <div class="flex items-center justify-between mb-6">
+        <span class="font-semibold text-gray-900">文档导航</span>
+        <button id="doc-sidebar-close" class="p-1 rounded hover:bg-cream-dark">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <nav class="space-y-1">
+        {% for item in nav_items %}
+        <div>
+          <a href="{{ item.path }}"
+             class="block px-3 py-2 rounded-lg text-sm transition-colors {% if item.active %}bg-terra/10 text-terra font-medium{% else %}text-gray-600 hover:bg-cream-dark{% endif %}">
+            {{ item.title }}
+          </a>
+          {% if item.children.len() > 0 %}
+          <div class="ml-4 mt-1 space-y-1">
+            {% for child in item.children %}
+            <a href="{{ child.path }}"
+               class="block px-3 py-1.5 rounded-lg text-sm transition-colors {% if child.active %}text-terra font-medium{% else %}text-gray-500 hover:text-gray-800{% endif %}">
+              {{ child.title }}
+            </a>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <article class="flex-1 min-w-0">
+      <div class="bg-white rounded-2xl shadow-sm p-8 sm:p-12">
+        <div class="prose-custom">
+          {% block doc_content %}
+          {{ content|safe }}
+          {% endblock %}
+        </div>
+      </div>
+    </article>
+
+    <!-- Right Sidebar: TOC -->
+    {% if toc.len() > 0 %}
+    <aside class="hidden xl:block w-56 shrink-0 sticky top-24 self-start max-h-[calc(100vh-6rem)] overflow-y-auto">
+      <h4 class="text-sm font-semibold text-gray-900 mb-3">目录</h4>
+      <nav class="space-y-1">
+        {% for item in toc %}
+        <a href="#{{ item.id }}"
+           class="block text-sm text-gray-500 hover:text-terra transition-colors py-1 {% if item.level == 3 %}pl-4{% endif %}">
+          {{ item.title }}
+        </a>
+        {% endfor %}
+      </nav>
+    </aside>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Mobile doc sidebar
+const toggle = document.getElementById('doc-sidebar-toggle');
+const overlay = document.getElementById('doc-sidebar-overlay');
+const mobile = document.getElementById('doc-sidebar-mobile');
+const close = document.getElementById('doc-sidebar-close');
+
+function openSidebar() {
+  overlay.classList.remove('hidden');
+  mobile.classList.remove('hidden');
+}
+function closeSidebar() {
+  overlay.classList.add('hidden');
+  mobile.classList.add('hidden');
+}
+
+if (toggle) toggle.addEventListener('click', openSidebar);
+if (overlay) overlay.addEventListener('click', closeSidebar);
+if (close) close.addEventListener('click', closeSidebar);
+</script>
+{% endblock %}

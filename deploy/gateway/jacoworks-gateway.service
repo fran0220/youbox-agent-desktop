@@ -1,0 +1,16 @@
+[Unit]
+Description=OriginAI Management Gateway
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/jacoworks/gateway /opt/jacoworks/gateway.yaml
+WorkingDirectory=/opt/jacoworks
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

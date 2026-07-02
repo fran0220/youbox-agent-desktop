@@ -1,0 +1,155 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}运营中心{% endblock %}
+{% block page_title %}运营中心{% endblock %}
+
+{% block header_actions %}
+<div class="hidden lg:flex items-center gap-2 text-sm">
+  <a href="#users" class="px-3 py-1.5 rounded-lg bg-white text-gray-600 hover:text-terra transition-colors">用户</a>
+  <a href="#invites" class="px-3 py-1.5 rounded-lg bg-white text-gray-600 hover:text-terra transition-colors">激活码</a>
+  <a href="#feedback" class="px-3 py-1.5 rounded-lg bg-white text-gray-600 hover:text-terra transition-colors">反馈</a>
+</div>
+{% endblock %}
+
+{% block admin_content %}
+<div class="mb-8 rounded-3xl bg-white p-6 shadow-sm">
+  <p class="text-xs font-semibold uppercase tracking-[0.18em] text-terra">Operations</p>
+  <h2 class="mt-2 text-2xl font-semibold text-gray-900">用户、准入和反馈集中处理</h2>
+  <p class="mt-2 text-sm leading-6 text-gray-500">这个页面替代原来分散的用户管理、激活码和反馈管理入口；旧 URL 仍保留用于深链和兼容。</p>
+</div>
+
+<section id="users" class="mb-10 scroll-mt-24">
+  <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-500">Users</p>
+      <h3 class="mt-1 text-lg font-semibold text-gray-900">用户</h3>
+      <p class="text-sm text-gray-400">共 {{ users_total }} 位用户</p>
+    </div>
+    <form action="/admin/operations#users" method="get" class="flex gap-3">
+      <input type="text" name="q" value="{{ user_query }}" placeholder="搜索用户名或邮箱…"
+             class="w-72 max-w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors text-sm">
+      <button type="submit" class="px-5 py-2.5 rounded-xl bg-terra text-white text-sm font-medium hover:bg-terra-dark transition-colors">搜索</button>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-gray-500 bg-gray-50/50">
+            <th class="px-6 py-3.5 font-medium">ID</th>
+            <th class="px-6 py-3.5 font-medium">姓名</th>
+            <th class="px-6 py-3.5 font-medium">邮箱</th>
+            <th class="px-6 py-3.5 font-medium">角色</th>
+            <th class="px-6 py-3.5 font-medium">注册时间</th>
+            <th class="px-6 py-3.5 font-medium">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for user in users %}
+          {% include "admin/partials/user_row.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if users.is_empty() %}
+    <div class="py-12 text-center text-gray-400 text-sm">暂无用户</div>
+    {% endif %}
+  </div>
+
+  {% if users_page > 1 || users_has_next %}
+  <div class="mt-5 flex items-center justify-center gap-2">
+    {% if users_page > 1 %}
+    <a href="/admin/operations?page={{ users_page - 1 }}{% if !user_query.is_empty() %}&q={{ user_query|urlencode }}{% endif %}#users"
+       class="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors">上一页</a>
+    {% endif %}
+    <span class="px-4 py-2 text-sm text-gray-500">第 {{ users_page }} 页</span>
+    {% if users_has_next %}
+    <a href="/admin/operations?page={{ users_page + 1 }}{% if !user_query.is_empty() %}&q={{ user_query|urlencode }}{% endif %}#users"
+       class="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-white transition-colors">下一页</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+<section id="invites" class="mb-10 scroll-mt-24">
+  <div class="mb-4 flex items-center justify-between gap-4">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-orange-500">Access</p>
+      <h3 class="mt-1 text-lg font-semibold text-gray-900">激活码</h3>
+      <p class="text-sm text-gray-400">邀请、试用和管理员准入统一在这里创建。</p>
+    </div>
+    <button onclick="document.getElementById('create-form').classList.toggle('hidden')"
+            class="px-5 py-2.5 rounded-xl bg-terra text-white text-sm font-medium hover:bg-terra-dark transition-colors">
+      创建激活码
+    </button>
+  </div>
+
+  <div id="create-form" class="hidden mb-6">
+    <form class="bg-white rounded-2xl shadow-sm p-6"
+          hx-post="/admin/invites"
+          hx-target="#invites-table"
+          hx-swap="innerHTML"
+          hx-on::after-request="if(event.detail.successful) document.getElementById('create-form').classList.add('hidden')">
+      <h4 class="text-lg font-semibold text-gray-900 mb-4">创建新激活码</h4>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">角色</label>
+          <select name="role" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-cream/50 focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors text-sm">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">最大使用次数</label>
+          <input type="number" name="max_uses" value="1" min="1" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-cream/50 focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+          <input type="text" name="note" placeholder="可选备注" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-cream/50 focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors text-sm">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">过期时间 <span class="text-gray-400">(可选)</span></label>
+          <input type="datetime-local" name="expires_at" class="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-cream/50 focus:outline-none focus:ring-2 focus:ring-terra/30 focus:border-terra transition-colors text-sm">
+        </div>
+      </div>
+      <div class="mt-4 flex gap-3">
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-terra text-white text-sm font-medium hover:bg-terra-dark transition-colors">创建</button>
+        <button type="button" onclick="document.getElementById('create-form').classList.add('hidden')" class="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors">取消</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div id="invites-table" class="overflow-x-auto">
+      {% include "admin/partials/invites_table.html" %}
+    </div>
+  </div>
+</section>
+
+<section id="feedback" class="scroll-mt-24">
+  <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-purple-500">Feedback</p>
+      <h3 class="mt-1 text-lg font-semibold text-gray-900">反馈</h3>
+      <p class="text-sm text-gray-400">默认显示最近 20 条；需要更细筛选可用状态标签。</p>
+    </div>
+    <div class="flex items-center gap-2 flex-wrap">
+      <a href="/admin/operations#feedback" class='px-4 py-2 rounded-xl text-sm font-medium transition-colors {% if current_filter == "all" %}bg-terra text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %}'>全部</a>
+      <a href="/admin/operations?status=open#feedback" class='px-4 py-2 rounded-xl text-sm font-medium transition-colors {% if current_filter == "open" %}bg-terra text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %}'>待处理</a>
+      <a href="/admin/operations?status=in_progress#feedback" class='px-4 py-2 rounded-xl text-sm font-medium transition-colors {% if current_filter == "in_progress" %}bg-terra text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %}'>处理中</a>
+      <a href="/admin/operations?status=resolved#feedback" class='px-4 py-2 rounded-xl text-sm font-medium transition-colors {% if current_filter == "resolved" %}bg-terra text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %}'>已解决</a>
+      <a href="/admin/operations?status=closed#feedback" class='px-4 py-2 rounded-xl text-sm font-medium transition-colors {% if current_filter == "closed" %}bg-terra text-white{% else %}bg-white text-gray-600 hover:bg-gray-50{% endif %}'>已关闭</a>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    {% for item in items %}
+    {% include "admin/partials/feedback_item.html" %}
+    {% endfor %}
+    {% if items.is_empty() %}
+    <div class="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400 text-sm">暂无反馈</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

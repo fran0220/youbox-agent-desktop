@@ -13,9 +13,6 @@ import {
   syncGatewayMemoryToWorkspace,
   writeMemoryToCache,
 } from '@craft-agent/origincoworks/memory-sync';
-import { syncGatewaySkillsToWorkspaces } from '@craft-agent/origincoworks/skills-sync';
-import { getWorkspaceSkillsPath } from '@craft-agent/shared/workspaces';
-import { existsSync } from 'node:fs';
 
 const GATEWAY = process.env.ORIGINCOWORKS_GATEWAY_URL ?? 'http://127.0.0.1:8847';
 const USER = 'octest';
@@ -80,40 +77,5 @@ describe('cross-surface gateway sync (live)', () => {
 
     const read = readMemoryFromCache(webuiRoot, path);
     expect(read).toContain(marker);
-  });
-
-  it('skills manifest matches across two workspace roots (VAL-CROSS-006)', async () => {
-    if (!(await gatewayUp())) {
-      console.warn('Skipping: gateway not up');
-      return;
-    }
-
-    const login = await loginGateway(USER, PASS, GATEWAY);
-    expect(login.success).toBe(true);
-    if (!login.success) return;
-    const token = await getStoredGatewayToken();
-    expect(token).not.toBeNull();
-
-    const client = new GatewayClient(GATEWAY, token!);
-    const me = await client.me();
-    const rootA = mkdtempSync(join(tmpdir(), 'ocn-sk-a-'));
-    const rootB = mkdtempSync(join(tmpdir(), 'ocn-sk-b-'));
-    dirs.push(rootA, rootB);
-
-    await syncGatewaySkillsToWorkspaces({
-      client,
-      workspaceRoots: [rootA],
-      userId: me.id,
-    });
-    await syncGatewaySkillsToWorkspaces({
-      client,
-      workspaceRoots: [rootB],
-      userId: me.id,
-    });
-
-    const skillA = join(getWorkspaceSkillsPath(rootA), 'octest-greeter', 'SKILL.md');
-    const skillB = join(getWorkspaceSkillsPath(rootB), 'octest-greeter', 'SKILL.md');
-    expect(existsSync(skillA)).toBe(true);
-    expect(existsSync(skillB)).toBe(true);
   });
 });

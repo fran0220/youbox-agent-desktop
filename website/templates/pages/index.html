@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}JAcoworks — AI 协同办公平台{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-cream via-white to-cream-dark opacity-50"></div>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-32">
+    <div class="text-center max-w-4xl mx-auto">
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight hero-fade-in">
+        AI 协同办公，<br>
+        <span class="text-terra">重新定义工作方式</span>
+      </h1>
+      <p class="mt-6 text-lg sm:text-xl text-gray-500 max-w-2xl mx-auto leading-relaxed hero-fade-in-delay">
+        JAcoworks 将 AI Agent 融入日常工作流，本地运行保护数据隐私
+      </p>
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 hero-fade-in-delay-2">
+        <a href="/download"
+           class="inline-flex items-center px-8 py-3.5 rounded-2xl bg-terra text-white font-semibold text-lg hover:bg-terra-dark transition-colors shadow-lg shadow-terra/20">
+          免费下载
+        </a>
+        <a href="/docs"
+           class="inline-flex items-center px-8 py-3.5 rounded-2xl border-2 border-terra text-terra font-semibold text-lg hover:bg-terra hover:text-white transition-colors">
+          查看文档
+        </a>
+      </div>
+    </div>
+
+    <!-- App Preview -->
+    <div class="mt-16 flex justify-center">
+      <div class="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl shadow-terra/10 border border-cream-dark">
+        <img src="/static/img/app-preview.png"
+             alt="JAcoworks 桌面端应用预览"
+             class="w-full h-auto"
+             loading="lazy" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16">
+      <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">核心功能</h2>
+      <p class="mt-4 text-lg text-gray-500">一站式 AI 协同办公解决方案</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <!-- Feature 1: 本地 AI Agent — Lucide: cpu -->
+      <div class="bg-cream rounded-2xl p-8 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 mb-4 text-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>
+            <path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-3">本地 AI Agent</h3>
+        <p class="text-gray-500 leading-relaxed">
+          AI 助手直接处理你的本地文件，无需上传云端
+        </p>
+      </div>
+
+      <!-- Feature 2: 数据隐私 — Lucide: shield-check -->
+      <div class="bg-cream rounded-2xl p-8 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 mb-4 text-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 01-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 01.6-.92l7-3.11a1 1 0 01.8 0l7 3.11A1 1 0 0120 6z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-3">数据隐私</h3>
+        <p class="text-gray-500 leading-relaxed">
+          对话和文件全程本地处理，企业数据不出内网
+        </p>
+      </div>
+
+      <!-- Feature 3: 多模型支持 — Lucide: layers -->
+      <div class="bg-cream rounded-2xl p-8 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 mb-4 text-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.83 2.18a2 2 0 00-1.66 0L2.6 6.08a1 1 0 000 1.83l8.58 3.91a2 2 0 001.66 0l8.58-3.9a1 1 0 000-1.84z"/>
+            <path d="M2 12l8.58 3.91a2 2 0 001.66 0L21 12M2 17l8.58 3.91a2 2 0 001.66 0L21 17"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-3">多模型支持</h3>
+        <p class="text-gray-500 leading-relaxed">
+          Claude, GPT, Gemini, Grok 一键切换，灵活选择
+        </p>
+      </div>
+
+      <!-- Feature 4: 工作空间 — Lucide: folder-open -->
+      <div class="bg-cream rounded-2xl p-8 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 mb-4 text-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 14l1.45-2.9A2 2 0 019.24 10H20a2 2 0 011.94 2.5l-1.55 6a2 2 0 01-1.94 1.5H4a2 2 0 01-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 011.66.9l.82 1.2a2 2 0 001.66.9H18a2 2 0 012 2v2"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-3">工作空间</h3>
+        <p class="text-gray-500 leading-relaxed">
+          指定项目目录，Agent 理解你的代码和文档
+        </p>
+      </div>
+
+      <!-- Feature 5: 智能记忆 — Lucide: brain -->
+      <div class="bg-cream rounded-2xl p-8 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 mb-4 text-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5a3 3 0 10-5.997.125 4 4 0 00-2.526 5.77 4 4 0 00.556 6.588A4 4 0 1012 18z"/>
+            <path d="M12 5a3 3 0 115.997.125 4 4 0 012.526 5.77 4 4 0 01-.556 6.588A4 4 0 1112 18z"/>
+            <path d="M12 5v13M9.5 8h5M8 14h8"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-3">智能记忆</h3>
+        <p class="text-gray-500 leading-relaxed">
+          智能记忆系统，AI 越用越懂你
+        </p>
+      </div>
+
+      <!-- Feature 6: 云端协作 — Lucide: cloud -->
+      <div class="bg-cream rounded-2xl p-8 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 mb-4 text-terra">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17.5 19H9a7 7 0 116.71-9h1.79a4.5 4.5 0 110 9z"/>
+          </svg>
+        </div>
+        <h3 class="text-xl font-semibold text-gray-900 mb-3">云端协作</h3>
+        <p class="text-gray-500 leading-relaxed">
+          云端协作空间，团队协同无边界
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats Section -->
+<section class="py-16">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-2xl shadow-sm p-8 sm:p-12">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+        <div>
+          <div class="text-4xl font-bold text-terra">4</div>
+          <div class="mt-2 text-gray-500">家 AI 模型厂商</div>
+        </div>
+        <div>
+          <div class="text-4xl font-bold text-terra">10+</div>
+          <div class="mt-2 text-gray-500">款 AI 模型</div>
+        </div>
+        <div>
+          <div class="text-4xl font-bold text-terra">本地优先</div>
+          <div class="mt-2 text-gray-500">数据更安全</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">准备好开始了吗？</h2>
+    <p class="mt-4 text-lg text-gray-500">免费下载，立即体验 AI 协同办公</p>
+    <div class="mt-8">
+      <a href="/download"
+         class="inline-flex items-center px-8 py-3.5 rounded-2xl bg-terra text-white font-semibold text-lg hover:bg-terra-dark transition-colors shadow-lg shadow-terra/20">
+        免费下载 JAcoworks
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

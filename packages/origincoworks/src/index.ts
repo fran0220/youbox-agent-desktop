@@ -51,15 +51,6 @@ export type {
   GatewaySessionState,
   GatewaySessionUnauthenticatedReason,
 } from './auth.ts';
-export type { GatewaySkillFile, GatewaySkillsChecksumResponse } from './types.ts';
-export {
-  syncGatewaySkillsToWorkspaces,
-  applySkillFilesToWorkspace,
-  readSkillsSyncState,
-  writeSkillsSyncState,
-  syncSkillsForOwner,
-} from './skills-sync.ts';
-export type { SkillsSyncResult, SkillsSyncState, PullOwnerSkillsFn } from './skills-sync.ts';
 export { contentChecksum } from './checksum.ts';
 export {
   resolveRequiredSourceEnables,
@@ -89,11 +80,6 @@ export {
 export type { LegacyTurnForSummary } from './resolve-transferred-session-summary.ts';
 export type { ContinueFromImportedSessionResult } from './continue-from-imported.ts';
 export {
-  collectSkillFilesFromWorkspace,
-  writeUserSkillToGateway,
-  isGatewayEditableUserSkill,
-} from './skill-writeback.ts';
-export {
   shouldWriteSessionMetadataToGateway,
   writeSessionMetadataToGateway,
 } from './session-metadata-writeback.ts';
@@ -104,4 +90,3 @@ export {
   resolveGatewayUpdaterFeedBaseUrl,
   resolveGatewayReleaseLatestUrl,
 } from './release.ts';
-export type { SkillFilePayload, GatewaySkillSummary } from './skill-writeback.ts';

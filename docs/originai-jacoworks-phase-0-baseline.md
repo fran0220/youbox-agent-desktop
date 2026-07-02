@@ -1,5 +1,7 @@
 # Phase 0 基线冻结与差异确认
 
+> **历史归档**：本文记录 2026-06-29 迁移前的冻结快照，不再代表当前生产 source of truth。当前结论见 `docs/originai-jacoworks-integration-plan.md`：`JAcoworks-Next` 已成为 gateway / website / deploy / release / skills 的唯一维护仓库，旧 `~/JAcoworks` 只作为历史归档。
+
 > 冻结日期：2026-06-29  
 > 执行分支：当前项目 `plan/originai-jacoworks-integration`；原仓 `integrate/originai-desktop-endpoints`
 

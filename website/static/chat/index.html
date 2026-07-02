@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AI 对话 — JAcoworks</title>
+  <script type="module" crossorigin src="/static/chat/chat.js"></script>
+  <link rel="stylesheet" crossorigin href="/static/chat/assets/index.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    // Static fallback shell. Production /chat uses templates/chat.html to inject
+    // per-session values; never place real auth or runtime tokens in /static.
+    window.__GATEWAY_URL__ = window.__GATEWAY_URL__ || "https://jacoapi.jingao.club";
+    window.__AUTH_TOKEN__ = window.__AUTH_TOKEN__ || "";
+    window.__USER_NAME__ = window.__USER_NAME__ || "";
+    window.__OPENCLAW_TOKEN__ = window.__OPENCLAW_TOKEN__ || "";
+    window.__OPENCLAW_WS_PORT__ = window.__OPENCLAW_WS_PORT__ || 0;
+    window.__OPENCLAW_VNC_URL__ = window.__OPENCLAW_VNC_URL__ || "";
+    window.__MAPBOX_TOKEN__ = window.__MAPBOX_TOKEN__ || "";
+  </script>
+</body>
+</html>

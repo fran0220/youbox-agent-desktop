@@ -1,0 +1,50 @@
+<table class="w-full text-sm">
+  <thead>
+    <tr class="text-left text-gray-500 bg-gray-50/50">
+      <th class="px-6 py-3.5 font-medium">激活码</th>
+      <th class="px-6 py-3.5 font-medium">角色</th>
+      <th class="px-6 py-3.5 font-medium">使用次数</th>
+      <th class="px-6 py-3.5 font-medium">备注</th>
+      <th class="px-6 py-3.5 font-medium">过期时间</th>
+      <th class="px-6 py-3.5 font-medium">创建时间</th>
+      <th class="px-6 py-3.5 font-medium">操作</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-gray-100">
+    {% for code in codes %}
+    <tr class="hover:bg-gray-50/50 transition-colors {% if code.is_expired %}opacity-50{% endif %}">
+      <td class="px-6 py-4 font-mono text-sm text-gray-900">{{ code.code }}</td>
+      <td class="px-6 py-4">
+        {% if code.role == "admin" %}
+        <span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-red-50 text-red-700">admin</span>
+        {% else %}
+        <span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700">user</span>
+        {% endif %}
+      </td>
+      <td class="px-6 py-4 text-gray-600">{{ code.used_count }} / {{ code.max_uses }}</td>
+      <td class="px-6 py-4 text-gray-400">{{ code.note }}</td>
+      <td class="px-6 py-4 text-gray-400">
+        {% if !code.expires_at.is_empty() %}{{ code.expires_at }}{% else %}永不{% endif %}
+      </td>
+      <td class="px-6 py-4 text-gray-400">{{ code.created_at }}</td>
+      <td class="px-6 py-4">
+        {% if !code.is_expired %}
+        <button hx-delete="/admin/invites/{{ code.code }}"
+                hx-target="#invites-table"
+                hx-swap="innerHTML"
+                hx-confirm="确定撤销此激活码？"
+                class="text-red-500 hover:text-red-700 text-xs font-medium transition-colors">
+          撤销
+        </button>
+        {% else %}
+        <span class="text-gray-300 text-xs">已过期</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if codes.is_empty() %}
+<div class="py-12 text-center text-gray-400 text-sm">暂无激活码</div>
+{% endif %}

@@ -3,7 +3,7 @@
  * Requires gateway on 8847 and local DB 5433.
  */
 import { afterAll, describe, expect, it } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
@@ -20,8 +20,6 @@ import {
   syncGatewayMemoryToWorkspace,
   writeMemoryToCache,
 } from '@craft-agent/origincoworks/memory-sync';
-import { syncGatewaySkillsToWorkspaces } from '@craft-agent/origincoworks/skills-sync';
-import { getWorkspaceSkillsPath } from '@craft-agent/shared/workspaces';
 import {
   createSession,
   ensureSessionsDir,
@@ -104,14 +102,6 @@ describe('cross-auth lifecycle (live)', () => {
     );
     expect(memoryCountAfterWrite).toBeGreaterThanOrEqual(memoryCountBefore);
 
-    await syncGatewaySkillsToWorkspaces({
-      client,
-      workspaceRoots: [configRoot],
-      userId: me.id,
-    });
-    const skillPath = join(getWorkspaceSkillsPath(configRoot), 'octest-greeter', 'SKILL.md');
-    expect(existsSync(skillPath)).toBe(true);
-
     await logoutGateway(GATEWAY);
     expect(await getStoredGatewayToken()).toBeNull();
 
@@ -137,15 +127,9 @@ describe('cross-auth lifecycle (live)', () => {
 
     const client2 = new GatewayClient(GATEWAY, token2!);
     await syncGatewayMemoryToWorkspace({ client: client2, workspaceRoot: configRoot });
-    await syncGatewaySkillsToWorkspaces({
-      client: client2,
-      workspaceRoots: [configRoot],
-      userId: me.id,
-    });
 
     const readBack = readMemoryFromCache(configRoot, memPath);
     expect(readBack).toContain(marker);
-    expect(existsSync(skillPath)).toBe(true);
 
     const seeded = await client2.searchMemory(OCTEST_MARKER, 5);
     expect(seeded.some((h) => h.content.includes(OCTEST_MARKER))).toBe(true);
@@ -173,13 +157,7 @@ describe('cross-auth lifecycle (live)', () => {
     expect(token1).not.toBeNull();
 
     const client1 = new GatewayClient(GATEWAY, token1!);
-    const me = await client1.me();
     await syncGatewayMemoryToWorkspace({ client: client1, workspaceRoot: configRoot });
-    await syncGatewaySkillsToWorkspaces({
-      client: client1,
-      workspaceRoots: [wsRoot],
-      userId: me.id,
-    });
 
     const session = await createSession(wsRoot, { name: 'Lifecycle session context' });
     const sessionId = session.id;
@@ -209,13 +187,6 @@ describe('cross-auth lifecycle (live)', () => {
       workspaceRoot: configRoot,
     });
     expect(memoryPull.pulled).toBeGreaterThanOrEqual(0);
-
-    const skillsPull = await syncGatewaySkillsToWorkspaces({
-      client: client2,
-      workspaceRoots: [wsRoot],
-      userId: me.id,
-    });
-    expect(skillsPull.filesWritten).toBeGreaterThanOrEqual(0);
 
     const sessionsAfter = listSessions(wsRoot);
     expect(sessionsAfter.some((s) => s.id === sessionId)).toBe(true);

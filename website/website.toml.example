@@ -1,0 +1,23 @@
+cookie_secret = "0123456789abcdef0123456789abcdef"
+
+[server]
+host = "0.0.0.0"
+port = 9527
+
+[database]
+url = "postgresql://postgres:YOUR_PASSWORD@127.0.0.1:5432/jacoworks"
+
+[gateway]
+url = "http://localhost:8847"
+# Public URL for browser redirects (Feishu SSO). Omit to use `url`.
+public_url = "https://jacoapi.jingao.club"
+admin_token = "your-admin-token"
+
+[site]
+name = "OriginAI"
+description = "Agent-native AI 工作台"
+base_url = "https://jaco.jingao.club"
+
+[posthog]
+api_key = ""
+host = "https://us.i.posthog.com"

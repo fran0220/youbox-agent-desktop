@@ -19,7 +19,7 @@ import {
   type BrowserInstanceInfo,
 } from '../shared/types'
 import { DEFAULT_THEME, loadAppTheme, getAllowRemoteEvaluate } from '@craft-agent/shared/config'
-import { resolveDeeplinkScheme } from '@craft-agent/shared/deeplink-scheme'
+import { isProductDeepLinkUrl, resolveDeeplinkScheme } from '@craft-agent/shared/deeplink-scheme'
 import { CodedError } from '@craft-agent/shared/protocol'
 import { getBrowserLiveFxCornerRadii } from '../shared/browser-live-fx'
 import type {
@@ -2109,7 +2109,11 @@ export class BrowserPaneManager implements IBrowserPaneManager {
     this.destroyingIds.delete(instance.id)
     this.closePopupsForParent(instance.id, 'parent_destroy')
     this.applyAgentControlLock(instance, false)
-    this.updateNativeOverlayState(instance)
+    try {
+      this.updateNativeOverlayState(instance)
+    } catch (error) {
+      mainLog.warn(`[browser-pane] final destroy cleanup failed id=${instance.id} step=updateNativeOverlayState error=${error instanceof Error ? error.message : String(error)}`)
+    }
     instance.cdp.detach()
     this.instances.delete(instance.id)
     this.removedCallback?.(instance.id)
@@ -2209,7 +2213,7 @@ export class BrowserPaneManager implements IBrowserPaneManager {
   }
 
   private async handleDeepLinkUrl(url: string): Promise<void> {
-    if (!url.startsWith(CRAFT_DEEPLINK_SCHEME_PREFIX)) return
+    if (!isProductDeepLinkUrl(url)) return
 
     try {
       if (!this.windowManager) {
@@ -3547,7 +3551,7 @@ export class BrowserPaneManager implements IBrowserPaneManager {
     })
 
     pageWc.on('will-navigate', (event, url) => {
-      if (url.startsWith(CRAFT_DEEPLINK_SCHEME_PREFIX)) {
+      if (isProductDeepLinkUrl(url)) {
         event.preventDefault()
         void this.handleDeepLinkUrl(url)
       }
@@ -3563,7 +3567,7 @@ export class BrowserPaneManager implements IBrowserPaneManager {
         `[browser-pane] window-open requested id=${instance.id} url=${details.url} disposition=${details.disposition ?? 'unknown'} frameName=${details.frameName || 'none'}`,
       )
 
-      if (details.url.startsWith(CRAFT_DEEPLINK_SCHEME_PREFIX)) {
+      if (isProductDeepLinkUrl(details.url)) {
         void this.handleDeepLinkUrl(details.url)
         return { action: 'deny' }
       }

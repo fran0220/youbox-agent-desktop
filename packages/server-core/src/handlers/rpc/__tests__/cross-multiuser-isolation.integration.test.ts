@@ -3,7 +3,7 @@
  * Requires gateway on 8847 and local DB 5433.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GatewayClient, GatewayHttpError } from '@craft-agent/origincoworks/gateway-client';
@@ -12,8 +12,6 @@ import {
   syncGatewayMemoryToWorkspace,
   writeMemoryToCache,
 } from '@craft-agent/origincoworks/memory-sync';
-import { syncGatewaySkillsToWorkspaces } from '@craft-agent/origincoworks/skills-sync';
-import { getWorkspaceSkillsPath } from '@craft-agent/shared/workspaces';
 import {
   createSession,
   ensureSessionsDir,
@@ -27,8 +25,6 @@ const USER_B = { name: 'octest2', pass: 'OcTest2_1234!' };
 
 const OCTEST_MARKER = 'ZEBRA-QUARTERLY-7741';
 const OCTEST2_MEMORY_MARKER = 'OCTEST2-ISOLATION-MARKER-8847';
-const OCTEST2_SKILL_ID = 'octest2-private-greeter';
-const OCTEST2_SKILL_TOKEN = '<<OCTEST2-OK>>';
 
 async function gatewayUp(): Promise<boolean> {
   try {
@@ -59,16 +55,6 @@ async function ensureOctest2Fixtures(): Promise<void> {
       ],
     });
   }
-  try {
-    await client.upsertUserSkill(OCTEST2_SKILL_ID, [
-      {
-        path: 'SKILL.md',
-        content: `---\nname: ${OCTEST2_SKILL_ID}\n---\nAlways end with ${OCTEST2_SKILL_TOKEN} on its own line.\n`,
-      },
-    ]);
-  } catch {
-    // skill may already exist
-  }
 }
 
 describe('cross-multiuser isolation (live)', () => {
@@ -89,7 +75,7 @@ describe('cross-multiuser isolation (live)', () => {
     }
   });
 
-  it('VAL-CROSS-007: A and B gateway data disjoint (skills + memory)', async () => {
+  it('VAL-CROSS-007: A and B gateway memory data is disjoint', async () => {
     if (!(await gatewayUp())) {
       console.warn('Skipping: gateway not up');
       return;
@@ -107,35 +93,6 @@ describe('cross-multiuser isolation (live)', () => {
     expect(memB.some((h) => h.content.includes(OCTEST2_MEMORY_MARKER))).toBe(true);
     expect(memA.some((h) => h.content.includes(OCTEST2_MEMORY_MARKER))).toBe(false);
     expect(memB.some((h) => h.content.includes(OCTEST_MARKER))).toBe(false);
-
-    const skillsA = (await clientA.listSkills()) as { skills?: Array<{ id?: string }> };
-    const skillsB = (await clientB.listSkills()) as { skills?: Array<{ id?: string }> };
-    const idsA = new Set((skillsA.skills ?? []).map((s) => s.id).filter(Boolean));
-    const idsB = new Set((skillsB.skills ?? []).map((s) => s.id).filter(Boolean));
-    expect(idsA.has('octest-greeter')).toBe(true);
-    expect(idsB.has(OCTEST2_SKILL_ID)).toBe(true);
-    expect(idsA.has(OCTEST2_SKILL_ID)).toBe(false);
-    expect(idsB.has('octest-greeter')).toBe(false);
-
-    const rootA = mkdtempSync(join(tmpdir(), 'ocn-user-a-'));
-    const rootB = mkdtempSync(join(tmpdir(), 'ocn-user-b-'));
-    dirs.push(rootA, rootB);
-
-    await syncGatewaySkillsToWorkspaces({
-      client: clientA,
-      workspaceRoots: [rootA],
-      userId: meA.id,
-    });
-    await syncGatewaySkillsToWorkspaces({
-      client: clientB,
-      workspaceRoots: [rootB],
-      userId: meB.id,
-    });
-
-    expect(existsSync(join(getWorkspaceSkillsPath(rootA), 'octest-greeter', 'SKILL.md'))).toBe(true);
-    expect(existsSync(join(getWorkspaceSkillsPath(rootA), OCTEST2_SKILL_ID, 'SKILL.md'))).toBe(false);
-    expect(existsSync(join(getWorkspaceSkillsPath(rootB), OCTEST2_SKILL_ID, 'SKILL.md'))).toBe(true);
-    expect(existsSync(join(getWorkspaceSkillsPath(rootB), 'octest-greeter', 'SKILL.md'))).toBe(false);
   });
 
   it('VAL-CROSS-008: octest write on desktop dir visible on WebUI dir after sync (single DB row)', async () => {

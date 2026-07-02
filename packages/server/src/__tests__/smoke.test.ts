@@ -10,6 +10,8 @@
 
 import { describe, it, expect, afterEach } from 'bun:test'
 import { join } from 'node:path'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import type { Subprocess } from 'bun'
 import WebSocket from 'ws'
 
@@ -22,12 +24,14 @@ interface SpawnedServer {
   token: string
   healthPort: number
   proc: Subprocess
+  configDir: string
   stop: () => Promise<void>
 }
 
 async function spawnTestServer(extraEnv?: Record<string, string>): Promise<SpawnedServer> {
   const token = crypto.randomUUID() + crypto.randomUUID() // 72 chars, well above 16 minimum
   const { CLAUDECODE: _, ...parentEnv } = process.env
+  const configDir = mkdtempSync(join(tmpdir(), 'craft-server-smoke-'))
 
   const proc = Bun.spawn(['bun', 'run', SERVER_ENTRY], {
     env: {
@@ -37,6 +41,7 @@ async function spawnTestServer(extraEnv?: Record<string, string>): Promise<Spawn
       CRAFT_RPC_PORT: '0',
       CRAFT_RPC_HOST: '127.0.0.1',
       CRAFT_HEALTH_PORT: '0', // random port
+      CRAFT_CONFIG_DIR: configDir,
     },
     stdout: 'pipe',
     stderr: 'pipe',
@@ -45,6 +50,7 @@ async function spawnTestServer(extraEnv?: Record<string, string>): Promise<Spawn
   return new Promise<SpawnedServer>((resolve, reject) => {
     const timer = setTimeout(() => {
       proc.kill()
+      rmSync(configDir, { recursive: true, force: true })
       reject(new Error(`Server did not start within ${STARTUP_TIMEOUT}ms`))
     }, STARTUP_TIMEOUT)
 
@@ -65,9 +71,11 @@ async function spawnTestServer(extraEnv?: Record<string, string>): Promise<Spawn
             token,
             healthPort: 0, // health port not printed; we skip health test if 0
             proc,
+            configDir,
             stop: async () => {
               proc.kill('SIGTERM')
               await proc.exited
+              rmSync(configDir, { recursive: true, force: true })
             },
           })
           return
@@ -90,6 +98,7 @@ async function spawnTestServer(extraEnv?: Record<string, string>): Promise<Spawn
       }
       clearTimeout(timer)
       if (!url) {
+        rmSync(configDir, { recursive: true, force: true })
         reject(new Error('Server exited before printing CRAFT_SERVER_URL'))
       }
     })()
@@ -151,18 +160,21 @@ describe('headless server smoke test', () => {
   it('rejects short token at startup', async () => {
     const token = 'short'
     const { CLAUDECODE: _, ...parentEnv } = process.env
+    const configDir = mkdtempSync(join(tmpdir(), 'craft-server-smoke-'))
     const proc = Bun.spawn(['bun', 'run', SERVER_ENTRY], {
       env: {
         ...parentEnv,
         CRAFT_SERVER_TOKEN: token,
         CRAFT_RPC_PORT: '0',
         CRAFT_RPC_HOST: '127.0.0.1',
+        CRAFT_CONFIG_DIR: configDir,
       },
       stdout: 'pipe',
       stderr: 'pipe',
     })
 
     const exitCode = await proc.exited
+    rmSync(configDir, { recursive: true, force: true })
     expect(exitCode).not.toBe(0)
   }, TEST_TIMEOUT)
 

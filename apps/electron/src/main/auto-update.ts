@@ -343,7 +343,7 @@ export async function configureGatewayUpdateFeed(): Promise<boolean> {
   }
   const feedUrl = resolveGatewayUpdaterFeedBaseUrl(resolveGatewayBaseUrl())
   autoUpdater.setFeedURL({ provider: 'generic', url: feedUrl })
-  autoUpdater.addAuthHeader(token)
+  autoUpdater.addAuthHeader(`Bearer ${token}`)
   gatewayFeedConfigured = true
   mainLog.info(`[auto-update] Gateway update feed: ${feedUrl}`)
   return true

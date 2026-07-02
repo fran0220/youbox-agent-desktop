@@ -9,7 +9,6 @@ import { pushTyped, type RpcServer } from '@craft-agent/server-core/transport'
 import type { HandlerDeps } from '../handler-deps'
 import { isValidWorkspaceRootPath } from '../../utils/path-validation'
 import { getStoredGatewayToken } from '@craft-agent/origincoworks/auth'
-import { syncGatewaySkillsForSession } from './gateway-skills-sync.ts'
 import { syncGatewayMemoryForSession } from './gateway-memory-sync.ts'
 
 export const CORE_HANDLED_CHANNELS = [
@@ -61,10 +60,6 @@ export function registerWorkspaceCoreHandlers(server: RpcServer, deps: HandlerDe
     deps.platform.logger.info(`Created workspace "${name}" at ${rootPath}${remoteServer ? ` (remote: ${remoteServer.url})` : ''}`)
     const gatewayToken = await getStoredGatewayToken()
     if (gatewayToken) {
-      const skillsSync = await syncGatewaySkillsForSession(server, deps)
-      if (!skillsSync.success) {
-        deps.platform.logger.warn('[Gateway] Skills sync after workspace create failed:', skillsSync.error)
-      }
       const memorySync = await syncGatewayMemoryForSession(deps)
       if (!memorySync.success) {
         deps.platform.logger.warn('[Gateway] Memory sync after workspace create failed:', memorySync.error)

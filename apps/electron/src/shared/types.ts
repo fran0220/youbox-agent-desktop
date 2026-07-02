@@ -400,10 +400,6 @@ export interface ElectronAPI {
     | { success: true; slug: string; primaryModel: string }
     | { success: false; error: string }
   >
-  gatewaySyncSkills(): Promise<
-    | { success: true; filesWritten: number; ownersPulled: string[] }
-    | { success: false; error: string }
-  >
   gatewaySyncMemory(): Promise<
     | { success: true; pulled: number; pushed: number; skipped: boolean }
     | { success: false; error: string }

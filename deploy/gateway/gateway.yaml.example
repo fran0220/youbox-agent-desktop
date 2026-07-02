@@ -1,0 +1,25 @@
+server:
+  host: "0.0.0.0"
+  port: 8847
+  public_url: "https://jacoapi.jingao.club"
+
+auth:
+  admin_token: "change-me-in-production"
+  feishu_client_id: ""
+  feishu_client_secret: ""
+  session_ttl_hours: 720
+
+database:
+  url: "postgresql://postgres:YOUR_PASSWORD@127.0.0.1:5432/jacoworks"
+
+llm:
+  proxy_url: "https://api.xiaomao.chat"
+  proxy_key: "YOUR_LLM_PROXY_KEY"
+
+github:
+  token: ""                # GitHub PAT (repo scope), 用于反馈 Issue + 截图上传
+  repo: "fran0220/JAcoworks-Next"
+
+chat_agent:
+  url: "http://127.0.0.1:18790"
+  token: ""

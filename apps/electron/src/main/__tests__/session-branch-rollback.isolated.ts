@@ -110,6 +110,10 @@ mock.module('@craft-agent/shared/config', () => ({
 }))
 
 mock.module('@craft-agent/shared/workspaces', () => ({
+  getDefaultWorkspacesDir: () => '/tmp/workspaces',
+  ensureDefaultWorkspacesDir: () => {},
+  getWorkspaceSessionsPath: () => `${workspaceRootPath}/sessions`,
+  getWorkspaceSkillsPath: () => `${workspaceRootPath}/skills`,
   loadWorkspaceConfig: () => ({
     defaults: {
       permissionMode: 'ask',
@@ -117,6 +121,7 @@ mock.module('@craft-agent/shared/workspaces', () => ({
       defaultLlmConnection: undefined,
     },
   }),
+  saveWorkspaceConfig: () => {},
 }))
 
 mock.module('@craft-agent/shared/agent', () => ({

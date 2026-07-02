@@ -16,7 +16,6 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/fran0220/jacoworks/gateway/internal/auth"
 	"github.com/fran0220/jacoworks/gateway/internal/store"
 )
 
@@ -386,76 +385,6 @@ func (h *Handler) findOrCreateCoworkSession(ctx context.Context, userID string) 
 		return "", err
 	}
 	return sess.ID, nil
-}
-
-// --- Cron announce delivery ---
-
-// CronAnnounceRequest is the payload sent by agent runtimes when a cron job completes.
-type CronAnnounceRequest struct {
-	JobID         string `json:"jobId"`
-	JobName       string `json:"jobName,omitempty"`
-	Status        string `json:"status"`
-	DurationMs    int64  `json:"durationMs"`
-	ResultPreview string `json:"resultPreview,omitempty"`
-	Error         string `json:"error,omitempty"`
-}
-
-// HandleCronAnnounce receives a cron result and delivers it to the user's Feishu account.
-func (h *Handler) HandleCronAnnounce(w http.ResponseWriter, r *http.Request) {
-	if !h.client.IsConfigured() {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "skipped", "reason": "feishu not configured"})
-		return
-	}
-
-	var req CronAnnounceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid json"})
-		return
-	}
-
-	userInfo := auth.GetUser(r.Context())
-	if userInfo == nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-		return
-	}
-
-	ctx := r.Context()
-	user, err := h.store.GetUserByID(ctx, userInfo.ID)
-	if err != nil || user.FeishuOpenID == nil || *user.FeishuOpenID == "" {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "skipped", "reason": "user has no feishu binding"})
-		return
-	}
-
-	name := req.JobName
-	if name == "" {
-		name = req.JobID
-	}
-
-	var text string
-	if req.Status == "ok" {
-		text = fmt.Sprintf("⏰ 定时任务 [%s] 完成 (%dms)", name, req.DurationMs)
-		if req.ResultPreview != "" {
-			preview := req.ResultPreview
-			if len(preview) > 500 {
-				preview = preview[:500] + "…"
-			}
-			text += "\n\n" + preview
-		}
-	} else {
-		text = fmt.Sprintf("⏰ 定时任务 [%s] 失败 (%dms)", name, req.DurationMs)
-		if req.Error != "" {
-			text += "\n错误: " + req.Error
-		}
-	}
-
-	if err := h.client.SendText(*user.FeishuOpenID, text); err != nil {
-		log.Error().Err(err).Str("user_id", userInfo.ID).Str("job_id", req.JobID).Msg("feishu bot: cron announce failed")
-		writeJSON(w, http.StatusOK, map[string]string{"status": "error", "reason": err.Error()})
-		return
-	}
-
-	log.Info().Str("user_id", userInfo.ID).Str("job_id", req.JobID).Str("status", req.Status).Msg("feishu bot: cron announced")
-	writeJSON(w, http.StatusOK, map[string]string{"status": "delivered"})
 }
 
 // --- Helpers ---

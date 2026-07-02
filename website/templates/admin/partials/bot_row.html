@@ -1,0 +1,77 @@
+<tr id="bot-{{ bot.container_name }}" class="hover:bg-gray-50/50 transition-colors">
+  <td class="px-6 py-4 text-gray-900 font-medium font-mono text-sm">{{ bot.container_name }}</td>
+  <td class="px-6 py-4 text-gray-600">{{ bot.user_id }}</td>
+  <td class="px-6 py-4 text-gray-400 font-mono text-sm">{{ bot.ip }}</td>
+  <td class="px-6 py-4">
+    {% if bot.status == "running" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> running
+    </span>
+    {% else if bot.status == "stopped" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">
+      <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> stopped
+    </span>
+    {% else if bot.status == "error" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-red-50 text-red-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> error
+    </span>
+    {% else %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-yellow-50 text-yellow-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> {{ bot.status }}
+    </span>
+    {% endif %}
+  </td>
+  <td class="px-6 py-4">
+    {% if bot.config_synced %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> 已同步
+    </span>
+    {% else %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-yellow-50 text-yellow-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> 待同步
+    </span>
+    {% endif %}
+  </td>
+  <td class="px-6 py-4">
+    {% if bot.pairing_status == "paired" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> 已配对
+    </span>
+    {% else if bot.pairing_status == "pending" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-yellow-50 text-yellow-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> 待配对
+    </span>
+    {% else if bot.pairing_status == "failed" %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-red-50 text-red-700">
+      <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 失败
+    </span>
+    {% else %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">
+      <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> 未知
+    </span>
+    {% endif %}
+  </td>
+  <td class="px-6 py-4 text-gray-600 text-sm">{{ bot.primary_model }}</td>
+  <td class="px-6 py-4 text-gray-400 text-sm">{{ bot.last_synced }}</td>
+  <td class="px-6 py-4">
+    <div class="flex items-center gap-2">
+      <button hx-post="/admin/bots/{{ bot.container_name }}/sync"
+              hx-target="#bot-{{ bot.container_name }}"
+              hx-swap="outerHTML"
+              class="text-terra hover:text-terra-dark text-xs font-medium transition-colors">
+        同步配置
+      </button>
+      <button hx-post="/admin/bots/{{ bot.container_name }}/restart"
+              hx-target="#bot-{{ bot.container_name }}"
+              hx-swap="outerHTML"
+              hx-confirm="确定重启 Bot「{{ bot.container_name }}」？"
+              class="text-yellow-600 hover:text-yellow-800 text-xs font-medium transition-colors">
+        重启
+      </button>
+      <a href="/admin/bots/{{ bot.container_name }}/logs"
+         class="text-blue-500 hover:text-blue-700 text-xs font-medium transition-colors">
+        日志
+      </a>
+    </div>
+  </td>
+</tr>

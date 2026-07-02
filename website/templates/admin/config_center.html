@@ -1,0 +1,247 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}配置中心{% endblock %}
+{% block page_title %}配置中心{% endblock %}
+
+{% block header_actions %}
+<div class="hidden lg:flex items-center gap-2 text-sm">
+  <a href="#settings" class="px-3 py-1.5 rounded-lg bg-white text-gray-600 hover:text-terra transition-colors">系统设置</a>
+  <a href="#providers" class="px-3 py-1.5 rounded-lg bg-white text-gray-600 hover:text-terra transition-colors">模型</a>
+  <a href="#skills" class="px-3 py-1.5 rounded-lg bg-white text-gray-600 hover:text-terra transition-colors">技能</a>
+</div>
+{% endblock %}
+
+{% block admin_content %}
+{% if save_success %}
+<div class="mb-6 bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+  <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  <p class="text-green-700 text-sm">操作成功。</p>
+</div>
+{% endif %}
+{% if let Some(error) = save_error %}
+<div class="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+  <svg class="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+  <p class="text-red-700 text-sm">{{ error }}</p>
+</div>
+{% endif %}
+
+<div class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+  <div class="bg-white rounded-2xl p-6 shadow-sm">
+    <p class="text-sm text-gray-500">Gateway</p>
+    <p class='mt-1 text-lg font-semibold {% if gateway_status == "healthy" %}text-green-600{% else %}text-red-600{% endif %}'>{{ gateway_status }}</p>
+  </div>
+  <div class="bg-white rounded-2xl p-6 shadow-sm">
+    <p class="text-sm text-gray-500">数据库</p>
+    <p class="mt-1 text-lg font-semibold text-green-600">{{ db_status }}</p>
+  </div>
+  <div class="bg-white rounded-2xl p-6 shadow-sm">
+    <p class="text-sm text-gray-500">系统技能</p>
+    <p class="mt-1 text-lg font-semibold text-gray-900">{{ total_count }}</p>
+    <p class="mt-1 text-xs text-gray-400">Website v{{ app_version }}</p>
+  </div>
+</div>
+
+<section id="settings" class="mb-10 scroll-mt-24">
+  <div class="mb-4">
+    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Settings</p>
+    <h3 class="mt-1 text-lg font-semibold text-gray-900">系统设置</h3>
+    <p class="text-sm text-gray-400">密钥、代理地址和默认模型合并在一个配置面，保存后网关热重载。</p>
+  </div>
+
+  <form method="post" action="/admin/config/settings" class="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+    {% for setting in settings %}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-start py-3 border-b border-gray-50 last:border-0">
+      <div>
+        <label for="setting-{{ setting.key }}" class="block text-sm font-medium text-gray-700">{{ setting.description }}</label>
+        <span class="text-xs text-gray-400 font-mono">{{ setting.key }}</span>
+      </div>
+      <div class="md:col-span-2">
+        {% if setting.is_secret %}
+        <input type="password" id="setting-{{ setting.key }}" name="{{ setting.key }}" placeholder="{{ setting.masked_value }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-terra/20 focus:border-terra outline-none transition-colors" autocomplete="off">
+        {% else %}
+        <input type="text" id="setting-{{ setting.key }}" name="{{ setting.key }}" value="{{ setting.value }}" placeholder="未配置" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-terra/20 focus:border-terra outline-none transition-colors" autocomplete="off">
+        {% endif %}
+      </div>
+      <div class="flex items-center">
+        {% if setting.is_secret %}
+          {% if setting.masked_value == "未配置" %}<span class="inline-flex px-2 py-0.5 rounded-lg text-xs bg-red-50 text-red-600">未配置</span>{% else %}<span class="inline-flex px-2 py-0.5 rounded-lg text-xs bg-green-50 text-green-600">已配置</span>{% endif %}
+        {% else %}
+          {% if setting.value.is_empty() %}<span class="inline-flex px-2 py-0.5 rounded-lg text-xs bg-red-50 text-red-600">未配置</span>{% else %}<span class="inline-flex px-2 py-0.5 rounded-lg text-xs bg-green-50 text-green-600">已配置</span>{% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-start py-3">
+      <div>
+        <label for="default-model" class="block text-sm font-medium text-gray-700">默认模型</label>
+        <span class="text-xs text-gray-400">云端容器启动时使用</span>
+      </div>
+      <div class="md:col-span-2">
+        <select id="default-model" name="primary_model" onchange="document.getElementById('primary-provider').value = this.selectedOptions[0].dataset.provider || ''" class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra outline-none transition-colors">
+          <option value="">使用默认 (gpt-5.4)</option>
+          {% for model in default_models %}
+          <option value="{{ model.id }}" data-provider="{{ model.provider_id }}" {% if current_model == model.id %}selected{% endif %}>{{ model.provider }} / {{ model.label }} ({{ model.id }})</option>
+          {% endfor %}
+        </select>
+        <input type="hidden" id="primary-provider" name="primary_provider" value="{{ current_provider }}">
+      </div>
+      <div class="flex items-center gap-2">
+        {% if current_model.is_empty() %}<span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs bg-gray-50 text-gray-500">默认</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs bg-green-50 text-green-600">{{ current_provider }}/{{ current_model }}</span>{% endif %}
+      </div>
+    </div>
+
+    {% if settings.is_empty() %}
+    <div class="text-center py-8"><p class="text-sm text-gray-400">⚠️ 无法连接网关，请确认网关服务正常运行。</p></div>
+    {% else %}
+    <div class="flex justify-end pt-4">
+      <button type="submit" class="px-6 py-2.5 bg-terra hover:bg-terra-dark text-white rounded-xl text-sm font-medium transition-colors shadow-sm">保存配置</button>
+    </div>
+    {% endif %}
+  </form>
+</section>
+
+<section id="providers" class="mb-10 scroll-mt-24">
+  <div class="mb-4 flex items-center justify-between gap-4">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-500">Models</p>
+      <h3 class="mt-1 text-lg font-semibold text-gray-900">模型 Provider 与模型</h3>
+      <p class="text-sm text-gray-400">原“模型配置”合入配置中心，Provider 和 Model 在同一屏维护。</p>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="document.getElementById('provider-form').classList.toggle('hidden')" class="px-4 py-2 bg-terra text-white text-sm font-medium rounded-xl hover:bg-terra-dark transition-colors">+ Provider</button>
+      <button onclick="document.getElementById('model-form').classList.toggle('hidden')" class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-xl hover:bg-black transition-colors">+ Model</button>
+    </div>
+  </div>
+
+  <div id="provider-form" class="hidden mb-4 bg-white rounded-2xl shadow-sm p-6">
+    <form method="post" action="/admin/config/providers" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <input type="text" name="key" required placeholder="provider key" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <input type="text" name="display_name" required placeholder="显示名称" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <select name="api_type" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+          <option value="openai-completions">openai-completions</option>
+          <option value="anthropic-messages">anthropic-messages</option>
+          <option value="google-gemini">google-gemini</option>
+        </select>
+        <input type="text" name="base_url" placeholder="Base URL" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <input type="text" name="api_key_ref" placeholder="API Key 引用，如 LLM_PROXY_KEY" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <label class="flex items-center gap-2"><input type="checkbox" name="enabled" value="true" checked class="rounded border-gray-300 text-terra focus:ring-terra"><span class="text-sm text-gray-700">启用</span></label>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="document.getElementById('provider-form').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">取消</button>
+        <button type="submit" class="px-4 py-2 bg-terra text-white text-sm font-medium rounded-xl hover:bg-terra-dark">保存</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="model-form" class="hidden mb-4 bg-white rounded-2xl shadow-sm p-6">
+    <form method="post" action="/admin/config/providers/models" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <select name="provider_key" required class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+          {% for p in providers %}<option value="{{ p.key }}">{{ p.display_name }} ({{ p.key }})</option>{% endfor %}
+        </select>
+        <input type="text" name="model_id" required placeholder="model id" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <input type="text" name="display_name" required placeholder="显示名称" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <input type="number" name="context_window" value="128000" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <input type="number" name="max_tokens" value="16384" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <div class="flex items-center gap-6">
+          <label class="flex items-center gap-2"><input type="checkbox" name="reasoning" value="true" class="rounded border-gray-300 text-terra focus:ring-terra"><span class="text-sm text-gray-700">推理模型</span></label>
+          <label class="flex items-center gap-2"><input type="checkbox" name="enabled" value="true" checked class="rounded border-gray-300 text-terra focus:ring-terra"><span class="text-sm text-gray-700">启用</span></label>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="document.getElementById('model-form').classList.add('hidden')" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">取消</button>
+        <button type="submit" class="px-4 py-2 bg-terra text-white text-sm font-medium rounded-xl hover:bg-terra-dark">保存</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100"><h4 class="font-semibold text-gray-900">Providers</h4></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-gray-500 bg-gray-50/50"><th class="px-6 py-3.5 font-medium">Key</th><th class="px-6 py-3.5 font-medium">名称</th><th class="px-6 py-3.5 font-medium">状态</th><th class="px-6 py-3.5 font-medium">操作</th></tr></thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for p in providers %}
+            <tr id="config-provider-{{ p.key }}" class="hover:bg-gray-50/50 transition-colors">
+              <td class="px-6 py-4 font-mono text-sm text-gray-900">{{ p.key }}</td>
+              <td class="px-6 py-4 text-gray-700">{{ p.display_name }}</td>
+              <td class="px-6 py-4">{% if p.enabled %}<span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">启用</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">禁用</span>{% endif %}</td>
+              <td class="px-6 py-4"><button hx-post="/admin/config/providers/{{ p.key }}/delete" hx-target="#config-provider-{{ p.key }}" hx-swap="outerHTML" hx-confirm="确定删除 Provider「{{ p.key }}」及其所有模型？" class="text-red-500 hover:text-red-700 text-xs font-medium">删除</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if providers.is_empty() %}<div class="py-12 text-center text-gray-400 text-sm">暂无 Provider</div>{% endif %}
+    </div>
+
+    <div id="models" class="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100"><h4 class="font-semibold text-gray-900">Models</h4></div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-gray-500 bg-gray-50/50"><th class="px-6 py-3.5 font-medium">Provider</th><th class="px-6 py-3.5 font-medium">Model</th><th class="px-6 py-3.5 font-medium">状态</th><th class="px-6 py-3.5 font-medium">操作</th></tr></thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for m in models %}
+            <tr id="config-model-{{ m.id }}" class="hover:bg-gray-50/50 transition-colors">
+              <td class="px-6 py-4 text-gray-500 font-mono text-xs">{{ m.provider_key }}</td>
+              <td class="px-6 py-4"><div class="font-mono text-sm text-gray-900">{{ m.model_id }}</div><div class="text-xs text-gray-400">{{ m.display_name }}</div></td>
+              <td class="px-6 py-4">{% if m.enabled %}<span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-green-50 text-green-700">启用</span>{% else %}<span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-600">禁用</span>{% endif %}</td>
+              <td class="px-6 py-4"><button hx-post="/admin/config/providers/models/{{ m.id }}/delete" hx-target="#config-model-{{ m.id }}" hx-swap="outerHTML" hx-confirm="确定删除模型「{{ m.model_id }}」？" class="text-red-500 hover:text-red-700 text-xs font-medium">删除</button></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if models.is_empty() %}<div class="py-12 text-center text-gray-400 text-sm">暂无模型</div>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section id="skills" class="scroll-mt-24">
+  <div class="mb-4 flex items-center justify-between gap-4">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-purple-500">Skills</p>
+      <h3 class="mt-1 text-lg font-semibold text-gray-900">系统技能</h3>
+      <p class="text-sm text-gray-400">默认最多显示 80 个技能文件；完整编辑仍使用技能编辑页。</p>
+    </div>
+    <a href="/admin/skills/edit" class="px-5 py-2.5 rounded-xl bg-terra text-white text-sm font-medium hover:bg-terra-dark transition-colors">新建技能</a>
+  </div>
+
+  {% if !groups.is_empty() %}
+  <div class="mb-6 flex items-center gap-2 flex-wrap">
+    <span class="text-sm text-gray-500">分类:</span>
+    <a href="/admin/config#skills" class='px-3 py-1.5 rounded-lg text-sm transition-colors {% if all_selected %}bg-terra text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}'>全部</a>
+    {% for g in groups %}
+    <a href="/admin/config?group={{ g.name|urlencode }}#skills" class='px-3 py-1.5 rounded-lg text-sm transition-colors {% if g.selected %}bg-terra text-white{% else %}bg-gray-100 text-gray-700 hover:bg-gray-200{% endif %}'>{{ g.name }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+    {% if skills.is_empty() %}
+    <div class="text-center py-16"><p class="text-sm text-gray-400">暂无技能文件</p></div>
+    {% else %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="text-left text-gray-500 bg-gray-50/50"><th class="px-4 py-3 font-medium">分类</th><th class="px-4 py-3 font-medium">文件路径</th><th class="px-4 py-3 font-medium">大小</th><th class="px-4 py-3 font-medium">校验和</th><th class="px-4 py-3 font-medium">更新时间</th><th class="px-4 py-3 font-medium text-right">操作</th></tr></thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for skill in skills %}
+          <tr id="config-skill-{{ loop.index }}" class="hover:bg-gray-50/50 transition-colors">
+            <td class="px-4 py-3"><span class="inline-flex px-2.5 py-0.5 rounded-lg text-xs font-medium bg-cream text-gray-700">{{ skill.group }}</span></td>
+            <td class="px-4 py-3"><a href="/admin/skills/edit?path={{ skill.file_path|urlencode }}" class="font-mono text-sm text-terra hover:underline">{{ skill.file_path }}</a></td>
+            <td class="px-4 py-3 text-gray-500">{{ skill.size }}</td>
+            <td class="px-4 py-3 font-mono text-xs text-gray-400">{{ skill.checksum }}</td>
+            <td class="px-4 py-3 text-gray-500">{{ skill.updated_at }}</td>
+            <td class="px-4 py-3 text-right"><button hx-delete="/admin/config/skills/delete?path={{ skill.file_path|urlencode }}" hx-target="#config-skill-{{ loop.index }}" hx-swap="outerHTML" hx-confirm="确定删除技能「{{ skill.file_path }}」？" class="px-3 py-1.5 rounded-lg text-xs bg-red-50 text-red-600 hover:bg-red-100 transition-colors">删除</button></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

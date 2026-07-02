@@ -1,0 +1,151 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}系统日志{% endblock %}
+{% block page_title %}系统日志{% endblock %}
+
+{% block head %}
+<style>
+  .log-row { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 0.8125rem; }
+  .log-row:hover { background-color: #f1f5f9; }
+  .badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 9999px; font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-debug { background: #f1f5f9; color: #64748b; }
+  .badge-info { background: #dbeafe; color: #1d4ed8; }
+  .badge-warn { background: #fef3c7; color: #b45309; }
+  .badge-error { background: #fce4ec; color: #c62828; }
+  .log-msg { max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-msg:hover { white-space: normal; word-break: break-all; }
+  .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem; color: #64748b; }
+  #log-table-body tr { transition: background-color 0.15s; }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<!-- Filters -->
+<form method="get" action="/admin/logs" class="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+  <div class="flex flex-wrap items-end gap-4">
+    <div class="min-w-[140px]">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">服务</label>
+      <select name="service" id="service-select" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <option value="agent" {% if current_service == "agent" %}selected{% endif %}>vm-agent 容器</option>
+        <option value="gateway" {% if current_service == "gateway" %}selected{% endif %}>Gateway</option>
+      </select>
+    </div>
+    <div class="min-w-[200px]" id="container-group" style="{% if current_service != "agent" %}display:none{% endif %}">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">容器</label>
+      <select name="container" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        {% for c in containers %}
+        <option value="{{ c.name }}" {% if current_container == c.name %}selected{% endif %}>{{ c.name }} ({{ c.user_name }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="min-w-[120px]">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">级别</label>
+      <select name="level" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <option value="" {% if current_level.is_empty() %}selected{% endif %}>全部</option>
+        <option value="debug" {% if current_level == "debug" %}selected{% endif %}>Debug</option>
+        <option value="info" {% if current_level == "info" %}selected{% endif %}>Info</option>
+        <option value="warn" {% if current_level == "warn" %}selected{% endif %}>Warn</option>
+        <option value="error" {% if current_level == "error" %}selected{% endif %}>Error</option>
+      </select>
+    </div>
+    <div class="min-w-[100px]">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">行数</label>
+      <select name="lines" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+        <option value="100" {% if current_lines == 100 %}selected{% endif %}>100</option>
+        <option value="200" {% if current_lines == 200 %}selected{% endif %}>200</option>
+        <option value="500" {% if current_lines == 500 %}selected{% endif %}>500</option>
+      </select>
+    </div>
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-xs font-medium text-gray-500 mb-1.5">搜索</label>
+      <input type="text" name="search" value="{{ current_search }}" placeholder="trace_id, session_id, 关键词..."
+             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-terra/20 focus:border-terra">
+    </div>
+    <div class="flex items-center gap-3">
+      <button type="submit" class="bg-terra hover:bg-terra-dark text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+        查询
+      </button>
+      <label class="flex items-center gap-1.5 text-sm text-gray-500 cursor-pointer select-none">
+        <input type="checkbox" id="auto-refresh" class="rounded border-gray-300 text-terra focus:ring-terra">
+        <span>自动刷新</span>
+      </label>
+    </div>
+  </div>
+</form>
+
+{% if !error_message.is_empty() %}
+<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
+  {{ error_message }}
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="flex items-center justify-between mb-4">
+  <p class="text-sm text-gray-500">共 {{ logs.len() }} 条日志</p>
+  <p class="text-xs text-gray-400" id="last-refresh">最后刷新: 刚刚</p>
+</div>
+
+<!-- Log Table -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left">
+      <thead>
+        <tr class="bg-gray-50 border-b border-gray-200">
+          <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-44">时间</th>
+          <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">级别</th>
+          <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">消息</th>
+          <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-36">trace_id</th>
+          <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">session_id</th>
+        </tr>
+      </thead>
+      <tbody id="log-table-body" class="divide-y divide-gray-100">
+        {% for log in logs %}
+        <tr class="log-row">
+          <td class="px-4 py-2 mono whitespace-nowrap">{{ log.ts }}</td>
+          <td class="px-4 py-2">
+            {% if log.level == "error" %}
+            <span class="badge badge-error">ERROR</span>
+            {% else if log.level == "warn" %}
+            <span class="badge badge-warn">WARN</span>
+            {% else if log.level == "info" %}
+            <span class="badge badge-info">INFO</span>
+            {% else %}
+            <span class="badge badge-debug">DEBUG</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-2 log-msg" title="{{ log.msg }}">{{ log.msg }}</td>
+          <td class="px-4 py-2 mono">{{ log.trace_id }}</td>
+          <td class="px-4 py-2 mono" title="{{ log.session_id }}">{{ log.session_id }}</td>
+        </tr>
+        {% endfor %}
+        {% if logs.is_empty() %}
+        <tr>
+          <td colspan="5" class="px-4 py-12 text-center text-gray-400 text-sm">暂无日志数据</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('service-select').addEventListener('change', function() {
+  document.getElementById('container-group').style.display = this.value === 'agent' ? '' : 'none';
+});
+
+let refreshTimer = null;
+const checkbox = document.getElementById('auto-refresh');
+checkbox.addEventListener('change', function() {
+  if (this.checked) {
+    refreshTimer = setInterval(() => {
+      document.querySelector('form').submit();
+    }, 5000);
+  } else {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+});
+</script>
+{% endblock %}

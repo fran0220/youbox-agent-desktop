@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}关于 JAcoworks{% endblock %}
+
+{% block content %}
+<section class="py-16 sm:py-24">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">关于 JAcoworks</h1>
+      <p class="mt-4 text-lg text-gray-500">企业 AI 协同办公平台</p>
+    </div>
+
+    <!-- Introduction -->
+    <div class="bg-white rounded-2xl shadow-sm p-8 sm:p-12 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">项目介绍</h2>
+      <div class="prose-custom text-gray-600 leading-relaxed space-y-4">
+        <p>
+          JAcoworks 是一款面向企业的 AI 协同办公平台，将大语言模型的能力以 Agent 形式融入日常工作流。
+          不同于传统的 AI 聊天工具，JAcoworks 的 Agent 可以直接访问你的本地文件系统，理解项目结构，
+          在真实的工作上下文中提供帮助。
+        </p>
+        <p>
+          我们坚持"本地优先"的设计理念——对话数据和文件处理全程在本地完成，
+          确保企业数据的隐私和安全。同时支持 Claude、GPT、Gemini、Grok 等多种 AI 模型，
+          让团队可以根据需求灵活选择。
+        </p>
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="bg-white rounded-2xl shadow-sm p-8 sm:p-12 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">产品特色</h2>
+      <div class="prose-custom text-gray-600 leading-relaxed space-y-4">
+        <p>JAcoworks 提供两种工作方式：</p>
+        <ul class="space-y-3 ml-4">
+          <li class="flex items-start gap-3">
+            <span class="text-terra font-bold mt-0.5">•</span>
+            <div>
+              <strong class="text-gray-800">本地模式</strong> — AI 助手在你的电脑上运行，直接读写本地文件，数据不出设备
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="text-terra font-bold mt-0.5">•</span>
+            <div>
+              <strong class="text-gray-800">协作模式</strong> — 在云端独立工作区中运行，适合团队协作和多设备使用
+            </div>
+          </li>
+        </ul>
+        <p>
+          内置 Claude、GPT、Gemini、Grok 等 10+ 款主流 AI 模型，根据任务灵活切换。
+        </p>
+      </div>
+    </div>
+
+    <!-- Open Source -->
+    <div class="bg-white rounded-2xl shadow-sm p-8 sm:p-12 mb-8">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">开源与社区</h2>
+      <div class="prose-custom text-gray-600 leading-relaxed space-y-4">
+        <p>
+          JAcoworks 在 GitHub 上开源，欢迎社区贡献代码、提交问题和建议。
+        </p>
+        <div class="mt-6">
+          <a href="https://github.com/fran0220/jacoworks" target="_blank" rel="noopener"
+             class="inline-flex items-center px-6 py-3 rounded-2xl bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors">
+            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+              <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"/>
+            </svg>
+            GitHub 仓库
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

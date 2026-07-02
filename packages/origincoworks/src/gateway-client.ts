@@ -1,10 +1,6 @@
 import {
-  assertGatewaySkillPullResponse,
-  assertGatewaySkillsChecksumResponse,
   assertGatewayUser,
   assertLoginResponse,
-  type GatewaySkillFile,
-  type GatewaySkillsChecksumResponse,
   type GatewayUser,
   type LoginResponse,
 } from './types.ts';
@@ -172,52 +168,6 @@ export class GatewayClient {
     }
   }
 
-  /** GET /api/skills/checksum — aggregate checksums per owner bucket */
-  async getSkillsChecksum(): Promise<GatewaySkillsChecksumResponse> {
-    const body = await this.requestJson('/api/skills/checksum', { method: 'GET', auth: true });
-    assertGatewaySkillsChecksumResponse(body);
-    return body;
-  }
-
-  /**
-   * GET /api/skills/pull?owner=system|user
-   * Supports If-None-Match for system (and user) aggregate checksum.
-   */
-  async pullSkills(
-    owner: string,
-    ifNoneMatch?: string,
-  ): Promise<{ status: 200 | 304; checksum: string; files: GatewaySkillFile[] }> {
-    if (!this.token) {
-      throw new Error('gateway client has no bearer token; call login() first');
-    }
-    const params = new URLSearchParams();
-    params.set('owner', owner === 'system' ? 'system' : 'user');
-    const headers = new Headers();
-    headers.set('Authorization', `Bearer ${this.token}`);
-    if (ifNoneMatch) {
-      headers.set('If-None-Match', ifNoneMatch);
-    }
-    const res = await this.resolveFetch()(this.url(`/api/skills/pull?${params.toString()}`), {
-      method: 'GET',
-      headers,
-    });
-    if (res.status === 304) {
-      const etag = res.headers.get('ETag') ?? ifNoneMatch ?? '';
-      return { status: 304, checksum: etag, files: [] };
-    }
-    const body = await this.readJson(res);
-    if (!res.ok) {
-      const errMsg =
-        body && typeof body === 'object' && body !== null && 'error' in body
-          ? String((body as { error: unknown }).error)
-          : `gateway request failed: ${res.status}`;
-      throw new GatewayHttpError(errMsg, res.status, body);
-    }
-    const parsed = assertGatewaySkillPullResponse(body);
-    const etag = res.headers.get('ETag') ?? parsed.checksum;
-    return { status: 200, checksum: etag, files: parsed.files };
-  }
-
   /** GET /api/desktop/classic-sessions — read-only legacy session summaries */
   async listClassicSessions(): Promise<unknown> {
     return this.requestJson('/api/desktop/classic-sessions', { method: 'GET', auth: true });
@@ -244,36 +194,6 @@ export class GatewayClient {
       method: 'GET',
       auth: true,
     });
-  }
-
-  /** GET /api/skills — skill summaries (builtin + user) */
-  async listSkills(): Promise<unknown> {
-    return this.requestJson('/api/skills', { method: 'GET', auth: true });
-  }
-
-  /**
-   * PUT /api/skills/{skillId} — replace all files for a user-owned skill.
-   * Paths in `files` are relative to the skill root (e.g. SKILL.md, refs/x.md).
-   */
-  async upsertUserSkill(
-    skillId: string,
-    files: Array<{ path: string; content: string }>,
-  ): Promise<{ status: string; skill_id: string; file_count: number }> {
-    const body = await this.requestJson(`/api/skills/${encodeURIComponent(skillId)}`, {
-      method: 'PUT',
-      auth: true,
-      body: JSON.stringify({ files }),
-    });
-    if (!body || typeof body !== 'object') {
-      throw new Error('invalid upsert skill response');
-    }
-    const o = body as Record<string, unknown>;
-    const fileCount = typeof o.file_count === 'number' ? o.file_count : files.length;
-    return {
-      status: typeof o.status === 'string' ? o.status : 'ok',
-      skill_id: typeof o.skill_id === 'string' ? o.skill_id : skillId,
-      file_count: fileCount,
-    };
   }
 
   /** POST /api/memory/sync — bidirectional checksum diff */

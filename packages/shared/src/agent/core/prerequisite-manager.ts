@@ -15,6 +15,7 @@ import { resolve, join } from 'node:path';
 import { getConfigDir } from '../../config/paths.ts';
 import { expandPath } from './path-processor.ts';
 import { getBrowserToolEnabled } from '../../config/storage.ts';
+import { isBrowserToolNameOrAlias } from '../browser-tool-names.ts';
 
 // ============================================================
 // Types
@@ -100,8 +101,8 @@ const RULES: PrerequisiteRule[] = [
   // and skipped entirely when the built-in browser tool is disabled.
   {
     toolMatcher: (toolName: string) =>
-      getBrowserToolEnabled() &&
-      (toolName === 'browser_tool' || toolName === 'mcp__session__browser_tool'),
+      isBrowserToolNameOrAlias(toolName) &&
+      getBrowserToolEnabled(),
     resolveRequiredPath: () => {
       return existsSync(browserToolsDocPath()) ? browserToolsDocPath() : null;
     },

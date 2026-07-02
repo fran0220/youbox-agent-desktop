@@ -43,3 +43,120 @@ jobs:
 
       - name: Run validation suite
         run: bun run validate:ci
+
+  gateway:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: gateway/go.mod
+
+      - name: Vet gateway
+        run: go vet ./...
+
+      - name: Test gateway
+        run: go test ./...
+
+  website:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: jacoworks
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d jacoworks"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: website
+
+      - name: Initialize website database
+        run: |
+          for f in ../deploy/sql/[0-9][0-9][0-9]_*.sql; do
+            case "$f" in *seed*) echo "skip $f"; continue ;; esac
+            echo "apply $f"
+            PGPASSWORD=postgres psql "postgresql://postgres:postgres@127.0.0.1:5432/jacoworks" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Write test website config
+        run: |
+          cat > website.toml <<'EOF'
+          cookie_secret = "0123456789abcdef0123456789abcdef"
+
+          [server]
+          host = "127.0.0.1"
+          port = 9527
+
+          [database]
+          url = "postgresql://postgres:postgres@127.0.0.1:5432/jacoworks"
+
+          [gateway]
+          url = "http://127.0.0.1:8847"
+          public_url = "http://127.0.0.1:8847"
+          admin_token = "test-admin-token"
+
+          [site]
+          name = "OriginAI"
+          description = "Agent-native AI 工作台"
+          base_url = "http://127.0.0.1:9527"
+
+          [posthog]
+          api_key = ""
+          host = "https://us.i.posthog.com"
+          EOF
+
+      - name: Check website
+        run: cargo check
+
+      - name: Start website server
+        run: |
+          cargo run > /tmp/jacoworks-website.log 2>&1 &
+          echo $! > /tmp/jacoworks-website.pid
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:9527/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/jacoworks-website.log
+          exit 1
+
+      - name: Test website
+        run: cargo test
+
+      - name: Stop website server
+        if: always()
+        run: |
+          if [ -f /tmp/jacoworks-website.pid ]; then
+            kill "$(cat /tmp/jacoworks-website.pid)" 2>/dev/null || true
+          fi

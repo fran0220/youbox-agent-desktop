@@ -9,7 +9,7 @@
  * useful error message instead of a generic "Invalid URL".
  */
 
-import { resolveDeeplinkScheme } from '../deeplink-scheme.ts'
+import { isProductDeepLinkProtocol } from '../deeplink-scheme.ts'
 
 export type UrlClassification =
   | { kind: 'dangerous'; scheme?: string; reason: string }
@@ -51,8 +51,7 @@ export function classifyExternalUrl(rawUrl: string): UrlClassification {
     return { kind: 'dangerous', scheme: protocol, reason: blockedReason }
   }
 
-  const internalScheme = `${resolveDeeplinkScheme()}:`.toLowerCase()
-  if (protocol === internalScheme) {
+  if (isProductDeepLinkProtocol(protocol)) {
     return { kind: 'internal-deeplink' }
   }
 

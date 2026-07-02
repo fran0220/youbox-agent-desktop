@@ -1,0 +1,28 @@
+serverAddr = "67.230.182.59"
+serverPort = 7000
+
+auth.method = "token"
+auth.token = "YOUR_FRP_TOKEN"
+
+log.to = "/var/log/frpc.log"
+log.level = "info"
+log.maxDays = 7
+
+transport.heartbeatInterval = 10
+transport.heartbeatTimeout = 30
+
+# Gateway :8090
+[[proxies]]
+name = "gateway"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8090
+remotePort = 8090
+
+# Website :9527
+[[proxies]]
+name = "website"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 9527
+remotePort = 9527

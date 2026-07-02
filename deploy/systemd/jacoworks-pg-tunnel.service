@@ -1,0 +1,14 @@
+[Unit]
+Description=JAcoworks PostgreSQL SSH Tunnel (local → jingao)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/bin/ssh -N -L 5433:127.0.0.1:5432 jingao -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

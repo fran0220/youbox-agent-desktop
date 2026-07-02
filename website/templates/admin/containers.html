@@ -1,0 +1,31 @@
+{% extends "admin/layout.html" %}
+
+{% block title %}容器管理{% endblock %}
+{% block page_title %}容器管理{% endblock %}
+
+{% block admin_content %}
+<div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-500 bg-gray-50/50">
+          <th class="px-6 py-3.5 font-medium">名称</th>
+          <th class="px-6 py-3.5 font-medium">用户</th>
+          <th class="px-6 py-3.5 font-medium">IP</th>
+          <th class="px-6 py-3.5 font-medium">状态</th>
+          <th class="px-6 py-3.5 font-medium">操作</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for container in containers %}
+        {% include "admin/partials/container_row.html" %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if containers.is_empty() %}
+  <div class="py-12 text-center text-gray-400 text-sm">暂无容器</div>
+  {% endif %}
+</div>
+{% endblock %}

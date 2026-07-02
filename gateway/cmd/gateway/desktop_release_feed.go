@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -53,27 +54,53 @@ func desktopReleaseFeedHandler(r desktopReleaseReader) http.HandlerFunc {
 			return
 		}
 
-		asset := pickReleaseAssetForFeed(rel.Assets, platformFamily)
-		if asset == nil {
+		assets := pickReleaseAssetsForFeed(rel.Assets, platformFamily)
+		if len(assets) == 0 {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "no asset for platform"})
 			return
 		}
 
-		body := buildElectronUpdaterChannelYAML(rel, *asset)
+		body := buildElectronUpdaterChannelYAML(rel, assets)
 		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(body))
 	}
 }
 
-func pickReleaseAssetForFeed(assets []store.ReleaseAsset, platformFamily string) *store.ReleaseAsset {
-	for i := range assets {
-		a := &assets[i]
-		if assetMatchesFeedPlatform(a.Platform, platformFamily) {
-			return a
+func pickReleaseAssetsForFeed(assets []store.ReleaseAsset, platformFamily string) []store.ReleaseAsset {
+	var preferred []store.ReleaseAsset
+	var fallback []store.ReleaseAsset
+
+	for _, asset := range assets {
+		if !assetMatchesFeedPlatform(asset.Platform, platformFamily) {
+			continue
+		}
+		if !assetMatchesElectronUpdaterArtifact(asset.DownloadURL, platformFamily) {
+			continue
+		}
+		if strings.TrimSpace(asset.Signature) == "" {
+			continue
+		}
+		if isUpdaterPlatform(asset.Platform) {
+			preferred = append(preferred, asset)
+		} else {
+			fallback = append(fallback, asset)
 		}
 	}
-	return nil
+
+	seen := make(map[string]struct{}, len(preferred)+len(fallback))
+	picked := make([]store.ReleaseAsset, 0, len(preferred)+len(fallback))
+	for _, group := range [][]store.ReleaseAsset{preferred, fallback} {
+		for _, asset := range group {
+			key := asset.DownloadURL
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			picked = append(picked, asset)
+		}
+	}
+	return picked
 }
 
 func assetMatchesFeedPlatform(platform, family string) bool {
@@ -85,7 +112,7 @@ func assetMatchesFeedPlatform(platform, family string) bool {
 	case "win32":
 		return strings.Contains(p, "win") || strings.Contains(p, "windows")
 	case "linux":
-		return strings.Contains(p, "linux") && !strings.Contains(p, "arm")
+		return strings.Contains(p, "linux") && !strings.Contains(p, "arm") && !strings.Contains(p, "aarch64")
 	case "linux-arm64":
 		return strings.Contains(p, "linux") && (strings.Contains(p, "arm") || strings.Contains(p, "aarch64"))
 	default:
@@ -93,24 +120,51 @@ func assetMatchesFeedPlatform(platform, family string) bool {
 	}
 }
 
-func buildElectronUpdaterChannelYAML(rel *store.DesktopRelease, asset store.ReleaseAsset) string {
-	fileName := path.Base(asset.DownloadURL)
-	if fileName == "" || fileName == "." || fileName == "/" {
-		fileName = "update-" + rel.Version + ".zip"
+func isUpdaterPlatform(platform string) bool {
+	return strings.HasSuffix(strings.ToLower(platform), "-updater")
+}
+
+func assetMatchesElectronUpdaterArtifact(downloadURL, family string) bool {
+	fileName := strings.ToLower(releaseAssetFileName(downloadURL))
+	switch family {
+	case "darwin":
+		return strings.HasSuffix(fileName, ".zip")
+	case "win32":
+		return strings.HasSuffix(fileName, ".exe")
+	case "linux", "linux-arm64":
+		return strings.HasSuffix(fileName, ".appimage")
+	default:
+		return false
 	}
-	sha512 := asset.Signature
-	if sha512 == "" {
-		// electron-updater requires sha512 or sha2 on each file; placeholder until publish pipeline fills signatures.
-		sha512 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+}
+
+func releaseAssetFileName(downloadURL string) string {
+	parsed, err := url.Parse(downloadURL)
+	if err == nil && parsed.Path != "" {
+		return path.Base(parsed.Path)
 	}
+	return path.Base(downloadURL)
+}
+
+func yamlSingleQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+}
+
+func buildElectronUpdaterChannelYAML(rel *store.DesktopRelease, assets []store.ReleaseAsset) string {
 	pub := rel.PubDate.UTC().Format(time.RFC3339)
-	return fmt.Sprintf(`version: %s
-files:
-  - url: %s
-    sha512: %s
-    size: %d
-path: %s
+	var body strings.Builder
+	fmt.Fprintf(&body, "version: %s\nfiles:\n", rel.Version)
+	for _, asset := range assets {
+		fmt.Fprintf(&body, "  - url: %s\n    sha512: %s\n    size: %d\n",
+			yamlSingleQuote(asset.DownloadURL),
+			yamlSingleQuote(asset.Signature),
+			asset.FileSize,
+		)
+	}
+	first := assets[0]
+	fmt.Fprintf(&body, `path: %s
 sha512: %s
-releaseDate: '%s'
-`, rel.Version, fileName, sha512, asset.FileSize, fileName, sha512, pub)
+releaseDate: %s
+`, yamlSingleQuote(first.DownloadURL), yamlSingleQuote(first.Signature), yamlSingleQuote(pub))
+	return body.String()
 }

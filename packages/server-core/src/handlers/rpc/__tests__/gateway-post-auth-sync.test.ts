@@ -3,7 +3,6 @@ import * as gatewayAuth from '@craft-agent/origincoworks/auth';
 import type { HandlerDeps } from '../../handler-deps';
 import { syncGatewayStateAfterAuth } from '../gateway-post-auth-sync';
 import * as gatewayLlmSync from '../gateway-llm-sync.ts';
-import * as gatewaySkillsSync from '../gateway-skills-sync.ts';
 import * as gatewayMemorySync from '../gateway-memory-sync.ts';
 
 function minimalDeps(): HandlerDeps {
@@ -28,27 +27,20 @@ function minimalDeps(): HandlerDeps {
 describe('syncGatewayStateAfterAuth', () => {
   let tokenSpy: ReturnType<typeof spyOn<typeof gatewayAuth, 'getStoredGatewayToken'>>;
   let llmSpy: ReturnType<typeof spyOn<typeof gatewayLlmSync, 'syncGatewayLlmConfigForSession'>>;
-  let skillsSpy: ReturnType<typeof spyOn<typeof gatewaySkillsSync, 'syncGatewaySkillsForSession'>>;
   let memorySpy: ReturnType<typeof spyOn<typeof gatewayMemorySync, 'syncGatewayMemoryForSession'>>;
 
   afterEach(() => {
     tokenSpy?.mockRestore();
     llmSpy?.mockRestore();
-    skillsSpy?.mockRestore();
     memorySpy?.mockRestore();
   });
 
-  it('runs LLM, skills, and memory sync when token exists and rpcServer is provided', async () => {
+  it('runs LLM and memory sync when token exists and rpcServer is provided', async () => {
     tokenSpy = spyOn(gatewayAuth, 'getStoredGatewayToken').mockResolvedValue('a'.repeat(64));
     llmSpy = spyOn(gatewayLlmSync, 'syncGatewayLlmConfigForSession').mockResolvedValue({
       success: true,
       slug: 'origincoworks-gateway',
       primaryModel: 'gpt-5.5',
-    });
-    skillsSpy = spyOn(gatewaySkillsSync, 'syncGatewaySkillsForSession').mockResolvedValue({
-      success: true,
-      filesWritten: 1,
-      ownersPulled: ['system'],
     });
     memorySpy = spyOn(gatewayMemorySync, 'syncGatewayMemoryForSession').mockResolvedValue({
       success: true,
@@ -67,10 +59,8 @@ describe('syncGatewayStateAfterAuth', () => {
     });
 
     expect(result.llm.success).toBe(true);
-    expect(result.skills.success).toBe(true);
     expect(result.memory.success).toBe(true);
     expect(llmSpy).toHaveBeenCalledTimes(1);
-    expect(skillsSpy).toHaveBeenCalledTimes(1);
     expect(memorySpy).toHaveBeenCalledTimes(1);
   });
 
@@ -79,7 +69,6 @@ describe('syncGatewayStateAfterAuth', () => {
     const deps = minimalDeps();
     const result = await syncGatewayStateAfterAuth({ sessionManager: deps.sessionManager, deps });
     expect(result.llm.success).toBe(false);
-    expect(result.skills.success).toBe(false);
     expect(result.memory.success).toBe(false);
   });
 });

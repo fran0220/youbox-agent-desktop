@@ -27,7 +27,6 @@ import (
 	"github.com/fran0220/jacoworks/gateway/internal/auth/feishu"
 	"github.com/fran0220/jacoworks/gateway/internal/config"
 	"github.com/fran0220/jacoworks/gateway/internal/feishubot"
-	"github.com/fran0220/jacoworks/gateway/internal/games"
 	"github.com/fran0220/jacoworks/gateway/internal/github"
 	"github.com/fran0220/jacoworks/gateway/internal/middleware"
 	"github.com/fran0220/jacoworks/gateway/internal/store"
@@ -164,7 +163,6 @@ func main() {
 		feishuBotHandler.SetOcGatewayURL(cfg.OcGatewayURL)
 		log.Info().Str("url", cfg.OcGatewayURL).Msg("feishu bot: proxying to oc-gateway")
 	}
-	gamesHandler := games.NewHandler(s)
 	ghClient := github.NewClient(cfg.GitHub.Token, cfg.GitHub.Repo)
 
 	mux := http.NewServeMux()
@@ -214,41 +212,34 @@ func main() {
 	mux.Handle("DELETE /api/memory/file", authMiddleware.Authenticate(http.HandlerFunc(memoryDeleteFileHandler(s))))
 	mux.Handle("DELETE /api/memory", authMiddleware.Authenticate(http.HandlerFunc(memoryClearHandler(s))))
 
-	// Authenticated: skills sync (legacy — retained for push-skills.sh)
-	mux.Handle("POST /api/skills/upload", authMiddleware.Authenticate(http.HandlerFunc(skillsUploadHandler(s))))
-	mux.Handle("GET /api/skills/checksum", authMiddleware.Authenticate(http.HandlerFunc(skillsChecksumHandler(s))))
-	mux.Handle("GET /api/skills/pull", authMiddleware.Authenticate(http.HandlerFunc(skillsPullHandler(s))))
-
-	// Authenticated: skills CRUD (desktop → gateway DB)
-	mux.Handle("GET /api/skills", authMiddleware.Authenticate(http.HandlerFunc(skillsListHandler(s))))
-	mux.Handle("PUT /api/skills/{skillId}", authMiddleware.Authenticate(http.HandlerFunc(skillsUpsertHandler(s))))
-	mux.Handle("DELETE /api/skills/{skillId}", authMiddleware.Authenticate(http.HandlerFunc(skillsDeleteHandler(s))))
+	// Local-first compatibility stubs: skills are local workspace files, cron is local Craft automations, games are out of scope.
+	skillsGone := goneJSONHandler("gateway skills sync has been removed; use local workspace skills")
+	cronGone := goneJSONHandler("gateway cloud cron has been removed; use local Craft automations")
+	gamesGone := goneJSONHandler("gateway games APIs are not part of the local-first desktop contract")
+	mux.Handle("POST /api/skills/upload", authMiddleware.Authenticate(skillsGone))
+	mux.Handle("GET /api/skills/checksum", authMiddleware.Authenticate(skillsGone))
+	mux.Handle("GET /api/skills/pull", authMiddleware.Authenticate(skillsGone))
+	mux.Handle("GET /api/skills", authMiddleware.Authenticate(skillsGone))
+	mux.Handle("PUT /api/skills/{skillId}", authMiddleware.Authenticate(skillsGone))
+	mux.Handle("DELETE /api/skills/{skillId}", authMiddleware.Authenticate(skillsGone))
 
 	// Pi VM routes — migrated to oc-gateway (:18700)
-	ocGone := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusGone)
-		w.Write([]byte(`{"error":"migrated to oc-gateway"}`))
-	})
+	ocGone := goneJSONHandler("migrated to oc-gateway")
 
 	// Authenticated: cowork
 	mux.Handle("GET /api/cowork/container-status", authMiddleware.Authenticate(http.HandlerFunc(containerStatusHandler(s))))
 	mux.Handle("POST /api/cowork/provision", authMiddleware.Authenticate(ocGone))
 
-	// Authenticated: cron announce (vm-agent → feishu delivery)
-	mux.Handle("POST /api/cron/announce", authMiddleware.Authenticate(http.HandlerFunc(feishuBotHandler.HandleCronAnnounce)))
-
-	// Authenticated: cron job CRUD (sidecar proxy target)
-	mux.Handle("POST /api/cron/jobs", authMiddleware.Authenticate(http.HandlerFunc(createCronJobHandler(s))))
-	mux.Handle("GET /api/cron/jobs", authMiddleware.Authenticate(http.HandlerFunc(listCronJobsHandler(s))))
-	mux.Handle("DELETE /api/cron/jobs/{id}", authMiddleware.Authenticate(http.HandlerFunc(deleteCronJobHandler(s))))
-	mux.Handle("POST /api/cron/jobs/{id}/run", authMiddleware.Authenticate(http.HandlerFunc(runCronJobHandler())))
-	mux.Handle("GET /api/cron/jobs/{id}/history", authMiddleware.Authenticate(http.HandlerFunc(cronJobHistoryHandler())))
-
-	// Games (list is public, deploy/delete require auth)
-	mux.HandleFunc("GET /api/games", gamesHandler.List)
-	mux.Handle("POST /api/games/deploy", authMiddleware.Authenticate(http.HandlerFunc(gamesHandler.Deploy)))
-	mux.Handle("DELETE /api/games/{id}", authMiddleware.Authenticate(http.HandlerFunc(gamesHandler.Delete)))
+	// Cloud cron and games are not part of the local-first desktop contract.
+	mux.Handle("POST /api/cron/announce", authMiddleware.Authenticate(cronGone))
+	mux.Handle("POST /api/cron/jobs", authMiddleware.Authenticate(cronGone))
+	mux.Handle("GET /api/cron/jobs", authMiddleware.Authenticate(cronGone))
+	mux.Handle("DELETE /api/cron/jobs/{id}", authMiddleware.Authenticate(cronGone))
+	mux.Handle("POST /api/cron/jobs/{id}/run", authMiddleware.Authenticate(cronGone))
+	mux.Handle("GET /api/cron/jobs/{id}/history", authMiddleware.Authenticate(cronGone))
+	mux.Handle("GET /api/games", gamesGone)
+	mux.Handle("POST /api/games/deploy", authMiddleware.Authenticate(gamesGone))
+	mux.Handle("DELETE /api/games/{id}", authMiddleware.Authenticate(gamesGone))
 	feedbackH := http.HandlerFunc(desktopFeedbackHandler(s, ghClient))
 	mux.Handle("POST /api/feedback", authMiddleware.Authenticate(feedbackH))
 	mux.Handle("POST /api/desktop/feedback", authMiddleware.Authenticate(feedbackH))
@@ -646,31 +637,31 @@ func updateSettingsHandler(s *store.Store, cfg *config.Config, al *audit.Logger,
 	}
 
 	allowedKeys := map[string]bool{
-		"llm_proxy_url":        true,
-		"llm_proxy_key":        true,
-		"openai_api_key":       true,
-		"exa_api_key":          true,
-		"tavily_api_key":       true,
-		"embedding_base_url":   true,
-		"embedding_api_key":    true,
-		"fal_api_key":          true,
-		"mineru_token":         true,
-		"jimeng_api_url":          true,
-		"jimeng_api_key":          true,
-		"asset_gateway_token":     true,
-		"asset_gateway_url":       true,
-		"ai_search_gateway_url":   true,
-		"ai_search_token":         true,
-		"feishu_client_id":        true,
-		"feishu_client_secret": true,
-		"admin_token":          true,
-		"github_token":         true,
-		"github_repo":          true,
-		"primary_model":        true,
-		"primary_provider":     true,
-		"posthog_api_key":      true,
-		"posthog_endpoint":     true,
-		"cli_tools_manifest":   true,
+		"llm_proxy_url":         true,
+		"llm_proxy_key":         true,
+		"openai_api_key":        true,
+		"exa_api_key":           true,
+		"tavily_api_key":        true,
+		"embedding_base_url":    true,
+		"embedding_api_key":     true,
+		"fal_api_key":           true,
+		"mineru_token":          true,
+		"jimeng_api_url":        true,
+		"jimeng_api_key":        true,
+		"asset_gateway_token":   true,
+		"asset_gateway_url":     true,
+		"ai_search_gateway_url": true,
+		"ai_search_token":       true,
+		"feishu_client_id":      true,
+		"feishu_client_secret":  true,
+		"admin_token":           true,
+		"github_token":          true,
+		"github_repo":           true,
+		"primary_model":         true,
+		"primary_provider":      true,
+		"posthog_api_key":       true,
+		"posthog_endpoint":      true,
+		"cli_tools_manifest":    true,
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -1085,358 +1076,16 @@ func mergeDailyLogs(serverContent, clientContent string) string {
 	return strings.TrimRight(buf.String(), "\n") + "\n"
 }
 
-func skillsUploadHandler(s *store.Store) http.HandlerFunc {
-	type fileEntry struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
-	}
-	type uploadRequest struct {
-		Source string      `json:"source"`
-		Files  []fileEntry `json:"files"`
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		var req uploadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-			return
-		}
-
-		if req.Source != "builtin" && req.Source != "user" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "source must be 'builtin' or 'user'"})
-			return
-		}
-
-		owner := user.ID
-		if req.Source == "builtin" {
-			owner = "system"
-		}
-
-		storeFiles := make([]store.SkillFile, 0, len(req.Files))
-		for _, f := range req.Files {
-			// Normalize path separators to forward slashes (Windows clients may send \)
-			storeFiles = append(storeFiles, store.SkillFile{
-				FilePath: filepath.ToSlash(f.Path),
-				Content:  f.Content,
-				Checksum: store.ContentChecksum(f.Content),
-			})
-		}
-
-		if err := s.ReplaceSkillFiles(r.Context(), owner, storeFiles); err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save skills"})
-			return
-		}
-
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"status":     "ok",
-			"file_count": len(storeFiles),
-		})
-	}
-}
-
-func skillsChecksumHandler(s *store.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		checksums, err := s.GetSkillChecksums(r.Context(), []string{"system", user.ID})
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get checksums"})
-			return
-		}
-
-		writeJSON(w, http.StatusOK, map[string]string{
-			"system": checksums["system"],
-			"user":   checksums[user.ID],
-		})
-	}
-}
-
-func skillsPullHandler(s *store.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		owner := "system"
-		switch strings.ToLower(strings.TrimSpace(r.URL.Query().Get("owner"))) {
-		case "", "system", "builtin":
-			owner = "system"
-		case "user":
-			owner = user.ID
-		default:
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "owner must be system or user"})
-			return
-		}
-
-		checksums, err := s.GetSkillChecksums(r.Context(), []string{owner})
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to get checksums"})
-			return
-		}
-		etag := checksums[owner]
-
-		if etag != "" && r.Header.Get("If-None-Match") == etag {
-			if etag != "" {
-				w.Header().Set("ETag", etag)
-			}
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-
-		files, err := s.GetSkillFiles(r.Context(), owner)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load skills"})
-			return
-		}
-
-		if etag != "" {
-			w.Header().Set("ETag", etag)
-		}
-
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"files":    files,
-			"checksum": etag,
-		})
-	}
-}
-
-// ─── Skills CRUD handlers ────────────────────────────────
-
-func validateSkillID(skillID string) bool {
-	if skillID == "" || len(skillID) > 128 {
-		return false
-	}
-	if strings.Contains(skillID, "..") || strings.Contains(skillID, "/") || strings.Contains(skillID, "\\") {
-		return false
-	}
-	return true
-}
-
-func skillsListHandler(s *store.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		summaries, err := s.ListSkillSummaries(r.Context(), []string{"system", user.ID})
-		if err != nil {
-			log.Error().Err(err).Msg("list skill summaries")
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list skills"})
-			return
-		}
-
-		if summaries == nil {
-			summaries = []store.SkillSummary{}
-		}
-
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"skills": summaries,
-		})
-	}
-}
-
-func skillsUpsertHandler(s *store.Store) http.HandlerFunc {
-	type fileEntry struct {
-		Path    string `json:"path"`
-		Content string `json:"content"`
-	}
-	type upsertRequest struct {
-		Files []fileEntry `json:"files"`
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		skillID := r.PathValue("skillId")
-		if !validateSkillID(skillID) {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid skill id"})
-			return
-		}
-
-		var req upsertRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-			return
-		}
-
-		if len(req.Files) == 0 {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "files array is required"})
-			return
-		}
-
-		// Prefix each file path with skillId/
-		storeFiles := make([]store.SkillFile, 0, len(req.Files))
-		for _, f := range req.Files {
-			relPath := filepath.ToSlash(f.Path)
-			storeFiles = append(storeFiles, store.SkillFile{
-				FilePath: skillID + "/" + relPath,
-				Content:  f.Content,
-				Checksum: store.ContentChecksum(f.Content),
-			})
-		}
-
-		if err := s.ReplaceSkillByPrefix(r.Context(), user.ID, skillID, storeFiles); err != nil {
-			log.Error().Err(err).Str("skill_id", skillID).Msg("upsert skill")
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to save skill"})
-			return
-		}
-
-		writeJSON(w, http.StatusOK, map[string]interface{}{
-			"status":     "ok",
-			"skill_id":   skillID,
-			"file_count": len(storeFiles),
-		})
-	}
-}
-
-func skillsDeleteHandler(s *store.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		skillID := r.PathValue("skillId")
-		if !validateSkillID(skillID) {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid skill id"})
-			return
-		}
-
-		if err := s.DeleteSkillByPrefix(r.Context(), user.ID, skillID); err != nil {
-			log.Error().Err(err).Str("skill_id", skillID).Msg("delete skill")
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to delete skill"})
-			return
-		}
-
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-	}
-}
-
-// --- Cron Job Handlers ---
-
-func createCronJobHandler(s *store.Store) http.HandlerFunc {
-	type createRequest struct {
-		ScheduleKind   string  `json:"schedule_kind"`
-		ScheduleExpr   string  `json:"schedule_expr"`
-		Prompt         string  `json:"prompt"`
-		Name           *string `json:"name"`
-		SessionTarget  string  `json:"session_target"`
-		DeleteAfterRun bool    `json:"delete_after_run"`
-		DeliveryMode   *string `json:"delivery_mode"`
-	}
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-
-		var req createRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-			return
-		}
-
-		if req.ScheduleKind == "" || req.ScheduleExpr == "" || req.Prompt == "" {
-			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "schedule_kind, schedule_expr, and prompt are required"})
-			return
-		}
-
-		job, err := s.CreateCronJob(r.Context(), user.ID, req.ScheduleKind, req.ScheduleExpr, req.Prompt, req.Name, req.SessionTarget, req.DeleteAfterRun, req.DeliveryMode)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to create cron job"})
-			return
-		}
-		writeJSON(w, http.StatusCreated, job)
-	}
-}
-
-func listCronJobsHandler(s *store.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-		jobs, err := s.ListCronJobs(r.Context(), user.ID)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to list cron jobs"})
-			return
-		}
-		if jobs == nil {
-			jobs = []store.CronJob{}
-		}
-		writeJSON(w, http.StatusOK, jobs)
-	}
-}
-
-func deleteCronJobHandler(s *store.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-		if err := s.DeleteCronJob(r.Context(), user.ID, r.PathValue("id")); err != nil {
-			writeJSON(w, http.StatusNotFound, map[string]string{"error": "cron job not found"})
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
-
-func runCronJobHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]string{
-			"status":  "pending",
-			"message": "Gateway-side cron execution not yet implemented. Job is stored and will be executed when the gateway scheduler is built.",
-		})
-	}
-}
-
-func cronJobHistoryHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user := auth.GetUser(r.Context())
-		if user == nil {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]string{
-			"status":  "pending",
-			"message": "No run history available yet. Gateway-side cron execution is not yet implemented.",
-		})
-	}
-}
-
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+func goneJSONHandler(message string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusGone, map[string]string{"error": message})
+	})
 }
 
 func isTerminal() bool {

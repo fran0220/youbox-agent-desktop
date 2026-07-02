@@ -1,0 +1,19 @@
+# Historical only: OC/WebChat runtime moved to jaco-cloud.
+# Do not install this service from JAcoworks-Next production deploys.
+
+[Unit]
+Description=JAcoworks OC Gateway (Pi VM + WebChat Backend)
+After=network.target incus.socket
+Wants=incus.socket
+
+[Service]
+Type=simple
+User=root
+ExecStart=/opt/jacoworks/oc-gateway /opt/jacoworks/oc-gateway.yaml
+WorkingDirectory=/opt/jacoworks
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
