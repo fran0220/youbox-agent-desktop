@@ -38,16 +38,21 @@ MAC_TARGETS=(
   "darwin-x86_64:x64"
 )
 
-# ─── Load secrets ────────────────────────────────────────────────
+# ─── Load release environment ────────────────────────────────────
 
 ENV_FILE="$REPO_ROOT/deploy/.env.release"
 if [[ -f "$ENV_FILE" ]]; then
   set -a; source "$ENV_FILE"; set +a
-else
+elif [[ "$PHASE" != "bump" ]]; then
   echo "❌ Missing $ENV_FILE"
   echo "   cp deploy/.env.release.example deploy/.env.release"
   exit 1
 fi
+
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+DB_USER="${DB_USER:-postgres}"
+DB_NAME="${DB_NAME:-jacoworks}"
 
 # ─── Helpers ─────────────────────────────────────────────────────
 
@@ -249,12 +254,14 @@ do_upload() {
 
   : "${DB_PASSWORD:?Set DB_PASSWORD}"
 
-  if ! pg_isready -h 127.0.0.1 -p 5432 -q 2>/dev/null; then
+  if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -q 2>/dev/null; then
     echo "⚠️  数据库不可达，尝试开启 SSH 隧道..."
-    ssh -L 5432:127.0.0.1:5432 jingao -N -f 2>/dev/null || true
+    if [[ "$DB_HOST" == "127.0.0.1" || "$DB_HOST" == "localhost" ]]; then
+      ssh -L "${DB_PORT}:127.0.0.1:5432" jingao -N -f 2>/dev/null || true
+    fi
     sleep 1
-    if ! pg_isready -h 127.0.0.1 -p 5432 -q 2>/dev/null; then
-      fail "数据库不可达! 请手动运行: ssh -L 5432:127.0.0.1:5432 jingao -N -f"
+    if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -q 2>/dev/null; then
+      fail "数据库不可达! 请手动运行: ssh -L ${DB_PORT}:127.0.0.1:5432 jingao -N -f"
     fi
   fi
 
@@ -314,7 +321,7 @@ SQL
 
   echo "COMMIT;" >> "$sql_file"
 
-  PGPASSWORD="${DB_PASSWORD}" psql -h 127.0.0.1 -U postgres -d jacoworks -v ON_ERROR_STOP=1 < "$sql_file"
+  PGPASSWORD="${DB_PASSWORD}" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$sql_file"
   rm -f "$sql_file"
   info "Release v${VERSION} registered (is_latest=true)"
 }
