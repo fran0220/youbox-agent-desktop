@@ -681,6 +681,15 @@ export default function App() {
     [enterMainAppAfterGatewayAuth],
   )
 
+  const handleReauthGatewayFeishuLogin = useCallback(async () => {
+    const result = await window.electronAPI.gatewayFeishuLogin()
+    if (!result.success) {
+      throw new Error(result.error)
+    }
+    setGatewayUser(result.user)
+    await enterMainAppAfterGatewayAuth()
+  }, [enterMainAppAfterGatewayAuth])
+
   // Reauth reset handler - open reset confirmation dialog
   const handleReauthReset = useCallback(() => {
     setShowResetDialog(true)
@@ -1979,6 +1988,7 @@ export default function App() {
           <WindowCloseHandler />
           <ReauthScreen
             onSubmitGatewayLogin={handleReauthGatewayLogin}
+            onStartGatewayFeishuLogin={handleReauthGatewayFeishuLogin}
             onReset={handleReauthReset}
           />
           <ResetConfirmationDialog
@@ -2019,6 +2029,7 @@ export default function App() {
             onRecheckGitBash={onboarding.handleRecheckGitBash}
             onClearError={onboarding.handleClearError}
             onSubmitGatewayLogin={onboarding.handleSubmitGatewayLogin}
+            onStartGatewayFeishuLogin={onboarding.handleStartGatewayFeishuLogin}
           />
         </ModalProvider>
       </DismissibleLayerProvider>

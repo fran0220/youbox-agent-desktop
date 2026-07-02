@@ -24,6 +24,7 @@ import { buildClientApi } from '../transport/build-api'
 import { CHANNEL_MAP } from '../transport/channel-map'
 import { createCallbackServer } from '@craft-agent/shared/auth/callback-server'
 import { CHATGPT_OAUTH_CONFIG } from '@craft-agent/shared/auth/chatgpt-oauth-config'
+import { RPC_CHANNELS } from '../shared/types'
 import {
   CLIENT_OPEN_EXTERNAL,
   CLIENT_OPEN_PATH,
@@ -322,6 +323,49 @@ client.onConnectionStateChanged((state) => {
     return {
       success: false,
       error: err instanceof Error ? err.message : 'OAuth flow failed',
+    }
+  } finally {
+    callbackServer?.close()
+  }
+}
+
+// ── gatewayFeishuLogin ──────────────────────────────────────────────────
+// Gateway Feishu SSO redirects back with a gateway session token. The callback
+// server must run on the user's machine, so preload owns browser orchestration
+// and asks the server-side gateway handler to build the URL and persist/sync
+// the returned token.
+;(api as any).gatewayFeishuLogin = async (): Promise<Awaited<ReturnType<ElectronAPI['gatewayLogin']>>> => {
+  let callbackServer: Awaited<ReturnType<typeof createCallbackServer>> | null = null
+
+  try {
+    callbackServer = await createCallbackServer({
+      appType: 'electron',
+      callbackPaths: ['/admin/feishu/callback'],
+    })
+    const callbackUrl = `${callbackServer.url}/admin/feishu/callback`
+    const startResult = await client.invoke(RPC_CHANNELS.gateway.FEISHU_AUTH_URL, callbackUrl)
+    const authUrl = startResult?.authUrl
+    if (!authUrl || typeof authUrl !== 'string') {
+      return { success: false, error: 'Failed to start Feishu login' }
+    }
+
+    await shell.openExternal(authUrl)
+
+    const callback = await callbackServer.promise
+    if (callback.query.error) {
+      return { success: false, error: callback.query.error_description || callback.query.error }
+    }
+
+    const token = callback.query.token
+    if (!token) {
+      return { success: false, error: 'No gateway session token received' }
+    }
+
+    return await client.invoke(RPC_CHANNELS.gateway.LOGIN_WITH_TOKEN, token)
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Feishu login failed',
     }
   } finally {
     callbackServer?.close()

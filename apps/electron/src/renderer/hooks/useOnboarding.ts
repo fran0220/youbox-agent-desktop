@@ -81,6 +81,7 @@ interface UseOnboardingReturn {
 
   // Gateway login
   handleSubmitGatewayLogin: (data: { username: string; password: string }) => void
+  handleStartGatewayFeishuLogin: () => void
 
   // Completion
   handleFinish: () => void
@@ -335,6 +336,29 @@ export function useOnboarding({
         ...s,
         loginStatus: 'error',
         errorMessage: error instanceof Error ? error.message : 'Sign in failed',
+      }))
+    }
+  }, [onComplete])
+
+  const handleStartGatewayFeishuLogin = useCallback(async () => {
+    setState(s => ({ ...s, loginStatus: 'waiting', errorMessage: undefined }))
+    try {
+      const result = await window.electronAPI.gatewayFeishuLogin()
+      if (result.success) {
+        setState(s => ({ ...s, loginStatus: 'success' }))
+        await onComplete()
+      } else {
+        setState(s => ({
+          ...s,
+          loginStatus: 'error',
+          errorMessage: result.error,
+        }))
+      }
+    } catch (error) {
+      setState(s => ({
+        ...s,
+        loginStatus: 'error',
+        errorMessage: error instanceof Error ? error.message : 'Feishu login failed',
       }))
     }
   }, [onComplete])
@@ -880,6 +904,7 @@ export function useOnboarding({
     handleClearError,
     handleSkipSetup,
     handleSubmitGatewayLogin,
+    handleStartGatewayFeishuLogin,
     handleFinish,
     handleCancel,
     jumpToCredentials,

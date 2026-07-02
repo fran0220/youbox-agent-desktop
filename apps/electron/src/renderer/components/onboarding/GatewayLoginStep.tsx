@@ -18,20 +18,25 @@ interface GatewayLoginStepProps {
   loginStatus: LoginStatus
   errorMessage?: string
   onSubmit: (data: GatewayLoginSubmitData) => void
+  onFeishuLogin?: () => void
 }
 
 export function GatewayLoginStep({
   loginStatus,
   errorMessage,
   onSubmit,
+  onFeishuLogin,
 }: GatewayLoginStepProps) {
   const { t } = useTranslation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [usernameError, setUsernameError] = useState<string | undefined>()
   const [passwordError, setPasswordError] = useState<string | undefined>()
+  const [pendingMethod, setPendingMethod] = useState<'password' | 'feishu' | null>(null)
 
   const isSubmitting = loginStatus === 'waiting'
+  const isPasswordSubmitting = isSubmitting && pendingMethod !== 'feishu'
+  const isFeishuSubmitting = isSubmitting && pendingMethod === 'feishu'
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -52,10 +57,16 @@ export function GatewayLoginStep({
         setPasswordError(undefined)
       }
       if (!valid) return
+      setPendingMethod('password')
       onSubmit({ username: u, password: p })
     },
     [username, password, onSubmit, t],
   )
+
+  const handleFeishuLogin = useCallback(() => {
+    setPendingMethod('feishu')
+    onFeishuLogin?.()
+  }, [onFeishuLogin])
 
   const displayError =
     errorMessage && loginStatus === 'error' ? errorMessage : undefined
@@ -119,7 +130,7 @@ export function GatewayLoginStep({
             className="w-full bg-background shadow-minimal text-foreground hover:bg-foreground/5 rounded-lg"
             size="lg"
           >
-            {isSubmitting ? (
+            {isPasswordSubmitting ? (
               <>
                 <Spinner className="mr-2" />
                 {t('onboarding.gatewayLogin.signingIn')}
@@ -131,6 +142,35 @@ export function GatewayLoginStep({
               </>
             )}
           </Button>
+          {onFeishuLogin ? (
+            <>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="h-px flex-1 bg-border" />
+                <span>{t('onboarding.gatewayLogin.or')}</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                className="w-full rounded-lg"
+                size="lg"
+                onClick={handleFeishuLogin}
+              >
+                {isFeishuSubmitting ? (
+                  <>
+                    <Spinner className="mr-2" />
+                    {t('onboarding.gatewayLogin.feishuSigningIn')}
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="mr-2 size-4" />
+                    {t('onboarding.gatewayLogin.feishuSignIn')}
+                  </>
+                )}
+              </Button>
+            </>
+          ) : null}
         </form>
       }
     />

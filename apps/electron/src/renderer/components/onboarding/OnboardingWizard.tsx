@@ -70,6 +70,7 @@ interface OnboardingWizardProps {
 
   // Gateway login
   onSubmitGatewayLogin?: (data: { username: string; password: string }) => void
+  onStartGatewayFeishuLogin?: () => void
 
   // Edit mode (pre-fill existing connection values)
   editInitialValues?: {
@@ -118,6 +119,7 @@ export function OnboardingWizard({
   // Local model
   onSubmitLocalModel,
   onSubmitGatewayLogin,
+  onStartGatewayFeishuLogin,
   // Edit mode
   editInitialValues,
   className
@@ -130,6 +132,7 @@ export function OnboardingWizard({
             loginStatus={state.loginStatus}
             errorMessage={state.errorMessage}
             onSubmit={onSubmitGatewayLogin!}
+            onFeishuLogin={onStartGatewayFeishuLogin}
           />
         )
 

@@ -90,17 +90,20 @@ export async function createCallbackServer(options?: CreateCallbackServerOptions
         query,
       };
 
-      // Check if this looks like a successful auth callback
+      // Check if this looks like a successful auth callback. Standard source
+      // OAuth returns `code`; gateway-backed Feishu SSO returns a session
+      // `token` to the desktop's local callback URL.
       const hasCode = !!query.code;
+      const hasToken = !!query.token;
       const hasError = !!query.error;
 
       // Send a styled success/error page
       const html = generateCallbackPage({
         title: hasError ? 'Authorization Failed' : 'Authorization Complete',
-        isSuccess: hasCode && !hasError,
+        isSuccess: (hasCode || hasToken) && !hasError,
         errorDetail: query.error_description || query.error,
         appType,
-        deeplinkUrl: (hasCode && !hasError) ? deeplinkUrl : undefined,
+        deeplinkUrl: ((hasCode || hasToken) && !hasError) ? deeplinkUrl : undefined,
       });
 
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

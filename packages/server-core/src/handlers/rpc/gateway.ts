@@ -1,9 +1,12 @@
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol';
 import type { RpcServer } from '@craft-agent/server-core/transport';
 import {
+  buildGatewayFeishuAuthUrl,
   clearGatewaySession,
+  type GatewayLoginResult,
   getGatewaySessionState,
   loginGateway,
+  loginGatewayWithToken,
   logoutGateway,
   resolveGatewayBaseUrl,
 } from '@craft-agent/origincoworks/auth';
@@ -14,16 +17,53 @@ import { syncGatewayClassicSessionsForSession } from './gateway-classic-sessions
 import { syncGatewayStateAfterAuth } from './gateway-post-auth-sync.ts';
 
 export const HANDLED_CHANNELS = [
+  RPC_CHANNELS.gateway.FEISHU_AUTH_URL,
   RPC_CHANNELS.gateway.GET_SESSION,
   RPC_CHANNELS.gateway.LOGIN,
+  RPC_CHANNELS.gateway.LOGIN_WITH_TOKEN,
   RPC_CHANNELS.gateway.LOGOUT,
   RPC_CHANNELS.gateway.SYNC_LLM_CONFIG,
   RPC_CHANNELS.gateway.SYNC_MEMORY,
   RPC_CHANNELS.gateway.SYNC_CLASSIC_SESSIONS,
 ] as const;
 
+async function syncAfterSuccessfulGatewayAuth(
+  result: GatewayLoginResult,
+  server: RpcServer,
+  deps: HandlerDeps,
+  log: HandlerDeps['platform']['logger'],
+): Promise<GatewayLoginResult> {
+  if (!result.success) {
+    log.info('[Gateway] Sign-in failed for user (no secrets logged)');
+    return result;
+  }
+
+  log.info('[Gateway] User signed in:', result.user.name);
+  const postAuth = await syncGatewayStateAfterAuth({
+    sessionManager: deps.sessionManager,
+    deps,
+    rpcServer: server,
+  });
+  if (!postAuth.llm.success) {
+    await clearGatewaySession();
+    return { success: false as const, error: postAuth.llm.error ?? 'LLM sync failed' };
+  }
+  const classicSync = await syncGatewayClassicSessionsForSession(deps);
+  if (!classicSync.success) {
+    log.warn('[Gateway] Classic sessions sync after login failed:', classicSync.error);
+  } else if (classicSync.summaries > 0 || classicSync.materialized > 0) {
+    deps.sessionManager.reloadSessions();
+  }
+
+  return result;
+}
+
 export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): void {
   const log = deps.platform.logger;
+
+  server.handle(RPC_CHANNELS.gateway.FEISHU_AUTH_URL, async (_ctx, callbackUrl: string) => {
+    return { authUrl: buildGatewayFeishuAuthUrl(callbackUrl ?? '', resolveGatewayBaseUrl()) };
+  });
 
   server.handle(RPC_CHANNELS.gateway.GET_SESSION, async () => {
     const baseUrl = resolveGatewayBaseUrl();
@@ -53,27 +93,15 @@ export function registerGatewayHandlers(server: RpcServer, deps: HandlerDeps): v
     RPC_CHANNELS.gateway.LOGIN,
     async (_ctx, username: string, password: string) => {
       const result = await loginGateway(username ?? '', password ?? '', resolveGatewayBaseUrl());
-      if (result.success) {
-        log.info('[Gateway] User signed in:', result.user.name);
-        const postAuth = await syncGatewayStateAfterAuth({
-          sessionManager: deps.sessionManager,
-          deps,
-          rpcServer: server,
-        });
-        if (!postAuth.llm.success) {
-          await clearGatewaySession();
-          return { success: false as const, error: postAuth.llm.error ?? 'LLM sync failed' };
-        }
-        const classicSync = await syncGatewayClassicSessionsForSession(deps);
-        if (!classicSync.success) {
-          log.warn('[Gateway] Classic sessions sync after login failed:', classicSync.error);
-        } else if (classicSync.summaries > 0 || classicSync.materialized > 0) {
-          deps.sessionManager.reloadSessions();
-        }
-      } else {
-        log.info('[Gateway] Sign-in failed for user (no secrets logged)');
-      }
-      return result;
+      return syncAfterSuccessfulGatewayAuth(result, server, deps, log);
+    },
+  );
+
+  server.handle(
+    RPC_CHANNELS.gateway.LOGIN_WITH_TOKEN,
+    async (_ctx, token: string) => {
+      const result = await loginGatewayWithToken(token ?? '', resolveGatewayBaseUrl());
+      return syncAfterSuccessfulGatewayAuth(result, server, deps, log);
     },
   );
 

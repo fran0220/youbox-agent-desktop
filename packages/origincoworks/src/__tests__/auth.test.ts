@@ -4,7 +4,9 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { GatewayClient } from '../gateway-client.ts';
 import {
+  buildGatewayFeishuAuthUrl,
   loginGateway,
+  loginGatewayWithToken,
   sanitizeGatewayLoginError,
   getStoredGatewayToken,
   clearGatewaySession,
@@ -127,6 +129,55 @@ describe('loginGateway', () => {
     await loginGateway('octest', 'secret', 'http://127.0.0.1:8847');
     expect(loginUrl).toBe('http://127.0.0.1:8847/api/auth/login');
     expect(loginMethod).toBe('POST');
+  });
+
+  it('builds Feishu auth URL with callback redirect', () => {
+    const url = buildGatewayFeishuAuthUrl(
+      'http://localhost:6477/admin/feishu/callback',
+      'https://jacoapi.jingao.club/',
+    );
+
+    expect(url).toBe(
+      'https://jacoapi.jingao.club/api/auth/feishu?redirect=http%3A%2F%2Flocalhost%3A6477%2Fadmin%2Ffeishu%2Fcallback',
+    );
+  });
+
+  it('stores gateway_session after token login verifies /me', async () => {
+    let meUrl = '';
+    let authorization = '';
+    GatewayClient.setFetchForTests(async (input, init) => {
+      meUrl = String(input);
+      authorization = String(init?.headers instanceof Headers ? init.headers.get('Authorization') : '');
+      if (meUrl.endsWith('/api/users/me')) {
+        return new Response(
+          JSON.stringify({ id: '1', name: 'feishu-user', email: 'u@example.com', role: 'user' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        );
+      }
+      return new Response('not found', { status: 404 });
+    });
+
+    const result = await loginGatewayWithToken(TOKEN, 'https://jacoapi.jingao.club');
+
+    expect(result.success).toBe(true);
+    expect(meUrl).toBe('https://jacoapi.jingao.club/api/users/me');
+    expect(authorization).toBe(`Bearer ${TOKEN}`);
+    expect(await getStoredGatewayToken()).toBe(TOKEN);
+  });
+
+  it('rejects malformed token login without network', async () => {
+    await clearGatewaySession();
+    let called = false;
+    GatewayClient.setFetchForTests(async () => {
+      called = true;
+      return new Response('{}', { status: 200 });
+    });
+
+    const result = await loginGatewayWithToken('not-a-token', 'https://jacoapi.jingao.club');
+
+    expect(result.success).toBe(false);
+    expect(called).toBe(false);
+    expect(await getStoredGatewayToken()).toBeNull();
   });
 });
 

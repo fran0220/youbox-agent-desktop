@@ -61,6 +61,19 @@ export async function persistGatewaySession(token: string): Promise<void> {
   await manager.set(GATEWAY_SESSION_CREDENTIAL, { value: token });
 }
 
+export function buildGatewayFeishuAuthUrl(callbackUrl: string, baseUrl?: string): string {
+  const redirect = callbackUrl.trim();
+  if (!redirect) {
+    throw new Error('Feishu callback URL is required');
+  }
+  // Validate early so the browser is not opened with a malformed redirect.
+  new URL(redirect);
+
+  const authUrl = new URL('/api/auth/feishu', baseUrl ?? resolveGatewayBaseUrl());
+  authUrl.searchParams.set('redirect', redirect);
+  return authUrl.toString();
+}
+
 export type GatewaySessionUnauthenticatedReason = 'no_token' | 'invalid_token';
 
 export type GatewaySessionState =
@@ -121,6 +134,25 @@ export async function loginGateway(
   try {
     const { token, user } = await client.login(trimmedUser, trimmedPass);
     await persistGatewaySession(token);
+    return { success: true, user };
+  } catch (err) {
+    return { success: false, error: sanitizeGatewayLoginError(err) };
+  }
+}
+
+export async function loginGatewayWithToken(
+  token: string,
+  baseUrl?: string,
+): Promise<GatewayLoginResult> {
+  const trimmedToken = token.trim();
+  if (!TOKEN_HEX.test(trimmedToken)) {
+    return { success: false, error: 'Invalid gateway session token.' };
+  }
+
+  const client = new GatewayClient(baseUrl ?? resolveGatewayBaseUrl(), trimmedToken);
+  try {
+    const user = await client.me();
+    await persistGatewaySession(trimmedToken);
     return { success: true, user };
   } catch (err) {
     return { success: false, error: sanitizeGatewayLoginError(err) };

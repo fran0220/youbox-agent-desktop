@@ -7,6 +7,7 @@ import type { LoginStatus } from "./OnboardingWizard"
 
 interface ReauthScreenProps {
   onSubmitGatewayLogin: (data: { username: string; password: string }) => Promise<void>
+  onStartGatewayFeishuLogin: () => Promise<void>
   onReset: () => void
 }
 
@@ -14,7 +15,7 @@ interface ReauthScreenProps {
  * Gateway re-login after an expired or revoked server session.
  * Local workspaces and config are preserved.
  */
-export function ReauthScreen({ onSubmitGatewayLogin, onReset }: ReauthScreenProps) {
+export function ReauthScreen({ onSubmitGatewayLogin, onStartGatewayFeishuLogin, onReset }: ReauthScreenProps) {
   const { t } = useTranslation()
   const [loginStatus, setLoginStatus] = useState<LoginStatus>('idle')
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
@@ -33,6 +34,18 @@ export function ReauthScreen({ onSubmitGatewayLogin, onReset }: ReauthScreenProp
     },
     [onSubmitGatewayLogin],
   )
+
+  const handleFeishuLogin = useCallback(async () => {
+    setLoginStatus('waiting')
+    setErrorMessage(undefined)
+    try {
+      await onStartGatewayFeishuLogin()
+      setLoginStatus('success')
+    } catch (err) {
+      setLoginStatus('error')
+      setErrorMessage(err instanceof Error ? err.message : 'Feishu login failed')
+    }
+  }, [onStartGatewayFeishuLogin])
 
   return (
     <div className="relative flex min-h-screen flex-col bg-foreground-2">
@@ -54,6 +67,7 @@ export function ReauthScreen({ onSubmitGatewayLogin, onReset }: ReauthScreenProp
         loginStatus={loginStatus}
         errorMessage={errorMessage}
         onSubmit={handleSubmit}
+        onFeishuLogin={handleFeishuLogin}
       />
 
       <div className="absolute bottom-8 left-0 right-0 flex justify-center px-8">

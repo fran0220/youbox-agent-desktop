@@ -36,10 +36,12 @@ export {
 export type { AuditEventPayload } from './audit.ts';
 export { postAuditEvent, sanitizeAuditResourceId } from './audit.ts';
 export {
+  buildGatewayFeishuAuthUrl,
   clearGatewaySession,
   getGatewaySessionState,
   getStoredGatewayToken,
   loginGateway,
+  loginGatewayWithToken,
   logoutGateway,
   persistGatewaySession,
   resolveGatewayBaseUrl,

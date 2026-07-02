@@ -162,8 +162,10 @@ export const RPC_CHANNELS = {
     SHOW_DELETE_SESSION_CONFIRMATION: 'auth:showDeleteSessionConfirmation',
   },
   gateway: {
+    FEISHU_AUTH_URL: 'gateway:feishuAuthUrl',
     GET_SESSION: 'gateway:getSession',
     LOGIN: 'gateway:login',
+    LOGIN_WITH_TOKEN: 'gateway:loginWithToken',
     LOGOUT: 'gateway:logout',
     SYNC_LLM_CONFIG: 'gateway:syncLlmConfig',
     SYNC_MEMORY: 'gateway:syncMemory',
