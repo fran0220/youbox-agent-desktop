@@ -1179,10 +1179,15 @@ function handleSessionEvent(event: AgentSessionEvent): void {
       const content = (msg as { content?: Array<{ type: string; id?: string; name?: string; arguments?: unknown }> }).content;
       if (Array.isArray(content)) {
         const prefetchableToolCalls = content.filter(
-          (c) => c.type === 'toolCall' && c.name && isPrefetchableTool(c.name),
+          (c): c is { type: string; id: string; name: string; arguments?: unknown } =>
+            c.type === 'toolCall' &&
+            typeof c.id === 'string' &&
+            typeof c.name === 'string' &&
+            isPrefetchableTool(c.name),
         );
         if (prefetchableToolCalls.length >= 2) {
-          debugLog(`Prefetching ${prefetchableToolCalls.length} parallel ${prefetchableToolCalls[0].name} calls`);
+          const firstToolName = prefetchableToolCalls[0]?.name ?? 'tool';
+          debugLog(`Prefetching ${prefetchableToolCalls.length} parallel ${firstToolName} calls`);
           for (const tc of prefetchableToolCalls) {
             const requestId = `prefetch-${tc.id}`;
             const promise = new Promise<{ content: string; isError: boolean }>((resolve) => {
@@ -1191,10 +1196,10 @@ function handleSessionEvent(event: AgentSessionEvent): void {
             send({
               type: 'tool_execute_request',
               requestId,
-              toolName: tc.name!,
+              toolName: tc.name,
               args: (tc.arguments ?? {}) as Record<string, unknown>,
             });
-            prefetchCache.set(tc.id!, promise);
+            prefetchCache.set(tc.id, promise);
           }
         }
       }

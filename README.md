@@ -155,15 +155,16 @@ cd gateway && go vet ./... && go test ./...
 cd website && cargo check && cargo test
 ```
 
-For TypeScript, run **scoped, per-package** typechecks, e.g.:
+For TypeScript, run the aggregate typecheck or scoped per-package checks:
 
 ```bash
+bun run typecheck:all
+
+# Scoped examples
 cd packages/shared && bun run tsc --noEmit
 cd packages/origincoworks && bun run typecheck
 cd apps/electron && bun run typecheck
 ```
-
-> The repo's aggregate `bun run typecheck:all` is currently broken upstream (it references an untracked `tsconfig.base.json`, and a few packages that extend it have unrelated pre-existing errors). Use the scoped per-package typechecks above instead.
 
 When you change anything under `apps/electron/src/renderer/**`, `packages/ui/**`, or `packages/shared/**`, also run `bun run electron:build` and confirm it produces `apps/electron/dist/renderer/index.html` — typecheck/test do not catch Vite/Rollup bundling regressions.
 
