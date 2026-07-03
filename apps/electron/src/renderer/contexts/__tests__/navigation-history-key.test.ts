@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'bun:test'
-import { buildSemanticHistoryKey, canRunInitialRestore } from '../navigation-history'
+import {
+  buildSemanticHistoryKey,
+  canReplaceUrlForStateSync,
+  canRunInitialRestore,
+} from '../navigation-history'
 
 describe('buildSemanticHistoryKey', () => {
   it('changes when focused panel index changes even if routes are identical', () => {
@@ -34,6 +38,29 @@ describe('buildSemanticHistoryKey', () => {
     const keyB = buildSemanticHistoryKey(input)
 
     expect(keyA).toBe(keyB)
+  })
+})
+
+describe('canReplaceUrlForStateSync', () => {
+  it('returns false before initial route restoration', () => {
+    expect(canReplaceUrlForStateSync({
+      initialRouteRestored: false,
+      pushPending: false,
+    })).toBe(false)
+  })
+
+  it('returns false while a semantic history push is pending', () => {
+    expect(canReplaceUrlForStateSync({
+      initialRouteRestored: true,
+      pushPending: true,
+    })).toBe(false)
+  })
+
+  it('returns true once restored with no pending push', () => {
+    expect(canReplaceUrlForStateSync({
+      initialRouteRestored: true,
+      pushPending: false,
+    })).toBe(true)
   })
 })
 

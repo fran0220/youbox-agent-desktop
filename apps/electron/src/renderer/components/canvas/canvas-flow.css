@@ -1,0 +1,56 @@
+/*
+ * React Flow theme bridge — maps @xyflow/react's --xy-* variables onto the
+ * app's design tokens so the canvas (background, edges, minimap, controls,
+ * selection box) looks native in both light and dark mode. The tokens
+ * (--background, --foreground, --accent, --shadow-minimal) flip with the
+ * ThemeProvider, so a single mapping covers both modes.
+ */
+
+.canvas-flow .react-flow {
+  --xy-background-color: var(--background);
+  --xy-background-pattern-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+
+  --xy-edge-stroke: color-mix(in srgb, var(--foreground) 30%, transparent);
+  --xy-edge-stroke-selected: var(--accent);
+  --xy-connectionline-stroke: var(--accent);
+
+  --xy-handle-background-color: var(--accent);
+  --xy-handle-border-color: var(--background);
+
+  --xy-selection-background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  --xy-selection-border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+
+  --xy-minimap-background-color: var(--background-elevated);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --xy-minimap-mask-stroke-color: color-mix(in srgb, var(--foreground) 25%, transparent);
+  --xy-minimap-node-background-color: color-mix(in srgb, var(--foreground) 20%, transparent);
+
+  --xy-controls-button-background-color: var(--background-elevated);
+  --xy-controls-button-background-color-hover: color-mix(in srgb, var(--foreground) 8%, var(--background));
+  --xy-controls-button-color: color-mix(in srgb, var(--foreground) 70%, transparent);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: color-mix(in srgb, var(--foreground) 8%, transparent);
+  --xy-controls-box-shadow: var(--shadow-minimal);
+
+  --xy-attribution-background-color: transparent;
+}
+
+.canvas-flow .react-flow__controls {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.canvas-flow .react-flow__minimap {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-minimal);
+}
+
+.canvas-flow .react-flow__attribution {
+  color: color-mix(in srgb, var(--foreground) 35%, transparent);
+}
+
+.canvas-flow .react-flow__handle {
+  width: 8px;
+  height: 8px;
+}

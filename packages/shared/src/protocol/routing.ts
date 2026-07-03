@@ -203,8 +203,10 @@ export const LOCAL_ONLY_CHANNELS = new Set<string>([
   RPC_CHANNELS.onboarding.DEFER_SETUP,
 
   // gateway — desktop auth against the Go gateway (adapter HTTP only)
+  RPC_CHANNELS.gateway.FEISHU_AUTH_URL,
   RPC_CHANNELS.gateway.GET_SESSION,
   RPC_CHANNELS.gateway.LOGIN,
+  RPC_CHANNELS.gateway.LOGIN_WITH_TOKEN,
   RPC_CHANNELS.gateway.LOGOUT,
   RPC_CHANNELS.gateway.SYNC_LLM_CONFIG,
   RPC_CHANNELS.gateway.SYNC_MEMORY,
@@ -378,6 +380,15 @@ export const REMOTE_ELIGIBLE_CHANNELS = new Set<string>([
   RPC_CHANNELS.skills.GET_FILES,
   RPC_CHANNELS.skills.DELETE,
   RPC_CHANNELS.skills.CHANGED,
+
+  // canvas — canvas documents are workspace content
+  RPC_CHANNELS.canvas.LIST,
+  RPC_CHANNELS.canvas.GET,
+  RPC_CHANNELS.canvas.CREATE,
+  RPC_CHANNELS.canvas.UPDATE,
+  RPC_CHANNELS.canvas.DELETE,
+  RPC_CHANNELS.canvas.GENERATE_IMAGE,
+  RPC_CHANNELS.canvas.CHANGED,
 
   // statuses — workspace metadata
   RPC_CHANNELS.statuses.LIST,

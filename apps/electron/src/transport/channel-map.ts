@@ -239,6 +239,15 @@ export const CHANNEL_MAP = {
   openSkillInFinder: invoke(RPC_CHANNELS.skills.OPEN_FINDER),
   onSkillsChanged: listener(RPC_CHANNELS.skills.CHANGED),
 
+  // Canvas documents
+  canvasList: invoke(RPC_CHANNELS.canvas.LIST),
+  canvasGet: invoke(RPC_CHANNELS.canvas.GET),
+  canvasCreate: invoke(RPC_CHANNELS.canvas.CREATE),
+  canvasUpdate: invoke(RPC_CHANNELS.canvas.UPDATE),
+  canvasDelete: invoke(RPC_CHANNELS.canvas.DELETE),
+  canvasGenerateImage: invoke(RPC_CHANNELS.canvas.GENERATE_IMAGE),
+  onCanvasChanged: listener(RPC_CHANNELS.canvas.CHANGED),
+
   // Statuses
   listStatuses: invoke(RPC_CHANNELS.statuses.LIST),
   reorderStatuses: invoke(RPC_CHANNELS.statuses.REORDER),

@@ -3,6 +3,8 @@
  * Wire-format strings (values) are the stable API contract.
  * Key paths are internal and may be reorganized freely.
  */
+import { REQUEST_TIMEOUT_MS } from './types'
+
 export const RPC_CHANNELS = {
   remote: {
     TEST_CONNECTION: 'remote:testConnection',
@@ -275,6 +277,15 @@ export const RPC_CHANNELS = {
     OPEN_FINDER: 'skills:openFinder',
     CHANGED: 'skills:changed',
   },
+  canvas: {
+    LIST: 'canvas:list',
+    GET: 'canvas:get',
+    CREATE: 'canvas:create',
+    UPDATE: 'canvas:update',
+    DELETE: 'canvas:delete',
+    GENERATE_IMAGE: 'canvas:generateImage',
+    CHANGED: 'canvas:changed',
+  },
   statuses: {
     LIST: 'statuses:list',
     REORDER: 'statuses:reorder',
@@ -456,4 +467,26 @@ export function getAllChannelValues(): string[] {
     }
   }
   return values
+}
+
+/**
+ * Per-channel request/handler timeout overrides (ms).
+ *
+ * Channels absent from this map use the default {@link REQUEST_TIMEOUT_MS} on
+ * the client and the default handler timeout on the server. Only list channels
+ * whose work legitimately exceeds the default (e.g. image generation, which can
+ * run for minutes). Keep any server-side operation timeout strictly below the
+ * value here so the server aborts and returns a clean error before the client
+ * gives up on the request.
+ */
+export const CHANNEL_TIMEOUT_OVERRIDES_MS: Readonly<Record<string, number>> = {
+  [RPC_CHANNELS.canvas.GENERATE_IMAGE]: 180_000,
+}
+
+/** Resolve the effective request timeout (ms) for a channel. */
+export function resolveRequestTimeoutMs(
+  channel: string,
+  defaultMs: number = REQUEST_TIMEOUT_MS,
+): number {
+  return CHANNEL_TIMEOUT_OVERRIDES_MS[channel] ?? defaultMs
 }

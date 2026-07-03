@@ -620,3 +620,168 @@ export interface DeepLinkNavigation {
   action?: string
   actionParams?: Record<string, string>
 }
+
+// ---------------------------------------------------------------------------
+// Canvas types (canvas:* channels — workspace canvas documents)
+// ---------------------------------------------------------------------------
+
+export interface CanvasViewport {
+  x: number
+  y: number
+  zoom: number
+}
+
+/** Data payload of an image node — mirrors the renderer's CanvasImageNodeData */
+export interface CanvasImageNodeData {
+  /** Absolute path to the image file on disk (rendered via thumbnail://) */
+  filePath: string
+  /** Basename of the file, shown as the node caption */
+  fileName: string
+}
+
+/** Data payload of a text node — mirrors the renderer's CanvasTextNodeData */
+export interface CanvasTextNodeData {
+  /** Free-form text / prompt content of the note */
+  text: string
+}
+
+/**
+ * Wire shape of a canvas node. The index signature lets extra React Flow
+ * node fields (width, height, selected, ...) round-trip through storage
+ * untouched — the server only understands id/type/position/data.
+ */
+interface CanvasNodeDtoBase {
+  id: string
+  position: { x: number; y: number }
+  [extra: string]: unknown
+}
+
+export interface CanvasImageNodeDto extends CanvasNodeDtoBase {
+  type: 'image'
+  data: CanvasImageNodeData
+}
+
+export interface CanvasTextNodeDto extends CanvasNodeDtoBase {
+  type: 'text'
+  data: CanvasTextNodeData
+}
+
+export type CanvasNodeDto = CanvasImageNodeDto | CanvasTextNodeDto
+
+/** Wire shape of a canvas edge — extra React Flow edge fields round-trip untouched */
+export interface CanvasEdgeDto {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+  [extra: string]: unknown
+}
+
+/** Serializable content of a canvas document (matches the renderer's CanvasDocState) */
+export interface CanvasDocState {
+  nodes: CanvasNodeDto[]
+  edges: CanvasEdgeDto[]
+  viewport: CanvasViewport
+}
+
+export interface CanvasDocMeta {
+  id: string
+  name: string
+  /** Unix epoch ms */
+  createdAt: number
+  /** Unix epoch ms */
+  updatedAt: number
+  /** Monotonic write counter — bumped on every canvas:update (last-write-wins) */
+  version: number
+  /**
+   * Id of the hidden chat session bound to this doc (selection chat). Optional
+   * and additive — absent on docs created before this field existed. Set via a
+   * metadata-only bind that does not bump `version`. Schema stays v1.
+   */
+  chatSessionId?: string
+}
+
+export type CanvasDoc = CanvasDocMeta & CanvasDocState
+
+export interface CanvasDocCreateInput {
+  name?: string
+  state?: CanvasDocState
+}
+
+/** Partial update — omitted fields are left unchanged. Conflicts resolve last-write-wins. */
+export interface CanvasDocUpdateInput {
+  name?: string
+  state?: CanvasDocState
+  /**
+   * Hidden chat-session id to bind into the doc's metadata. Applied as a
+   * metadata-only write that does NOT bump `version` (a session bind is not a
+   * content change). Present-but-empty is not meaningful; omit to leave the
+   * existing binding untouched.
+   */
+  chatSessionId?: string
+}
+
+export type CanvasChangedKind = 'created' | 'updated' | 'deleted'
+
+/** Payload of the canvas:changed workspace broadcast */
+export interface CanvasChangedEvent {
+  workspaceId: string
+  docId: string
+  kind: CanvasChangedKind
+}
+
+// ---------------------------------------------------------------------------
+// Canvas image generation (canvas:generateImage)
+// ---------------------------------------------------------------------------
+
+/** Request to generate an image into a canvas doc (server-side gpt-image call) */
+export interface CanvasGenerateImageRequest {
+  workspaceId: string
+  docId: string
+  /** Text prompt describing the image to generate */
+  prompt: string
+  /** Optional requested size, e.g. '1024x1024' (endpoint-defaulted when omitted) */
+  size?: string
+  /**
+   * Optional id of an existing (placeholder) node to backfill into an image
+   * node. When omitted a new image node is appended to the doc.
+   */
+  nodeId?: string
+  /** Optional absolute image paths used as image-to-image references */
+  referenceImagePaths?: string[]
+  /** Optional ids of upstream image nodes whose assets seed image-to-image */
+  referenceNodeIds?: string[]
+}
+
+/** Failure classification for canvas image generation — keys are never included */
+export type CanvasGenerateImageErrorCode =
+  | 'no_connection'
+  | 'auth'
+  | 'network'
+  | 'timeout'
+  | 'invalid_response'
+  | 'doc_not_found'
+  | 'workspace_not_found'
+  | 'bad_request'
+  /** Asset was written but the follow-up doc mutation failed (asset rolled back). */
+  | 'persist_failed'
+
+export interface CanvasGenerateImageError {
+  ok: false
+  code: CanvasGenerateImageErrorCode
+  /** Human-readable, secret-redacted error message */
+  message: string
+}
+
+export interface CanvasGenerateImageSuccess {
+  ok: true
+  /** Id of the created/backfilled image node in the doc */
+  nodeId: string
+  /** Absolute path to the written PNG asset on disk */
+  assetPath: string
+  /** Basename of the written PNG asset */
+  imageFileName: string
+}
+
+export type CanvasGenerateImageResult = CanvasGenerateImageSuccess | CanvasGenerateImageError

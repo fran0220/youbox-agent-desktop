@@ -30,6 +30,7 @@ import { BrowserTabStrip } from "../browser/BrowserTabStrip"
 import type { Workspace } from "../../../shared/types"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
 import { CompactWorkspaceSwitcher } from "./CompactWorkspaceSwitcher"
+import { AppModeSwitcher } from "./AppModeSwitcher"
 import { getDocUrl } from "@craft-agent/shared/docs/doc-links"
 import { AppMenu } from "../AppMenu"
 
@@ -225,6 +226,12 @@ export function TopBar({
             )}
           </div>
         </div>
+
+        {/* === CENTER: App mode switcher (work | canvas) ===
+            Registry-driven segmented control, centered in the space left of the
+            right slot; degrades to a dropdown in compact mode or when the
+            centered space is insufficient. */}
+        <AppModeSwitcher isCompact={isCompact} />
       </div>
 
       {/* === RIGHT: Browser strip + add + help === */}

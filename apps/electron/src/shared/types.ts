@@ -506,6 +506,17 @@ export interface ElectronAPI {
   // Skills change listener (live updates when skills are added/removed/modified)
   onSkillsChanged(callback: (workspaceId: string, skills: LoadedSkill[]) => void): () => void
 
+  // Canvas documents (workspace-scoped)
+  canvasList(workspaceId: string): Promise<import('@craft-agent/shared/protocol').CanvasDocMeta[]>
+  canvasGet(workspaceId: string, docId: string): Promise<import('@craft-agent/shared/protocol').CanvasDoc | null>
+  canvasCreate(workspaceId: string, input?: import('@craft-agent/shared/protocol').CanvasDocCreateInput): Promise<import('@craft-agent/shared/protocol').CanvasDoc>
+  canvasUpdate(workspaceId: string, docId: string, patch: import('@craft-agent/shared/protocol').CanvasDocUpdateInput): Promise<import('@craft-agent/shared/protocol').CanvasDoc>
+  canvasDelete(workspaceId: string, docId: string): Promise<void>
+  canvasGenerateImage(request: import('@craft-agent/shared/protocol').CanvasGenerateImageRequest): Promise<import('@craft-agent/shared/protocol').CanvasGenerateImageResult>
+
+  // Canvas change listener (live updates on create/update/delete of canvas docs)
+  onCanvasChanged(callback: (event: import('@craft-agent/shared/protocol').CanvasChangedEvent) => void): () => void
+
   // Statuses (workspace-scoped)
   listStatuses(workspaceId: string): Promise<import('@craft-agent/shared/statuses').StatusConfig[]>
   reorderStatuses(workspaceId: string, orderedIds: string[]): Promise<void>
@@ -876,6 +887,15 @@ export interface AutomationsNavigationState {
 }
 
 /**
+ * Canvas navigation state
+ */
+export interface CanvasNavigationState {
+  navigator: 'canvas'
+  details: { type: 'doc'; docId: string } | null
+  rightSidebar?: RightSidebarPanel
+}
+
+/**
  * Unified navigation state
  */
 export type NavigationState =
@@ -884,6 +904,7 @@ export type NavigationState =
   | SettingsNavigationState
   | SkillsNavigationState
   | AutomationsNavigationState
+  | CanvasNavigationState
 
 export const isSessionsNavigation = (
   state: NavigationState
@@ -904,6 +925,10 @@ export const isSkillsNavigation = (
 export const isAutomationsNavigation = (
   state: NavigationState
 ): state is AutomationsNavigationState => state.navigator === 'automations'
+
+export const isCanvasNavigation = (
+  state: NavigationState
+): state is CanvasNavigationState => state.navigator === 'canvas'
 
 export const DEFAULT_NAVIGATION_STATE: NavigationState = {
   navigator: 'sessions',
@@ -929,6 +954,12 @@ export const getNavigationStateKey = (state: NavigationState): string => {
       return `automations/automation/${state.details.automationId}`
     }
     return 'automations'
+  }
+  if (state.navigator === 'canvas') {
+    if (state.details?.type === 'doc') {
+      return `canvas/doc/${state.details.docId}`
+    }
+    return 'canvas'
   }
   if (state.navigator === 'settings') {
     if (state.subpage === null) return 'settings'
@@ -976,6 +1007,16 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
       return { navigator: 'automations', details: { type: 'automation', automationId } }
     }
     return { navigator: 'automations', details: null }
+  }
+
+  // Handle canvas
+  if (key === 'canvas') return { navigator: 'canvas', details: null }
+  if (key.startsWith('canvas/doc/')) {
+    const docId = key.slice(11)
+    if (docId) {
+      return { navigator: 'canvas', details: { type: 'doc', docId } }
+    }
+    return { navigator: 'canvas', details: null }
   }
 
   // Handle settings

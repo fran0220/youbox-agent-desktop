@@ -51,7 +51,7 @@ import { routes, type Route, type ViewRoute } from '../../shared/routes'
 import { parsePermissionMode } from '@craft-agent/shared/agent/mode-types'
 import { NAVIGATE_EVENT, type NavigateOptions } from '../lib/navigate'
 import { normalizePanelRouteForReconcile } from './navigation-reconcile'
-import { buildSemanticHistoryKey, canRunInitialRestore } from './navigation-history'
+import { buildSemanticHistoryKey, canReplaceUrlForStateSync, canRunInitialRestore } from './navigation-history'
 import * as storage from '@/lib/local-storage'
 import type {
   DeepLinkNavigation,
@@ -68,11 +68,14 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
   isAutomationsNavigation,
+  isCanvasNavigation,
   DEFAULT_NAVIGATION_STATE,
 } from '../../shared/types'
 import { sessionMetaMapAtom, updateSessionMetaAtom, type SessionMeta } from '@/atoms/sessions'
 import { sourcesAtom } from '@/atoms/sources'
 import { skillsAtom } from '@/atoms/skills'
+import { canvasDocsAtom } from '@/atoms/canvas'
+import { mostRecentCanvasDoc } from '@/lib/canvas-persistence'
 import {
   panelStackAtom,
   pushPanelAtom,
@@ -90,7 +93,7 @@ export type { Route }
 
 // Re-export navigation state types for consumers
 export type { NavigationState, SessionFilter }
-export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation }
+export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isCanvasNavigation }
 
 // =============================================================================
 // Context
@@ -334,7 +337,10 @@ export function NavigationProvider({
   const panelStack = useAtomValue(panelStackAtom)
   const focusedPanelId = useAtomValue(focusedPanelIdAtom)
   useEffect(() => {
-    if (!initialRouteRestoredRef.current) return
+    if (!canReplaceUrlForStateSync({
+      initialRouteRestored: initialRouteRestoredRef.current,
+      pushPending: pendingPushRef.current,
+    })) return
     syncUrlRef.current(false)
   }, [panelStack, focusedPanelId, rightSidebar])
 
@@ -653,6 +659,16 @@ export function NavigationProvider({
         const firstSkillSlug = getFirstSkillSlug()
         if (firstSkillSlug) {
           return { ...nextState, details: { type: 'skill', skillSlug: firstSkillSlug } }
+        }
+        return nextState
+      }
+
+      // Canvas: auto-select the most recently updated doc (list may still be
+      // loading — CanvasPage redirects once it arrives)
+      if (isCanvasNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
+        const mostRecent = mostRecentCanvasDoc(store.get(canvasDocsAtom) ?? [])
+        if (mostRecent) {
+          return { ...nextState, details: { type: 'doc', docId: mostRecent.id } }
         }
         return nextState
       }

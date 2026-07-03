@@ -177,6 +177,12 @@ export const routes = {
     automationsAgentic: (automationId?: string) =>
       automationId ? `automations/agentic/automation/${automationId}` as const : 'automations/agentic' as const,
 
+    /** Canvas view (canvas navigator). Pass a doc id for a specific canvas document. */
+    canvas: (docId?: string) => {
+      if (!docId) return 'canvas' as const
+      return `canvas/doc/${docId}` as const
+    },
+
     /** Settings view (settings navigator) - uses SettingsSubpage from registry */
     settings: (subpage?: SettingsSubpage) =>
       subpage

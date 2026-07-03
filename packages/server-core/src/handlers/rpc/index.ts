@@ -3,6 +3,8 @@ import type { HandlerDeps } from '../handler-deps'
 
 import { registerAuthHandlers } from './auth'
 import { registerAutomationsHandlers } from './automations'
+import { registerCanvasHandlers } from './canvas'
+import { registerCanvasImageHandlers } from './canvas-image'
 import { registerFilesHandlers } from './files'
 import { registerLabelsHandlers } from './labels'
 import { registerLlmConnectionsHandlers } from './llm-connections'
@@ -33,6 +35,8 @@ export function registerCoreRpcHandlers(
   registerAuthHandlers(server, deps)
   registerGatewayHandlers(server, deps)
   registerAutomationsHandlers(server, deps)
+  registerCanvasHandlers(server, deps)
+  registerCanvasImageHandlers(server, deps)
   registerFilesHandlers(server, deps)
   registerLabelsHandlers(server, deps)
   registerLlmConnectionsHandlers(server, deps)

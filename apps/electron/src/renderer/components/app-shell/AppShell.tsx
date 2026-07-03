@@ -90,6 +90,7 @@ import type { Session, Workspace, FileAttachment, PermissionRequest, LoadedSourc
 import { sessionMetaMapAtom, sendToWorkspaceAtom, type SessionMeta } from "@/atoms/sessions"
 import { sourcesAtom } from "@/atoms/sources"
 import { skillsAtom } from "@/atoms/skills"
+import { canvasDocsAtom } from "@/atoms/canvas"
 import { panelStackAtom, panelCountAtom, focusedPanelIdAtom, focusedSessionIdAtom, focusNextPanelAtom, focusPrevPanelAtom, parseSessionIdFromRoute } from "@/atoms/panel-stack"
 import { type SessionStatusId, type SessionStatus, statusConfigsToSessionStatuses } from "@/config/session-status-config"
 import { useStatuses } from "@/hooks/useStatuses"
@@ -113,6 +114,7 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
   isAutomationsNavigation,
+  isCanvasNavigation,
   type NavigationState,
 } from "@/contexts/NavigationContext"
 import type { SettingsSubpage } from "../../../shared/types"
@@ -557,8 +559,6 @@ function AppShellContent({
   const MOBILE_THRESHOLD = 768
   const isAutoCompact = shellWidth > 0 && shellWidth < MOBILE_THRESHOLD
 
-  const effectiveSidebarAndNavigatorHidden = isSidebarAndNavigatorHidden || isAutoCompact
-
   // What's New overlay
   const [showWhatsNew, setShowWhatsNew] = React.useState(false)
   const [releaseNotesContent, setReleaseNotesContent] = React.useState('')
@@ -588,6 +588,12 @@ function AppShellContent({
   // UNIFIED NAVIGATION STATE - single source of truth from NavigationContext
   // Derived from focused panel's route — all panels are peers
   const navState = useNavigationState()
+
+  // Canvas mode is full-bleed: sidebar + navigator collapse via the same
+  // mechanism as focus mode (CMD+.), while the TopBar stays visible.
+  const isCanvasMode = isCanvasNavigation(navState)
+
+  const effectiveSidebarAndNavigatorHidden = isSidebarAndNavigatorHidden || isAutoCompact || isCanvasMode
 
   const store = useStore()
   const panelStack = useAtomValue(panelStackAtom)
@@ -930,6 +936,34 @@ function AppShellContent({
     })
     return cleanup
   }, [activeWorkspaceId])
+
+  // Canvas docs (workspace-scoped): load the list and keep it fresh via
+  // canvas:changed. NavigationContext auto-selects from this atom and the
+  // canvas doc picker renders it.
+  const setCanvasDocs = useSetAtom(canvasDocsAtom)
+  React.useEffect(() => {
+    setCanvasDocs(null)
+    if (!activeWorkspaceId) return
+    let stale = false
+    const refresh = () => {
+      window.electronAPI.canvasList(activeWorkspaceId).then((docs) => {
+        if (!stale) setCanvasDocs(docs || [])
+      }).catch(err => {
+        console.error('[Canvas] Failed to load canvas docs:', err)
+      })
+    }
+    refresh()
+    const cleanup = window.electronAPI.onCanvasChanged((event) => {
+      if (event.workspaceId !== activeWorkspaceId) return
+      if (event.kind === 'deleted') {
+        // Drop synchronously so navigation auto-select never re-picks a doc
+        // that was just deleted (the refetch below lands a beat later)
+        setCanvasDocs((prev) => prev ? prev.filter((d) => d.id !== event.docId) : prev)
+      }
+      refresh()
+    })
+    return () => { stale = true; cleanup() }
+  }, [activeWorkspaceId, setCanvasDocs])
 
   // Handle session source selection changes
   const handleSessionSourcesChange = React.useCallback(async (sessionId: string, sourceSlugs: string[]) => {

@@ -14,6 +14,7 @@ import {
   REQUEST_TIMEOUT_MS,
   SEQUENCE_ACK_INTERVAL_MS,
   isErrorCode,
+  resolveRequestTimeoutMs,
   type ErrorCode,
   type MessageEnvelope,
 } from '@craft-agent/shared/protocol'
@@ -184,10 +185,11 @@ export class WsRpcClient implements RpcClient {
       }
 
       const id = crypto.randomUUID()
+      const requestTimeout = resolveRequestTimeoutMs(channel, this.requestTimeout)
       const timeout = setTimeout(() => {
         this.pending.delete(id)
-        reject(new Error(`Request timeout: ${channel} (${this.requestTimeout}ms)`))
-      }, this.requestTimeout)
+        reject(new Error(`Request timeout: ${channel} (${requestTimeout}ms)`))
+      }, requestTimeout)
 
       this.pending.set(id, { resolve, reject, timeout })
 

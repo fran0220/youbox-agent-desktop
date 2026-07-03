@@ -12,6 +12,11 @@ interface InitialRestoreGateInput {
   initialRouteRestored: boolean
 }
 
+interface UrlReplaceSyncGateInput {
+  initialRouteRestored: boolean
+  pushPending: boolean
+}
+
 /**
  * Builds a semantic history key used to dedupe pushState entries.
  *
@@ -30,6 +35,23 @@ export function buildSemanticHistoryKey({
     String(focusedPanelIndex),
     sidebarParam,
   ].join('::')
+}
+
+/**
+ * Returns whether the replaceState URL sync may rewrite the CURRENT history
+ * entry.
+ *
+ * While a semantic pushState is pending (queued as a microtask after a panel
+ * route/focus change), replacing must be skipped: React 18 flushes passive
+ * effects synchronously for discrete events, before microtasks, so the
+ * replace would stamp the NEXT state's URL onto the entry the user would
+ * return to, making back a visual no-op and losing the previous state.
+ */
+export function canReplaceUrlForStateSync({
+  initialRouteRestored,
+  pushPending,
+}: UrlReplaceSyncGateInput): boolean {
+  return initialRouteRestored && !pushPending
 }
 
 /**
