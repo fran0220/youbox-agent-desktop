@@ -295,6 +295,15 @@ export const RPC_CHANNELS = {
     DELETE: 'gamestudio:delete',
     CHANGED: 'gamestudio:changed',
   },
+  gamePane: {
+    START: 'gamePane:start',
+    STOP: 'gamePane:stop',
+    RELOAD: 'gamePane:reload',
+    SET_BOUNDS: 'gamePane:setBounds',
+    SET_VISIBLE: 'gamePane:setVisible',
+    CAPTURE: 'gamePane:capture',
+    EVENT: 'gamePane:event',
+  },
   design: {
     LIST: 'design:list',
     GET: 'design:get',

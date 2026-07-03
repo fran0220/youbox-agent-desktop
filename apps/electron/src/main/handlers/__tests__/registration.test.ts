@@ -75,6 +75,9 @@ function createMockDeps(): HandlerDeps {
       onRemoved: () => {},
       onInteracted: () => {},
     } as unknown as NonNullable<HandlerDeps['browserPaneManager']>,
+    gameServerManager: {
+      setChangeListener: () => {},
+    } as unknown as NonNullable<HandlerDeps['gameServerManager']>,
     oauthFlowStore: {
       store: () => {},
       getByState: () => null,
@@ -137,8 +140,9 @@ async function getExpectedChannels(): Promise<Set<string>> {
   ])
 
   // GUI handler channels (remain in electron)
-  const [browser, guiSystem, guiWorkspace, guiSettings] = await Promise.all([
+  const [browser, gamePane, guiSystem, guiWorkspace, guiSettings] = await Promise.all([
     import('../browser'),
+    import('../game-pane'),
     import('../system'),
     import('../workspace'),
     import('../settings'),
@@ -168,6 +172,7 @@ async function getExpectedChannels(): Promise<Set<string>> {
     ...resources.HANDLED_CHANNELS,
     ...transfer.HANDLED_CHANNELS,
     ...browser.HANDLED_CHANNELS,
+    ...gamePane.HANDLED_CHANNELS,
     ...guiSystem.GUI_HANDLED_CHANNELS,
     ...guiWorkspace.GUI_HANDLED_CHANNELS,
     ...guiSettings.GUI_HANDLED_CHANNELS,

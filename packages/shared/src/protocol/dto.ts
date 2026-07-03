@@ -771,6 +771,28 @@ export interface GameProjectChangedEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Game pane runtime (gamePane:* channels)
+// ---------------------------------------------------------------------------
+
+export interface GamePaneStartResult {
+  port: number
+}
+
+export interface GamePaneBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export type GamePaneEvent =
+  | { projectId: string; type: 'console'; payload: { level: 'log' | 'warn' | 'error'; message: string; timestamp: number } }
+  | { projectId: string; type: 'crashed'; payload?: unknown }
+  | { projectId: string; type: 'unresponsive'; payload?: unknown }
+  | { projectId: string; type: 'load-failed'; payload?: unknown }
+  | { projectId: string; type: 'state'; payload: { state: string; port?: number } }
+
+// ---------------------------------------------------------------------------
 // Design projects (design:* channels)
 // ---------------------------------------------------------------------------
 

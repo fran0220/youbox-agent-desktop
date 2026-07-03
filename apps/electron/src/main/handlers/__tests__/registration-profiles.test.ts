@@ -74,6 +74,9 @@ function createMockDeps(): HandlerDeps {
       onRemoved: () => {},
       onInteracted: () => {},
     } as unknown as NonNullable<HandlerDeps['browserPaneManager']>,
+    gameServerManager: {
+      setChangeListener: () => {},
+    } as unknown as NonNullable<HandlerDeps['gameServerManager']>,
     oauthFlowStore: {
       store: () => {},
       getByState: () => null,
@@ -162,8 +165,9 @@ async function getExpectedCoreChannels(): Promise<Set<string>> {
 }
 
 async function getExpectedGuiChannels(): Promise<Set<string>> {
-  const [browser, system, workspace, settings] = await Promise.all([
+  const [browser, gamePane, system, workspace, settings] = await Promise.all([
     import('../browser'),
+    import('../game-pane'),
     import('../system'),
     import('../workspace'),
     import('../settings'),
@@ -171,6 +175,7 @@ async function getExpectedGuiChannels(): Promise<Set<string>> {
 
   return new Set([
     ...browser.HANDLED_CHANNELS,
+    ...gamePane.HANDLED_CHANNELS,
     ...system.GUI_HANDLED_CHANNELS,
     ...workspace.GUI_HANDLED_CHANNELS,
     ...settings.GUI_HANDLED_CHANNELS,

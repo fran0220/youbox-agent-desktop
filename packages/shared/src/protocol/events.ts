@@ -15,6 +15,7 @@ import type {
   DeepLinkNavigation,
   CanvasChangedEvent,
   GameProjectChangedEvent,
+  GamePaneEvent,
   DesignProjectChangedEvent,
 } from './dto'
 
@@ -58,6 +59,9 @@ export interface BroadcastEventMap {
   [RPC_CHANNELS.browserPane.STATE_CHANGED]: [info: BrowserInstanceInfo]
   [RPC_CHANNELS.browserPane.REMOVED]: [id: string]
   [RPC_CHANNELS.browserPane.INTERACTED]: [id: string]
+
+  // Game pane events (global, renderer filters by project)
+  [RPC_CHANNELS.gamePane.EVENT]: [event: GamePaneEvent]
 
   // Navigation events (per-window)
   [RPC_CHANNELS.notification.NAVIGATE]: [data: { workspaceId: string; sessionId: string }]

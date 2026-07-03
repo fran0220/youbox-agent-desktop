@@ -204,6 +204,9 @@ import type {
   WorkspaceSettings,
   PermissionModeState,
   BrowserInstanceInfo,
+  GamePaneBounds,
+  GamePaneEvent,
+  GamePaneStartResult,
   DeepLinkNavigation,
   TestAutomationPayload,
   TestAutomationResult,
@@ -527,6 +530,17 @@ export interface ElectronAPI {
 
   // Game Studio project change listener
   onGameProjectChanged(callback: (event: import('@craft-agent/shared/protocol').GameProjectChangedEvent) => void): () => void
+
+  // Game pane runtime
+  gamePane: {
+    start(workspaceId: string, projectId: string): Promise<GamePaneStartResult>
+    stop(projectId: string): Promise<void>
+    reload(projectId: string): Promise<void>
+    setBounds(projectId: string, bounds: GamePaneBounds): Promise<void>
+    setVisible(projectId: string, visible: boolean): Promise<void>
+    capture(projectId: string): Promise<string | null>
+    onEvent(callback: (event: GamePaneEvent) => void): () => void
+  }
 
   // Design projects (workspace-scoped)
   designProjectList(workspaceId: string): Promise<import('@craft-agent/shared/protocol').DesignProjectMeta[]>

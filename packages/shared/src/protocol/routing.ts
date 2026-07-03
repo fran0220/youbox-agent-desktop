@@ -188,6 +188,15 @@ export const LOCAL_ONLY_CHANNELS = new Set<string>([
   RPC_CHANNELS.browserPane.REMOVED,
   RPC_CHANNELS.browserPane.INTERACTED,
 
+  // gamePane — Electron WebContentsView + local static server
+  RPC_CHANNELS.gamePane.START,
+  RPC_CHANNELS.gamePane.STOP,
+  RPC_CHANNELS.gamePane.RELOAD,
+  RPC_CHANNELS.gamePane.SET_BOUNDS,
+  RPC_CHANNELS.gamePane.SET_VISIBLE,
+  RPC_CHANNELS.gamePane.CAPTURE,
+  RPC_CHANNELS.gamePane.EVENT,
+
   // gitbash — Windows-specific local
   RPC_CHANNELS.gitbash.CHECK,
   RPC_CHANNELS.gitbash.BROWSE,

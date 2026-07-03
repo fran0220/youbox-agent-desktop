@@ -257,6 +257,15 @@ export const CHANNEL_MAP = {
   gameProjectDelete: invoke(RPC_CHANNELS.gamestudio.DELETE),
   onGameProjectChanged: listener(RPC_CHANNELS.gamestudio.CHANGED),
 
+  // Game pane runtime
+  'gamePane.start': invoke(RPC_CHANNELS.gamePane.START),
+  'gamePane.stop': invoke(RPC_CHANNELS.gamePane.STOP),
+  'gamePane.reload': invoke(RPC_CHANNELS.gamePane.RELOAD),
+  'gamePane.setBounds': invoke(RPC_CHANNELS.gamePane.SET_BOUNDS),
+  'gamePane.setVisible': invoke(RPC_CHANNELS.gamePane.SET_VISIBLE),
+  'gamePane.capture': invoke(RPC_CHANNELS.gamePane.CAPTURE),
+  'gamePane.onEvent': listener(RPC_CHANNELS.gamePane.EVENT),
+
   // Design projects
   designProjectList: invoke(RPC_CHANNELS.design.LIST),
   designProjectGet: invoke(RPC_CHANNELS.design.GET),

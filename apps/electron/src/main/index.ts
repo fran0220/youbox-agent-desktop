@@ -115,6 +115,7 @@ import { initializeBackendHostRuntime } from '@craft-agent/shared/agent/backend'
 import { setPowerShellValidatorRoot } from '@craft-agent/shared/agent'
 import { handleDeepLink } from './deep-link'
 import { BrowserPaneManager } from './browser-pane-manager'
+import { GameServerManager } from './game-server-manager'
 import { OAuthFlowStore } from '@craft-agent/shared/auth'
 import { registerDesignScheme, registerDesignHandler } from './design-protocol'
 import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-protocol'
@@ -229,6 +230,7 @@ function registerDeepLinkProtocolClient(scheme: string): void {
 let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
 let browserPaneManager: BrowserPaneManager | null = null
+let gameServerManager: GameServerManager | null = null
 let oauthFlowStore: OAuthFlowStore | null = null
 let moduleSink: EventSink | null = null
 let moduleClientResolver: ((webContentsId: number) => string | undefined) | null = null
@@ -506,6 +508,7 @@ app.whenReady().then(async () => {
     browserPaneManager.setWindowManager(windowManager)
     browserPaneManager.registerToolbarIpc()
     browserPaneManager.registerCapabilityIpc()
+    gameServerManager = new GameServerManager()
 
     // Build real PlatformServices from Electron APIs
     const platform: PlatformServices = createElectronPlatform({
@@ -720,6 +723,7 @@ app.whenReady().then(async () => {
             platform: p,
             windowManager: windowManager ?? undefined,
             browserPaneManager: browserPaneManager ?? undefined,
+            gameServerManager: gameServerManager ?? undefined,
             oauthFlowStore: ofs,
             messagingRegistry: messagingHandle.registry,
           }
@@ -1176,6 +1180,9 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.env.CRAFT_HEADLESS) return  // headless server stays alive
+  void gameServerManager?.stopAll().catch(err => {
+    mainLog.error('[game-server] stopAll failed during window-all-closed:', err)
+  })
   // On macOS, apps typically stay active until explicitly quit
   if (process.platform !== 'darwin') {
     app.quit()
@@ -1261,6 +1268,7 @@ app.on('before-quit', async (event) => {
     if (browserPaneManager) {
       browserPaneManager.destroyAll()
     }
+    await gameServerManager?.stopAll()
 
     // Clean up OAuth flow store (stop periodic cleanup timer)
     if (oauthFlowStore) {
