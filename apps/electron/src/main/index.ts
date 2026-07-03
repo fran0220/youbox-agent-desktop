@@ -300,6 +300,11 @@ if (process.env.CRAFT_SERVER_URL) {
 // Must happen before app.whenReady() — Electron requires early scheme registration.
 registerThumbnailScheme()
 
+// Optional CDP remote debugging (validation / agent-browser attach). Off by default.
+if (process.env.CRAFT_REMOTE_DEBUG_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', process.env.CRAFT_REMOTE_DEBUG_PORT)
+}
+
 // Handle deeplink on macOS (when app is already running)
 app.on('open-url', (event, url) => {
   event.preventDefault()
