@@ -732,6 +732,45 @@ export interface CanvasChangedEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Game Studio projects (gamestudio:* channels)
+// ---------------------------------------------------------------------------
+
+export interface GameProjectMeta {
+  id: string
+  name: string
+  sessionId: string | null
+  thumbnailPath: string | null
+  /** Unix epoch ms */
+  createdAt: number
+  /** Unix epoch ms */
+  updatedAt: number
+  /** Monotonic metadata write counter — bumped on every gamestudio:update */
+  version: number
+}
+
+export type GameProject = GameProjectMeta
+
+export interface GameProjectCreateInput {
+  name?: string
+  template?: string
+}
+
+export interface GameProjectUpdateInput {
+  name?: string
+  sessionId?: string | null
+  thumbnailPath?: string | null
+}
+
+export type GameProjectChangedKind = 'created' | 'updated' | 'deleted' | 'files'
+
+/** Payload of the gamestudio:changed workspace broadcast */
+export interface GameProjectChangedEvent {
+  workspaceId: string
+  projectId: string
+  kind: GameProjectChangedKind
+}
+
+// ---------------------------------------------------------------------------
 // Canvas image generation (canvas:generateImage)
 // ---------------------------------------------------------------------------
 

@@ -248,6 +248,14 @@ export const CHANNEL_MAP = {
   canvasGenerateImage: invoke(RPC_CHANNELS.canvas.GENERATE_IMAGE),
   onCanvasChanged: listener(RPC_CHANNELS.canvas.CHANGED),
 
+  // Game Studio projects
+  gameProjectList: invoke(RPC_CHANNELS.gamestudio.LIST),
+  gameProjectGet: invoke(RPC_CHANNELS.gamestudio.GET),
+  gameProjectCreate: invoke(RPC_CHANNELS.gamestudio.CREATE),
+  gameProjectUpdate: invoke(RPC_CHANNELS.gamestudio.UPDATE),
+  gameProjectDelete: invoke(RPC_CHANNELS.gamestudio.DELETE),
+  onGameProjectChanged: listener(RPC_CHANNELS.gamestudio.CHANGED),
+
   // Statuses
   listStatuses: invoke(RPC_CHANNELS.statuses.LIST),
   reorderStatuses: invoke(RPC_CHANNELS.statuses.REORDER),

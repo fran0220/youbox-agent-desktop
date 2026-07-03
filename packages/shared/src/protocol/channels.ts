@@ -286,6 +286,14 @@ export const RPC_CHANNELS = {
     GENERATE_IMAGE: 'canvas:generateImage',
     CHANGED: 'canvas:changed',
   },
+  gamestudio: {
+    LIST: 'gamestudio:list',
+    GET: 'gamestudio:get',
+    CREATE: 'gamestudio:create',
+    UPDATE: 'gamestudio:update',
+    DELETE: 'gamestudio:delete',
+    CHANGED: 'gamestudio:changed',
+  },
   statuses: {
     LIST: 'statuses:list',
     REORDER: 'statuses:reorder',

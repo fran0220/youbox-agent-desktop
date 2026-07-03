@@ -517,6 +517,16 @@ export interface ElectronAPI {
   // Canvas change listener (live updates on create/update/delete of canvas docs)
   onCanvasChanged(callback: (event: import('@craft-agent/shared/protocol').CanvasChangedEvent) => void): () => void
 
+  // Game Studio projects (workspace-scoped)
+  gameProjectList(workspaceId: string): Promise<import('@craft-agent/shared/protocol').GameProjectMeta[]>
+  gameProjectGet(workspaceId: string, projectId: string): Promise<import('@craft-agent/shared/protocol').GameProject | null>
+  gameProjectCreate(workspaceId: string, input?: import('@craft-agent/shared/protocol').GameProjectCreateInput): Promise<import('@craft-agent/shared/protocol').GameProject>
+  gameProjectUpdate(workspaceId: string, projectId: string, patch: import('@craft-agent/shared/protocol').GameProjectUpdateInput): Promise<import('@craft-agent/shared/protocol').GameProject>
+  gameProjectDelete(workspaceId: string, projectId: string): Promise<void>
+
+  // Game Studio project change listener
+  onGameProjectChanged(callback: (event: import('@craft-agent/shared/protocol').GameProjectChangedEvent) => void): () => void
+
   // Statuses (workspace-scoped)
   listStatuses(workspaceId: string): Promise<import('@craft-agent/shared/statuses').StatusConfig[]>
   reorderStatuses(workspaceId: string, orderedIds: string[]): Promise<void>

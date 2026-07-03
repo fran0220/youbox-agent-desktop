@@ -14,6 +14,7 @@ import type {
   BrowserInstanceInfo,
   DeepLinkNavigation,
   CanvasChangedEvent,
+  GameProjectChangedEvent,
 } from './dto'
 
 export interface BroadcastEventMap {
@@ -29,6 +30,7 @@ export interface BroadcastEventMap {
   [RPC_CHANNELS.automations.CHANGED]: [workspaceId: string]
   [RPC_CHANNELS.skills.CHANGED]: [workspaceId: string, skills: LoadedSkill[]]
   [RPC_CHANNELS.canvas.CHANGED]: [event: CanvasChangedEvent]
+  [RPC_CHANNELS.gamestudio.CHANGED]: [event: GameProjectChangedEvent]
   [RPC_CHANNELS.llmConnections.CHANGED]: []
   [RPC_CHANNELS.permissions.DEFAULTS_CHANGED]: [value: null]
 

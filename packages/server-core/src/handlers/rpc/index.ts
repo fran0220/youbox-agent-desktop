@@ -6,6 +6,7 @@ import { registerAutomationsHandlers } from './automations'
 import { registerCanvasHandlers } from './canvas'
 import { registerCanvasImageHandlers } from './canvas-image'
 import { registerFilesHandlers } from './files'
+import { registerGameStudioHandlers } from './gamestudio'
 import { registerLabelsHandlers } from './labels'
 import { registerLlmConnectionsHandlers } from './llm-connections'
 import { registerOAuthHandlers } from './oauth'
@@ -38,6 +39,7 @@ export function registerCoreRpcHandlers(
   registerCanvasHandlers(server, deps)
   registerCanvasImageHandlers(server, deps)
   registerFilesHandlers(server, deps)
+  registerGameStudioHandlers(server, deps)
   registerLabelsHandlers(server, deps)
   registerLlmConnectionsHandlers(server, deps)
   registerOAuthHandlers(server, deps)
