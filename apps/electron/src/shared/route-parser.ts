@@ -35,7 +35,7 @@ export interface ParsedRoute {
 // Compound Route Types (new format)
 // =============================================================================
 
-export type NavigatorType = 'sessions' | 'sources' | 'skills' | 'automations' | 'canvas' | 'gamestudio' | 'settings'
+export type NavigatorType = 'sessions' | 'sources' | 'skills' | 'automations' | 'canvas' | 'gamestudio' | 'design' | 'settings'
 
 export interface ParsedCompoundRoute {
   /** The navigator type */
@@ -61,7 +61,7 @@ export interface ParsedCompoundRoute {
  * Known prefixes that indicate a compound route
  */
 const COMPOUND_ROUTE_PREFIXES = [
-  'allSessions', 'flagged', 'archived', 'state', 'label', 'view', 'sources', 'skills', 'automations', 'canvas', 'gamestudio', 'settings'
+  'allSessions', 'flagged', 'archived', 'state', 'label', 'view', 'sources', 'skills', 'automations', 'canvas', 'gamestudio', 'design', 'settings'
 ]
 
 /**
@@ -231,6 +231,23 @@ export function parseCompoundRoute(route: string): ParsedCompoundRoute | null {
     return null
   }
 
+  // Design navigator
+  if (first === 'design') {
+    if (segments.length === 1) {
+      return { navigator: 'design', details: null }
+    }
+
+    // design/project/{projectId}
+    if (segments[1] === 'project' && segments[2]) {
+      return {
+        navigator: 'design',
+        details: { type: 'project', id: segments[2] },
+      }
+    }
+
+    return null
+  }
+
   // Sessions navigator (allSessions, flagged, state)
   let sessionFilter: SessionFilter
   let detailsStartIndex: number
@@ -331,6 +348,11 @@ export function buildCompoundRoute(parsed: ParsedCompoundRoute): string {
   if (parsed.navigator === 'gamestudio') {
     if (!parsed.details) return 'gamestudio'
     return `gamestudio/project/${parsed.details.id}`
+  }
+
+  if (parsed.navigator === 'design') {
+    if (!parsed.details) return 'design'
+    return `design/project/${parsed.details.id}`
   }
 
   // Sessions navigator
@@ -470,6 +492,14 @@ function convertCompoundToViewRoute(compound: ParsedCompoundRoute): ParsedRoute 
       return { type: 'view', name: 'gamestudio', params: {} }
     }
     return { type: 'view', name: 'gamestudio-project', id: compound.details.id, params: {} }
+  }
+
+  // Design
+  if (compound.navigator === 'design') {
+    if (!compound.details) {
+      return { type: 'view', name: 'design', params: {} }
+    }
+    return { type: 'view', name: 'design-project', id: compound.details.id, params: {} }
   }
 
   // Sessions
@@ -629,6 +659,17 @@ function convertCompoundToNavigationState(compound: ParsedCompoundRoute): Naviga
     }
   }
 
+  // Design
+  if (compound.navigator === 'design') {
+    if (!compound.details) {
+      return { navigator: 'design', details: null }
+    }
+    return {
+      navigator: 'design',
+      details: { type: 'project', projectId: compound.details.id },
+    }
+  }
+
   // Sessions
   const filter = compound.sessionFilter || { kind: 'allSessions' as const }
   if (compound.details) {
@@ -732,6 +773,19 @@ function convertParsedRouteToNavigationState(parsed: ParsedRoute): NavigationSta
         }
       }
       return { navigator: 'gamestudio', details: null }
+    case 'design':
+      return { navigator: 'design', details: null }
+    case 'design-project':
+      if (parsed.id) {
+        return {
+          navigator: 'design',
+          details: {
+            type: 'project',
+            projectId: parsed.id,
+          },
+        }
+      }
+      return { navigator: 'design', details: null }
     case 'session':
       if (parsed.id) {
         // Reconstruct filter from params
@@ -850,6 +904,13 @@ function navigationStateToCompoundRoute(state: NavigationState): ParsedCompoundR
   if (state.navigator === 'gamestudio') {
     return {
       navigator: 'gamestudio',
+      details: state.details?.type === 'project' ? { type: 'project', id: state.details.projectId } : null,
+    }
+  }
+
+  if (state.navigator === 'design') {
+    return {
+      navigator: 'design',
       details: state.details?.type === 'project' ? { type: 'project', id: state.details.projectId } : null,
     }
   }

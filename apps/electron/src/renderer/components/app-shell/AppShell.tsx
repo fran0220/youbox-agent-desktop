@@ -118,6 +118,7 @@ import {
   isAutomationsNavigation,
   isCanvasNavigation,
   isGameStudioNavigation,
+  isDesignNavigation,
   type NavigationState,
 } from "@/contexts/NavigationContext"
 import type { SettingsSubpage } from "../../../shared/types"
@@ -598,6 +599,7 @@ function AppShellContent({
   const isFullBleedMode =
     isCanvasNavigation(navState) ||
     isGameStudioNavigation(navState) ||
+    isDesignNavigation(navState) ||
     isFullBleedRoute(focusedRoute)
 
   const effectiveSidebarAndNavigatorHidden =

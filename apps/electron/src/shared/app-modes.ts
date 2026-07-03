@@ -1,7 +1,7 @@
 /**
  * App Modes Registry
  *
- * Registry of top-level application modes (work | canvas | gamestudio). The current mode is
+ * Registry of top-level application modes (work | canvas | gamestudio | design). The current mode is
  * DERIVED from navigation state — there is no separate mode state machine.
  * Switching mode means navigating to that mode's default route.
  *
@@ -11,13 +11,13 @@
  */
 
 import type { NavigationState } from './types'
-import { isCanvasNavigation, isGameStudioNavigation } from './types'
+import { isCanvasNavigation, isDesignNavigation, isGameStudioNavigation } from './types'
 import { routes, type ViewRoute } from './routes'
 
-export type AppModeId = 'work' | 'canvas' | 'gamestudio'
+export type AppModeId = 'work' | 'canvas' | 'gamestudio' | 'design'
 
 /** Lucide icon identifier — mapped to a lucide-react component in the renderer. */
-export type AppModeIconId = 'briefcase' | 'palette' | 'gamepad-2'
+export type AppModeIconId = 'briefcase' | 'palette' | 'gamepad-2' | 'pen-tool'
 
 export interface AppMode {
   id: AppModeId
@@ -36,7 +36,8 @@ export const APP_MODES: readonly AppMode[] = [
     labelKey: 'appMode.work',
     iconId: 'briefcase',
     defaultRoute: () => routes.view.allSessions(),
-    matches: (navState) => !isCanvasNavigation(navState) && !isGameStudioNavigation(navState),
+    matches: (navState) =>
+      !isCanvasNavigation(navState) && !isGameStudioNavigation(navState) && !isDesignNavigation(navState),
   },
   {
     id: 'canvas',
@@ -51,6 +52,13 @@ export const APP_MODES: readonly AppMode[] = [
     iconId: 'gamepad-2',
     defaultRoute: () => routes.view.gamestudio(),
     matches: (navState) => isGameStudioNavigation(navState),
+  },
+  {
+    id: 'design',
+    labelKey: 'appMode.design',
+    iconId: 'pen-tool',
+    defaultRoute: () => routes.view.design(),
+    matches: (navState) => isDesignNavigation(navState),
   },
 ]
 

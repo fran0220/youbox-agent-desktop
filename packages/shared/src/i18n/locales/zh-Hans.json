@@ -16,6 +16,7 @@
   "apiSetup.secretAccessKey": "密钥",
   "apiSetup.temporaryCredentials": "用于临时凭证 (STS)",
   "appMode.canvas": "画布",
+  "appMode.design": "设计",
   "appMode.gamestudio": "游戏工坊",
   "appMode.switcher": "应用模式",
   "appMode.work": "工作",

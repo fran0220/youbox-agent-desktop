@@ -17,4 +17,9 @@ describe('PanelStackContainer full-bleed route chrome', () => {
     expect(resolvePanelChromeHidden(false, 'canvas')).toBe(true)
     expect(resolvePanelChromeHidden(false, 'canvas/doc/test-doc')).toBe(true)
   })
+
+  it('forces sidebar and navigator hidden for design routes', () => {
+    expect(resolvePanelChromeHidden(false, 'design')).toBe(true)
+    expect(resolvePanelChromeHidden(false, 'design/project/test-project')).toBe(true)
+  })
 })

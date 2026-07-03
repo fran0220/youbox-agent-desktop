@@ -56,4 +56,19 @@ describe('parseDeepLink', () => {
       rightSidebar: undefined,
     })
   })
+
+  it('accepts origincoworks://design compound routes', () => {
+    expect(parseDeepLink('origincoworks://design')).toEqual({
+      workspaceId: undefined,
+      view: 'design',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+    expect(parseDeepLink('origincoworks://design/project/proj-42')).toEqual({
+      workspaceId: undefined,
+      view: 'design/project/proj-42',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+  })
 })

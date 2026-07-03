@@ -33,12 +33,13 @@ import {
   isAutomationsNavigation,
   isCanvasNavigation,
   isGameStudioNavigation,
+  isDesignNavigation,
 } from '@/contexts/NavigationContext'
 import { useSessionSelection, useIsMultiSelectActive, useSelectedIds, useSelectionCount } from '@/hooks/useSession'
 import { sourceSelection, skillSelection, automationSelection } from '@/hooks/useEntitySelection'
 import { extractLabelId } from '@craft-agent/shared/labels'
 import type { SessionStatusId } from '@/config/session-status-config'
-import { SourceInfoPage, ChatPage, CanvasPage, GameStudioPage } from '@/pages'
+import { SourceInfoPage, ChatPage, CanvasPage, GameStudioPage, DesignStudioPage } from '@/pages'
 import SkillInfoPage from '@/pages/SkillInfoPage'
 import { getSettingsPageComponent } from '@/pages/settings/settings-pages'
 import { AutomationInfoPage } from '../automations/AutomationInfoPage'
@@ -374,6 +375,18 @@ export function MainContentPanel({
     return wrapWithStoplight(
       <Panel variant="grow" className={className}>
         <GameStudioPage
+          workspaceId={activeWorkspaceId || ''}
+          projectId={navState.details?.projectId ?? null}
+        />
+      </Panel>
+    )
+  }
+
+  // Design navigator - placeholder until full Design Studio UI lands
+  if (isDesignNavigation(navState)) {
+    return wrapWithStoplight(
+      <Panel variant="grow" className={className}>
+        <DesignStudioPage
           workspaceId={activeWorkspaceId || ''}
           projectId={navState.details?.projectId ?? null}
         />

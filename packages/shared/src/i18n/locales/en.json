@@ -16,6 +16,7 @@
   "apiSetup.secretAccessKey": "Your secret access key",
   "apiSetup.temporaryCredentials": "For temporary credentials (STS)",
   "appMode.canvas": "Canvas",
+  "appMode.design": "Design",
   "appMode.gamestudio": "Game Studio",
   "appMode.switcher": "App mode",
   "appMode.work": "Work",

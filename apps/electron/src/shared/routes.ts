@@ -189,6 +189,12 @@ export const routes = {
       return `gamestudio/project/${projectId}` as const
     },
 
+    /** Design view (design navigator). Pass a project id for a specific project. */
+    design: (projectId?: string) => {
+      if (!projectId) return 'design' as const
+      return `design/project/${projectId}` as const
+    },
+
     /** Settings view (settings navigator) - uses SettingsSubpage from registry */
     settings: (subpage?: SettingsSubpage) =>
       subpage

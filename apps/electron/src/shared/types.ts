@@ -916,6 +916,15 @@ export interface GameStudioNavigationState {
 }
 
 /**
+ * Design navigation state
+ */
+export interface DesignNavigationState {
+  navigator: 'design'
+  details: { type: 'project'; projectId: string } | null
+  rightSidebar?: RightSidebarPanel
+}
+
+/**
  * Unified navigation state
  */
 export type NavigationState =
@@ -926,6 +935,7 @@ export type NavigationState =
   | AutomationsNavigationState
   | CanvasNavigationState
   | GameStudioNavigationState
+  | DesignNavigationState
 
 export const isSessionsNavigation = (
   state: NavigationState
@@ -954,6 +964,10 @@ export const isCanvasNavigation = (
 export const isGameStudioNavigation = (
   state: NavigationState
 ): state is GameStudioNavigationState => state.navigator === 'gamestudio'
+
+export const isDesignNavigation = (
+  state: NavigationState
+): state is DesignNavigationState => state.navigator === 'design'
 
 export const DEFAULT_NAVIGATION_STATE: NavigationState = {
   navigator: 'sessions',
@@ -991,6 +1005,12 @@ export const getNavigationStateKey = (state: NavigationState): string => {
       return `gamestudio/project/${state.details.projectId}`
     }
     return 'gamestudio'
+  }
+  if (state.navigator === 'design') {
+    if (state.details?.type === 'project') {
+      return `design/project/${state.details.projectId}`
+    }
+    return 'design'
   }
   if (state.navigator === 'settings') {
     if (state.subpage === null) return 'settings'
@@ -1058,6 +1078,16 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
       return { navigator: 'gamestudio', details: { type: 'project', projectId } }
     }
     return { navigator: 'gamestudio', details: null }
+  }
+
+  // Handle design
+  if (key === 'design') return { navigator: 'design', details: null }
+  if (key.startsWith('design/project/')) {
+    const projectId = key.slice(15)
+    if (projectId) {
+      return { navigator: 'design', details: { type: 'project', projectId } }
+    }
+    return { navigator: 'design', details: null }
   }
 
   // Handle settings

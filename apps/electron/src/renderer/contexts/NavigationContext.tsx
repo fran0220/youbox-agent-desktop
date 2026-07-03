@@ -70,6 +70,7 @@ import {
   isAutomationsNavigation,
   isCanvasNavigation,
   isGameStudioNavigation,
+  isDesignNavigation,
   DEFAULT_NAVIGATION_STATE,
 } from '../../shared/types'
 import { sessionMetaMapAtom, updateSessionMetaAtom, type SessionMeta } from '@/atoms/sessions'
@@ -95,7 +96,7 @@ export type { Route }
 
 // Re-export navigation state types for consumers
 export type { NavigationState, SessionFilter }
-export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isCanvasNavigation, isGameStudioNavigation }
+export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isCanvasNavigation, isGameStudioNavigation, isDesignNavigation }
 
 // =============================================================================
 // Context
@@ -1067,7 +1068,17 @@ export function NavigationProvider({
     // Suppress pushState during initial restoration
     suppressPushRef.current = true
 
-    const params = new URLSearchParams(window.location.search)
+    let params = new URLSearchParams(window.location.search)
+
+    if (workspaceSlug) {
+      const savedSearch = storage.get<string>(storage.KEYS.workspaceUrl, '', workspaceSlug)
+      if (savedSearch) {
+        const url = new URL(window.location.href)
+        url.search = savedSearch
+        history.replaceState({ seq: 0 }, '', url.toString())
+        params = new URLSearchParams(url.search)
+      }
+    }
 
     // Reconcile panels + sidebar from current URL
     reconcileFromUrlParamsRef.current(params)
@@ -1087,7 +1098,7 @@ export function NavigationProvider({
       suppressPushRef.current = false
       lastSemanticHistoryKeyRef.current = getSemanticHistoryKey()
     })
-  }, [isReady, isSessionsReady, workspaceId, navigate, store, getSemanticHistoryKey])
+  }, [isReady, isSessionsReady, workspaceId, workspaceSlug, navigate, store, getSemanticHistoryKey])
 
   // =========================================================================
   // PENDING NAVIGATION
@@ -1247,6 +1258,7 @@ export function NavigationProvider({
 
   useEffect(() => {
     if (suppressAutoSelectRef.current) return
+    if (!initialRouteRestoredRef.current) return
     if (!isReady || !workspaceId) return
     // Don't auto-select when panel stack is empty (user closed all panels)
     if (store.get(panelStackAtom).length === 0) return

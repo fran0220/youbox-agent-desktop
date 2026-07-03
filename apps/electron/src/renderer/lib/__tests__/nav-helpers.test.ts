@@ -37,4 +37,9 @@ describe('isDetailNavState', () => {
     expect(isDetailNavState({ navigator: 'gamestudio', details: null })).toBe(true)
     expect(isDetailNavState({ navigator: 'gamestudio', details: { type: 'project', projectId: 'p1' } })).toBe(true)
   })
+
+  it('design: always content-focused (no navigator list to fall back to)', () => {
+    expect(isDetailNavState({ navigator: 'design', details: null })).toBe(true)
+    expect(isDetailNavState({ navigator: 'design', details: { type: 'project', projectId: 'p1' } })).toBe(true)
+  })
 })
