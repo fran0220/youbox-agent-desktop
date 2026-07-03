@@ -73,6 +73,7 @@ import { SessionList, type ChatGroupingMode } from "./SessionList"
 import { MainContentPanel } from "./MainContentPanel"
 import { PanelStackContainer } from "./PanelStackContainer"
 import { CompactSessionListFilter } from "./CompactSessionListFilter"
+import { isFullBleedRoute } from "@/lib/full-bleed-routes"
 import type { ChatDisplayHandle } from "./ChatDisplay"
 import { LeftSidebar } from "./LeftSidebar"
 import { useSession } from "@/hooks/useSession"
@@ -91,7 +92,7 @@ import { sessionMetaMapAtom, sendToWorkspaceAtom, type SessionMeta } from "@/ato
 import { sourcesAtom } from "@/atoms/sources"
 import { skillsAtom } from "@/atoms/skills"
 import { canvasDocsAtom } from "@/atoms/canvas"
-import { panelStackAtom, panelCountAtom, focusedPanelIdAtom, focusedSessionIdAtom, focusNextPanelAtom, focusPrevPanelAtom, parseSessionIdFromRoute } from "@/atoms/panel-stack"
+import { panelStackAtom, panelCountAtom, focusedPanelIdAtom, focusedPanelRouteAtom, focusedSessionIdAtom, focusNextPanelAtom, focusPrevPanelAtom, parseSessionIdFromRoute } from "@/atoms/panel-stack"
 import { type SessionStatusId, type SessionStatus, statusConfigsToSessionStatuses } from "@/config/session-status-config"
 import { useStatuses } from "@/hooks/useStatuses"
 import { useLabels } from "@/hooks/useLabels"
@@ -589,11 +590,14 @@ function AppShellContent({
   // UNIFIED NAVIGATION STATE - single source of truth from NavigationContext
   // Derived from focused panel's route — all panels are peers
   const navState = useNavigationState()
+  const focusedRoute = useAtomValue(focusedPanelRouteAtom)
 
   // Canvas / Game Studio modes are full-bleed: sidebar + navigator collapse via
   // the same mechanism as focus mode (CMD+.), while the TopBar stays visible.
   const isFullBleedMode =
-    isCanvasNavigation(navState) || isGameStudioNavigation(navState)
+    isCanvasNavigation(navState) ||
+    isGameStudioNavigation(navState) ||
+    isFullBleedRoute(focusedRoute)
 
   const effectiveSidebarAndNavigatorHidden =
     isSidebarAndNavigatorHidden || isAutoCompact || isFullBleedMode

@@ -28,6 +28,7 @@ import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { panelStackAtom, focusedPanelIdAtom, focusedPanelRouteAtom } from '@/atoms/panel-stack'
 import { parseRouteToNavigationState } from '../../../shared/route-parser'
+import { resolvePanelChromeHidden } from '@/lib/full-bleed-routes'
 import { isDetailNavState } from '@/lib/nav-helpers'
 import { PanelSlot } from './PanelSlot'
 import { PanelResizeSash } from './PanelResizeSash'
@@ -80,6 +81,10 @@ export function PanelStackContainer({
   const focusedNavState = focusedRoute ? parseRouteToNavigationState(focusedRoute) : null
   const isDetailFocused = isDetailNavState(focusedNavState)
   const hasSelectedContent = isCompact && isDetailFocused
+  const effectiveSidebarAndNavigatorHidden = resolvePanelChromeHidden(
+    isSidebarAndNavigatorHidden,
+    focusedRoute,
+  )
 
   const visiblePanels = isCompact
     ? contentPanels.filter(e => e.id === focusedPanelId).slice(0, 1)
@@ -88,11 +93,11 @@ export function PanelStackContainer({
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevCountRef = useRef(contentPanels.length)
 
-  const hasSidebar = sidebarWidth > 0
+  const hasSidebar = !effectiveSidebarAndNavigatorHidden && sidebarWidth > 0
   // Desktop: navigator is shown when AppShell asks for it. Compact: navigator
   // is always mounted (transform-hidden when detail-focused) so the slide can
   // animate both slots in lockstep.
-  const hasNavigator = isCompact ? navigatorWidth > 0 : navigatorWidth > 0
+  const hasNavigator = !effectiveSidebarAndNavigatorHidden && (isCompact ? navigatorWidth > 0 : navigatorWidth > 0)
   const isMultiPanel = visiblePanels.length > 1
   const isLeftEdge = !hasSidebar && !hasNavigator
 
@@ -162,7 +167,7 @@ export function PanelStackContainer({
                 entry={focusedEntry}
                 isOnly={true}
                 isFocusedPanel={true}
-                isSidebarAndNavigatorHidden={isSidebarAndNavigatorHidden}
+                isSidebarAndNavigatorHidden={effectiveSidebarAndNavigatorHidden}
                 isAtLeftEdge={isLeftEdge}
                 isAtRightEdge={!isRightSidebarVisible}
                 proportion={focusedEntry.proportion}
@@ -203,6 +208,7 @@ export function PanelStackContainer({
         {/* === SIDEBAR SLOT === */}
         <motion.div
           data-panel-role="sidebar"
+          aria-hidden={effectiveSidebarAndNavigatorHidden || undefined}
           initial={false}
           animate={{
             width: hasSidebar ? sidebarWidth : 0,
@@ -210,8 +216,12 @@ export function PanelStackContainer({
             opacity: hasSidebar ? 1 : 0,
           }}
           transition={transition}
-          className="h-full relative shrink-0"
-          style={{ overflowX: 'clip', overflowY: 'visible' }}
+          className={cn('h-full relative shrink-0', effectiveSidebarAndNavigatorHidden && 'pointer-events-none')}
+          style={{
+            overflowX: 'clip',
+            overflowY: 'visible',
+            display: effectiveSidebarAndNavigatorHidden ? 'none' : undefined,
+          }}
         >
           <div className="h-full" style={{ width: sidebarWidth }}>
             {sidebarSlot}
@@ -221,6 +231,7 @@ export function PanelStackContainer({
         {/* === NAVIGATOR SLOT === */}
         <motion.div
           data-panel-role="navigator"
+          aria-hidden={effectiveSidebarAndNavigatorHidden || undefined}
           initial={false}
           animate={{
             width: hasNavigator ? navigatorWidth : 0,
@@ -231,8 +242,10 @@ export function PanelStackContainer({
           className={cn(
             'h-full overflow-hidden relative shrink-0 z-[2]',
             'bg-background shadow-middle',
+            effectiveSidebarAndNavigatorHidden && 'pointer-events-none',
           )}
           style={{
+            display: effectiveSidebarAndNavigatorHidden ? 'none' : undefined,
             borderTopLeftRadius: RADIUS_INNER,
             borderBottomLeftRadius: !hasSidebar ? RADIUS_EDGE : RADIUS_INNER,
             borderTopRightRadius: RADIUS_INNER,
@@ -254,7 +267,7 @@ export function PanelStackContainer({
               entry={entry}
               isOnly={visiblePanels.length === 1}
               isFocusedPanel={isMultiPanel ? entry.id === focusedPanelId : true}
-              isSidebarAndNavigatorHidden={isSidebarAndNavigatorHidden}
+              isSidebarAndNavigatorHidden={effectiveSidebarAndNavigatorHidden}
               isAtLeftEdge={index === 0 && isLeftEdge}
               isAtRightEdge={index === visiblePanels.length - 1 && !isRightSidebarVisible}
               proportion={entry.proportion}
