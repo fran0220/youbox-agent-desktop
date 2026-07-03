@@ -116,6 +116,7 @@ import { setPowerShellValidatorRoot } from '@craft-agent/shared/agent'
 import { handleDeepLink } from './deep-link'
 import { BrowserPaneManager } from './browser-pane-manager'
 import { OAuthFlowStore } from '@craft-agent/shared/auth'
+import { registerDesignScheme, registerDesignHandler } from './design-protocol'
 import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-protocol'
 import log, { isDebugMode, mainLog, getLogFilePath, getMessagingGatewayLogFilePath, messagingGatewayLog, autoUpdateLog } from './logger'
 import { setPerfEnabled, enableDebug } from '@craft-agent/shared/utils'
@@ -305,6 +306,7 @@ if (process.env.CRAFT_SERVER_URL) {
 // Register thumbnail:// custom protocol for file preview thumbnails in the sidebar.
 // Must happen before app.whenReady() — Electron requires early scheme registration.
 registerThumbnailScheme()
+registerDesignScheme()
 
 // Optional CDP remote debugging (validation / agent-browser attach). Off by default.
 if (process.env.CRAFT_REMOTE_DEBUG_PORT) {
@@ -443,6 +445,7 @@ app.whenReady().then(async () => {
 
   // Register thumbnail:// protocol handler (scheme was registered earlier, before app.whenReady)
   registerThumbnailHandler()
+  registerDesignHandler()
 
   // Re-apply proxy settings now that Electron sessions are available
   // (first call before app.whenReady only configured Node-level proxy)
