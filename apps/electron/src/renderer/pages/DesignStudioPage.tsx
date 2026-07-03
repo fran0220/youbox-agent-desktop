@@ -4,13 +4,17 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { formatDistanceToNowStrict } from 'date-fns'
 import type { Locale } from 'date-fns'
-import { Check, FolderOpen, LayoutGrid, Pencil, PenTool, Plus, Trash2, X } from 'lucide-react'
+import { Check, LayoutGrid, Monitor, Pencil, PenTool, Plus, RefreshCw, Smartphone, Tablet, Trash2, X } from 'lucide-react'
 import { getDateLocale } from '@craft-agent/shared/i18n'
 import type { DesignProjectMeta } from '@craft-agent/shared/protocol'
 import { Button } from '@/components/ui/button'
 import {
+  buildDesignPreviewUrl,
   createPendingDesignProjectRename,
   designProjectsAtom,
+  DESIGN_PROTOTYPE_DEVICE_WIDTHS,
+  type DesignPrototypeDevice,
+  getDesignPreviewFrameStyle,
   mostRecentDesignProject,
   pendingDesignProjectRenameAtom,
   resolveDesignProjectRenameCommit,
@@ -339,6 +343,110 @@ function DesignEmptyState({ workspaceId }: { workspaceId: string }) {
   )
 }
 
+const DESIGN_DEVICE_OPTIONS: Array<{ id: DesignPrototypeDevice; icon: typeof Monitor }> = [
+  { id: 'desktop', icon: Monitor },
+  { id: 'tablet', icon: Tablet },
+  { id: 'mobile', icon: Smartphone },
+]
+
+function DesignPreviewStage({
+  workspaceId,
+  project,
+}: {
+  workspaceId: string
+  project: DesignProjectMeta
+}) {
+  const { t } = useTranslation()
+  const [reloadToken, setReloadToken] = useState(0)
+  const [device, setDevice] = useState<DesignPrototypeDevice>('desktop')
+  const previewUrl = useMemo(
+    () => buildDesignPreviewUrl(workspaceId, project.id, project.entryFile, reloadToken),
+    [workspaceId, project.id, project.entryFile, reloadToken],
+  )
+  const frameStyle = useMemo(
+    () => getDesignPreviewFrameStyle(project.kind, device),
+    [project.kind, device],
+  )
+  const isDeck = project.kind === 'deck'
+  const isPrototype = project.kind === 'prototype'
+
+  return (
+    <section className="flex min-h-0 flex-1 flex-col bg-muted/20">
+      <div className="flex h-11 shrink-0 items-center justify-between border-b border-border bg-background/80 px-4">
+        <div className="min-w-0">
+          <div className="truncate text-xs font-medium text-foreground">{t('design.preview.title')}</div>
+          <div className="truncate text-[11px] text-muted-foreground">{project.entryFile}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          {isPrototype && (
+            <div
+              role="group"
+              aria-label={t('design.preview.deviceWidth')}
+              className="flex items-center rounded-lg border border-border bg-card p-0.5"
+            >
+              {DESIGN_DEVICE_OPTIONS.map((option) => {
+                const Icon = option.icon
+                const selected = option.id === device
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={selected}
+                    title={t(`design.preview.device.${option.id}`)}
+                    onClick={() => setDevice(option.id)}
+                    className={cn(
+                      'flex h-7 items-center gap-1.5 rounded-md px-2 text-[11px] text-muted-foreground transition-colors',
+                      selected && 'bg-primary/10 text-primary',
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    <span className="hidden sm:inline">{t(`design.preview.device.${option.id}`)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setReloadToken((value) => value + 1)}
+          >
+            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {t('design.preview.refresh')}
+          </Button>
+        </div>
+      </div>
+      <div className={cn(
+        'flex min-h-0 flex-1 items-center justify-center overflow-auto p-6',
+        isDeck ? 'bg-zinc-950' : 'bg-muted/30',
+      )}>
+        <div
+          className={cn(
+            'relative overflow-hidden border border-border bg-background shadow-modal-small transition-[max-width,width] duration-150',
+            isDeck ? 'max-h-full rounded-xl' : 'h-full max-h-full rounded-2xl',
+            isPrototype && 'mx-auto',
+            project.kind === 'doc' && 'shadow-xl',
+            project.kind === 'image' && 'bg-card',
+          )}
+          style={frameStyle}
+          data-design-preview-kind={project.kind}
+          data-design-preview-device={isPrototype ? device : undefined}
+          data-design-preview-device-width={isPrototype ? DESIGN_PROTOTYPE_DEVICE_WIDTHS[device] : undefined}
+        >
+          <iframe
+            key={`${project.id}:${project.entryFile}`}
+            title={t('design.preview.iframeTitle', { name: project.name })}
+            src={previewUrl}
+            sandbox="allow-scripts allow-same-origin"
+            className="h-full w-full border-0 bg-white"
+          />
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function DesignProjectShell({
   workspaceId,
   projectId,
@@ -349,11 +457,33 @@ function DesignProjectShell({
   projects: readonly DesignProjectMeta[]
 }) {
   const { t } = useTranslation()
+  const [pendingRename, setPendingRename] = useAtom(pendingDesignProjectRenameAtom)
+  const refreshProjects = useRefreshDesignProjects(workspaceId)
   const currentProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
     [projects, projectId],
   )
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const renaming = pendingRename?.projectId === projectId
+
+  const commitRename = async () => {
+    if (!currentProject) return
+    const commit = resolveDesignProjectRenameCommit(pendingRename, currentProject)
+    setPendingRename(null)
+    if (!commit) return
+    try {
+      await window.electronAPI.designProjectUpdate(workspaceId, commit.projectId, { name: commit.name })
+    } catch (err) {
+      toast.error(t('design.error.rename'), {
+        description: err instanceof Error ? err.message : undefined,
+      })
+      try {
+        await refreshProjects()
+      } catch (refreshErr) {
+        console.error('[Design] Failed to reconcile projects after project rename error:', refreshErr)
+      }
+    }
+  }
 
   return (
     <div key={projectId} className="relative flex h-full w-full flex-col overflow-hidden bg-background">
@@ -363,25 +493,60 @@ function DesignProjectShell({
             variant="ghost"
             size="sm"
             className="min-w-0 gap-2"
-            onClick={() => setGalleryOpen(true)}
+            onClick={() => {
+              if (!renaming) setGalleryOpen(true)
+            }}
             title={t('design.toolbar.openGallery')}
           >
             <LayoutGrid className="h-3.5 w-3.5 shrink-0 opacity-70" />
-            <span className="truncate font-medium" title={currentProject?.name ?? undefined}>
-              {currentProject?.name ?? t('appMode.design')}
-            </span>
+            {renaming && currentProject ? (
+              <input
+                autoFocus
+                value={pendingRename.draft}
+                placeholder={t('design.gallery.renamePlaceholder')}
+                onChange={(event) => setPendingRename({ projectId, draft: event.target.value })}
+                onFocus={(event) => event.target.select()}
+                onClick={(event) => event.stopPropagation()}
+                onBlur={() => void commitRename()}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing) return
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void commitRename()
+                  }
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    setPendingRename(null)
+                  }
+                }}
+                className="min-w-0 rounded-[5px] bg-foreground/5 px-2 py-1 text-sm text-foreground outline-none"
+              />
+            ) : (
+              <span className="truncate font-medium" title={currentProject?.name ?? undefined}>
+                {currentProject?.name ?? t('appMode.design')}
+              </span>
+            )}
           </Button>
+          {currentProject && !renaming && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              title={t('common.rename')}
+              onClick={() => setPendingRename(createPendingDesignProjectRename(currentProject))}
+            >
+              <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </Button>
+          )}
         </div>
       </div>
-      <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6">
-        <div className="flex max-w-sm flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground">
-            <FolderOpen className="h-5 w-5" strokeWidth={1.5} />
-          </div>
-          <h3 className="text-sm font-medium text-foreground">{currentProject?.name ?? t('appMode.design')}</h3>
-          <p className="text-xs text-muted-foreground">{t('design.project.ready')}</p>
+      {currentProject ? (
+        <DesignPreviewStage workspaceId={workspaceId} project={currentProject} />
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6 text-xs text-muted-foreground">
+          {t('design.project.loading')}
         </div>
-      </div>
+      )}
       {galleryOpen && (
         <div
           className="absolute inset-0 z-20 flex items-start justify-center bg-black/20 p-8"

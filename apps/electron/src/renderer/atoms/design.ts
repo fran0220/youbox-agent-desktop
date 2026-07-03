@@ -7,7 +7,8 @@
  */
 
 import { atom } from 'jotai'
-import type { DesignProjectMeta } from '@craft-agent/shared/protocol'
+import type { CSSProperties } from 'react'
+import type { DesignArtifactKind, DesignProjectMeta } from '@craft-agent/shared/protocol'
 
 export const designProjectsAtom = atom<DesignProjectMeta[] | null>(null)
 
@@ -17,6 +18,14 @@ export interface PendingDesignProjectRename {
 }
 
 export const pendingDesignProjectRenameAtom = atom<PendingDesignProjectRename | null>(null)
+
+export type DesignPrototypeDevice = 'desktop' | 'tablet' | 'mobile'
+
+export const DESIGN_PROTOTYPE_DEVICE_WIDTHS: Record<DesignPrototypeDevice, number> = {
+  desktop: 1200,
+  mobile: 390,
+  tablet: 768,
+}
 
 export function createPendingDesignProjectRename(project: DesignProjectMeta): PendingDesignProjectRename {
   return {
@@ -45,4 +54,42 @@ export function mostRecentDesignProject(projects: readonly DesignProjectMeta[]):
 
 export function sortDesignProjectsByUpdatedAtDesc(projects: readonly DesignProjectMeta[]): DesignProjectMeta[] {
   return [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
+}
+
+export function buildDesignPreviewUrl(
+  workspaceId: string,
+  projectId: string,
+  entryFile: string,
+  reloadToken: number,
+): string {
+  const encodedEntry = entryFile
+    .split('/')
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join('/')
+  return `design://project/${encodeURIComponent(workspaceId)}/${encodeURIComponent(projectId)}/${encodedEntry}?reload=${reloadToken}`
+}
+
+export function getDesignPreviewFrameStyle(
+  kind: DesignArtifactKind,
+  device: DesignPrototypeDevice,
+): CSSProperties {
+  if (kind === 'deck') {
+    return {
+      aspectRatio: '16 / 9',
+      width: 'min(100%, calc((100vh - 11rem) * 16 / 9))',
+    }
+  }
+
+  if (kind === 'prototype') {
+    return {
+      maxWidth: DESIGN_PROTOTYPE_DEVICE_WIDTHS[device],
+      width: '100%',
+    }
+  }
+
+  return {
+    maxWidth: kind === 'doc' ? 900 : 960,
+    width: '100%',
+  }
 }
