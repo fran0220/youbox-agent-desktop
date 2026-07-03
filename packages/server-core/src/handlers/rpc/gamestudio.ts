@@ -81,10 +81,11 @@ export function registerGameStudioHandlers(server: RpcServer, deps: HandlerDeps)
   })
 }
 
-export function resolveGameStudioResourcesRoot(platform: PlatformServices): string {
-  const candidates = platform.isPackaged
+export function getGameStudioResourcesRootCandidates(platform: Pick<PlatformServices, 'appRootPath' | 'resourcesPath' | 'isPackaged'>): string[] {
+  return platform.isPackaged
     ? [
         join(platform.resourcesPath, 'app', 'resources'),
+        join(platform.appRootPath, 'apps', 'electron', 'dist', 'resources'),
         join(platform.appRootPath, 'resources'),
         join(platform.resourcesPath, 'resources'),
       ]
@@ -93,8 +94,14 @@ export function resolveGameStudioResourcesRoot(platform: PlatformServices): stri
         join(platform.appRootPath, 'resources'),
         join(process.cwd(), 'apps', 'electron', 'resources'),
       ]
+}
 
-  const match = candidates.find(candidate => existsSync(join(candidate, 'gamestudio', 'vendor', 'three.module.js')))
+export function resolveGameStudioResourcesRoot(
+  platform: PlatformServices,
+  pathExists: (path: string) => boolean = existsSync,
+): string {
+  const candidates = getGameStudioResourcesRootCandidates(platform)
+  const match = candidates.find(candidate => pathExists(join(candidate, 'gamestudio', 'vendor', 'three.module.js')))
   if (!match) {
     throw new Error(`Game Studio resources not found. Tried: ${candidates.join(', ')}`)
   }
