@@ -21,11 +21,23 @@ import type {
   CanvasDocMeta,
   CanvasDocState,
   CanvasDocUpdateInput,
+  CanvasEdgeDto,
+  CanvasImageNodeData,
   CanvasImageNodeDto,
   CanvasNodeDto,
+  CanvasTextNodeData,
 } from '@craft-agent/shared/protocol'
 
 export const CANVAS_SCHEMA_VERSION = 1
+
+/**
+ * Hard cap on the number of nodes a single canvas doc may hold. Enforced in the
+ * append path ({@link addCanvasNode}) so a runaway agent loop on
+ * canvas_create_node cannot grow a doc unboundedly (every create rewrites the
+ * whole doc — O(N^2)). Shared constant so the tool path and any other caller
+ * observe the same limit.
+ */
+export const CANVAS_MAX_NODES = 500
 
 /** On-disk shape of a canvas doc file */
 export interface StoredCanvasDoc extends CanvasDoc {
@@ -399,6 +411,144 @@ export async function addOrBackfillCanvasImageNode(
     }
     await writeDocFileAtomic(filePath, { schemaVersion: CANVAS_SCHEMA_VERSION, ...next })
     return { doc: next, nodeId: targetId! }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Node / edge mutations (M4 — agent canvas_* tools). Each loads, mutates and
+// writes inside the per-doc serialized queue so tool-driven edits can't
+// interleave with RPC-driven edits on the same file. All bump `version`
+// (last-write-wins), consistent with {@link addOrBackfillCanvasImageNode}.
+// ---------------------------------------------------------------------------
+
+export interface CanvasNodeInput {
+  type: 'image' | 'text'
+  position: { x: number; y: number }
+  data: CanvasImageNodeData | CanvasTextNodeData
+  /** Optional explicit id (a client-side placeholder id). A fresh uuid is used when omitted. */
+  id?: string
+}
+
+export interface CanvasNodePatch {
+  position?: { x: number; y: number }
+  text?: string
+  width?: number
+  height?: number
+}
+
+/** Append a new image or text node. Rejects a duplicate explicit id. */
+export async function addCanvasNode(
+  workspaceRootPath: string,
+  docId: string,
+  input: CanvasNodeInput,
+): Promise<{ doc: CanvasDoc; nodeId: string }> {
+  const filePath = getCanvasDocPath(workspaceRootPath, docId)
+  return writeQueue.enqueue(docQueueKey(workspaceRootPath, docId), async () => {
+    const current = loadCanvasDoc(workspaceRootPath, docId)
+    if (!current) throw new Error(`Canvas doc not found: ${docId}`)
+
+    if (current.nodes.length >= CANVAS_MAX_NODES) {
+      throw new Error(`canvas node limit reached (max ${CANVAS_MAX_NODES})`)
+    }
+
+    const nodeId = input.id ?? randomUUID()
+    if (current.nodes.some(n => n.id === nodeId)) {
+      throw new Error(`Canvas node already exists: ${nodeId}`)
+    }
+
+    const node = {
+      id: nodeId,
+      type: input.type,
+      position: input.position,
+      data: input.data,
+    } as CanvasNodeDto
+
+    const next: CanvasDoc = {
+      ...current,
+      nodes: [...current.nodes, node],
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    }
+    await writeDocFileAtomic(filePath, { schemaVersion: CANVAS_SCHEMA_VERSION, ...next })
+    return { doc: next, nodeId }
+  })
+}
+
+/** Update an existing node's position/size, and text for text nodes. */
+export async function updateCanvasNode(
+  workspaceRootPath: string,
+  docId: string,
+  nodeId: string,
+  patch: CanvasNodePatch,
+): Promise<{ doc: CanvasDoc; nodeId: string }> {
+  const filePath = getCanvasDocPath(workspaceRootPath, docId)
+  return writeQueue.enqueue(docQueueKey(workspaceRootPath, docId), async () => {
+    const current = loadCanvasDoc(workspaceRootPath, docId)
+    if (!current) throw new Error(`Canvas doc not found: ${docId}`)
+
+    const idx = current.nodes.findIndex(n => n.id === nodeId)
+    if (idx < 0) throw new Error(`Canvas node not found: ${nodeId}`)
+
+    const prev = current.nodes[idx]! as CanvasNodeDto & Record<string, unknown>
+    if (patch.text !== undefined && prev.type !== 'text') {
+      throw new Error(`Cannot set text on a ${prev.type} node: ${nodeId}`)
+    }
+
+    const nextNode: CanvasNodeDto & Record<string, unknown> = { ...prev }
+    if (patch.position) nextNode.position = patch.position
+    if (patch.width !== undefined) nextNode.width = patch.width
+    if (patch.height !== undefined) nextNode.height = patch.height
+    if (patch.text !== undefined) nextNode.data = { text: patch.text }
+
+    const nodes = [...current.nodes]
+    nodes[idx] = nextNode as CanvasNodeDto
+
+    const next: CanvasDoc = {
+      ...current,
+      nodes,
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    }
+    await writeDocFileAtomic(filePath, { schemaVersion: CANVAS_SCHEMA_VERSION, ...next })
+    return { doc: next, nodeId }
+  })
+}
+
+/** Connect two existing nodes with a directed edge. Both node ids must exist. */
+export async function addCanvasEdge(
+  workspaceRootPath: string,
+  docId: string,
+  params: { source: string; target: string; id?: string },
+): Promise<{ doc: CanvasDoc; edgeId: string }> {
+  const filePath = getCanvasDocPath(workspaceRootPath, docId)
+  return writeQueue.enqueue(docQueueKey(workspaceRootPath, docId), async () => {
+    const current = loadCanvasDoc(workspaceRootPath, docId)
+    if (!current) throw new Error(`Canvas doc not found: ${docId}`)
+
+    if (params.source === params.target) {
+      throw new Error('Cannot connect a node to itself')
+    }
+    if (!current.nodes.some(n => n.id === params.source)) {
+      throw new Error(`Canvas node not found: ${params.source}`)
+    }
+    if (!current.nodes.some(n => n.id === params.target)) {
+      throw new Error(`Canvas node not found: ${params.target}`)
+    }
+
+    const edgeId = params.id ?? randomUUID()
+    if (current.edges.some(e => e.id === edgeId)) {
+      throw new Error(`Canvas edge already exists: ${edgeId}`)
+    }
+
+    const edge: CanvasEdgeDto = { id: edgeId, source: params.source, target: params.target }
+    const next: CanvasDoc = {
+      ...current,
+      edges: [...current.edges, edge],
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    }
+    await writeDocFileAtomic(filePath, { schemaVersion: CANVAS_SCHEMA_VERSION, ...next })
+    return { doc: next, edgeId }
   })
 }
 

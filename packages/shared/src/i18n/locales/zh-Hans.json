@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "画布列表",
   "canvas.docPicker.renamePlaceholder": "画布名称",
   "canvas.docPicker.title": "画布列表",
+  "canvas.dropImage.error": "无法添加拖入的图片，请重试。",
   "canvas.emptyDescription": "在无限画布上创作与编排图像。可通过工具栏添加图片和便签。",
   "canvas.emptyTitle": "画布",
   "canvas.fitView": "适应视图",

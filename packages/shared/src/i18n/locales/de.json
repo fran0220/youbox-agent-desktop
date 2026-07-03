@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "Leinwände",
   "canvas.docPicker.renamePlaceholder": "Name der Leinwand",
   "canvas.docPicker.title": "Leinwände",
+  "canvas.dropImage.error": "Das abgelegte Bild konnte nicht hinzugefügt werden. Bitte erneut versuchen.",
   "canvas.emptyDescription": "Bilder auf einer unendlichen Leinwand erstellen und anordnen. Füge Bilder und Notizen über die Werkzeugleiste hinzu.",
   "canvas.emptyTitle": "Leinwand",
   "canvas.fitView": "Ansicht einpassen",

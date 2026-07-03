@@ -513,6 +513,7 @@ export interface ElectronAPI {
   canvasUpdate(workspaceId: string, docId: string, patch: import('@craft-agent/shared/protocol').CanvasDocUpdateInput): Promise<import('@craft-agent/shared/protocol').CanvasDoc>
   canvasDelete(workspaceId: string, docId: string): Promise<void>
   canvasGenerateImage(request: import('@craft-agent/shared/protocol').CanvasGenerateImageRequest): Promise<import('@craft-agent/shared/protocol').CanvasGenerateImageResult>
+  canvasImportAsset(request: import('@craft-agent/shared/protocol').CanvasImportAssetRequest): Promise<import('@craft-agent/shared/protocol').CanvasImportAssetResult>
 
   // Canvas change listener (live updates on create/update/delete of canvas docs)
   onCanvasChanged(callback: (event: import('@craft-agent/shared/protocol').CanvasChangedEvent) => void): () => void

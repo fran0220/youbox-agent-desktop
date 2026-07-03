@@ -47,6 +47,12 @@ export interface ISessionManager {
   getSession(sessionId: string): Promise<Session | null>
   createSession(workspaceId: string, options?: CreateSessionOptions): Promise<Session>
   deleteSession(sessionId: string): Promise<void>
+  /**
+   * Re-evaluate session-scoped canvas tool availability for a running session
+   * after its canvas doc binding may have changed (chatSessionId set/cleared).
+   * Optional — hosts without the canvas feature may omit it.
+   */
+  refreshCanvasToolsForSession?(sessionId: string): void
 
   // ---------------------------------------------------------------------------
   // Session state

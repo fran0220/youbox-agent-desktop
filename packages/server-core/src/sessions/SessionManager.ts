@@ -8,7 +8,8 @@ import { basename, dirname, join } from 'path'
 import { existsSync } from 'fs'
 import { readFile, writeFile, mkdir } from 'fs/promises'
 import { randomUUID } from 'node:crypto'
-import { type AgentEvent, setPermissionMode, hydratePreviousPermissionMode, getPermissionModeDiagnostics, type PermissionMode, unregisterSessionScopedToolCallbacks, mergeSessionScopedToolCallbacks, AbortReason, type AuthRequest, type AuthResult, type CredentialAuthRequest, type BrowserPaneFns, generateConversationSummary } from '@craft-agent/shared/agent'
+import { type AgentEvent, setPermissionMode, hydratePreviousPermissionMode, getPermissionModeDiagnostics, type PermissionMode, unregisterSessionScopedToolCallbacks, mergeSessionScopedToolCallbacks, cleanupSessionScopedTools, AbortReason, type AuthRequest, type AuthResult, type CredentialAuthRequest, type BrowserPaneFns, generateConversationSummary } from '@craft-agent/shared/agent'
+import { createCanvasToolFns, resolveDocIdForSession } from '../canvas/canvas-tool-service'
 import {
   resolveSessionConnection,
   createBackendFromConnection,
@@ -1331,6 +1332,56 @@ export class SessionManager implements ISessionManager {
     if (!fallback) return null
     this.browserHostByCanvas.set(sid, fallback)
     return fallback
+  }
+
+  /**
+   * Wire the session-scoped canvas_* tools for a session, but ONLY when the
+   * session drives a canvas doc (its id === some doc's chatSessionId). Unbound
+   * sessions get `canvasFns` cleared so the tools stay absent (session-scoped).
+   *
+   * Mutations route through the server-core canvas storage service and emit the
+   * SAME canvas:changed broadcast the RPC handlers push, so the canvas UI updates
+   * live from tool-driven edits.
+   */
+  private setupCanvasToolsForSession(managed: ManagedSession): void {
+    const sid = managed.id
+    const workspaceId = managed.workspace.id
+    const workspaceRootPath = managed.workspace.rootPath
+
+    const boundDocId = resolveDocIdForSession(workspaceRootPath, sid)
+    if (!boundDocId) {
+      // Not a canvas-bound session — ensure no stale canvas tools linger.
+      mergeSessionScopedToolCallbacks(sid, { canvasFns: undefined })
+      return
+    }
+
+    const canvasFns = createCanvasToolFns({
+      sessionId: sid,
+      workspaceId,
+      workspaceRootPath,
+      broadcastChanged: (docId, kind) => {
+        if (!this.eventSink) return
+        this.eventSink(
+          RPC_CHANNELS.canvas.CHANGED,
+          { to: 'workspace', workspaceId },
+          { workspaceId, docId, kind },
+        )
+      },
+    })
+    mergeSessionScopedToolCallbacks(sid, { canvasFns })
+  }
+
+  /**
+   * Re-evaluate canvas tool availability for a running session after its doc
+   * binding may have changed (e.g. a doc's chatSessionId was set/cleared via the
+   * canvas:update RPC). Invalidates the cached tool list so the next turn rebuilds
+   * with (or without) the canvas tools. Safe to call for unknown/unbound sessions.
+   */
+  refreshCanvasToolsForSession(sessionId: string): void {
+    const managed = this.sessions.get(sessionId)
+    if (!managed) return
+    this.setupCanvasToolsForSession(managed)
+    cleanupSessionScopedTools(sessionId)
   }
 
   /** Returns a strictly increasing timestamp (ms). When Date.now() collides with
@@ -3844,6 +3895,10 @@ export class SessionManager implements ISessionManager {
           } satisfies BrowserPaneFns,
         })
       }
+
+      // Wire canvas_* tools — session-scoped, registered only when this session
+      // drives a canvas doc (see setupCanvasToolsForSession). No-op otherwise.
+      this.setupCanvasToolsForSession(managed)
 
       // Signal that the agent instance is ready (unblocks title generation)
       managed.agentReadyResolve?.()

@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "キャンバス一覧",
   "canvas.docPicker.renamePlaceholder": "キャンバス名",
   "canvas.docPicker.title": "キャンバス一覧",
+  "canvas.dropImage.error": "ドロップした画像を追加できませんでした。もう一度お試しください。",
   "canvas.emptyDescription": "無限のキャンバス上で画像を作成・配置できます。ツールバーから画像やメモを追加できます。",
   "canvas.emptyTitle": "キャンバス",
   "canvas.fitView": "全体を表示",

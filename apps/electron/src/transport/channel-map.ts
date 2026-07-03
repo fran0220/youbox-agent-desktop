@@ -246,6 +246,7 @@ export const CHANNEL_MAP = {
   canvasUpdate: invoke(RPC_CHANNELS.canvas.UPDATE),
   canvasDelete: invoke(RPC_CHANNELS.canvas.DELETE),
   canvasGenerateImage: invoke(RPC_CHANNELS.canvas.GENERATE_IMAGE),
+  canvasImportAsset: invoke(RPC_CHANNELS.canvas.IMPORT_ASSET),
   onCanvasChanged: listener(RPC_CHANNELS.canvas.CHANGED),
 
   // Game Studio projects

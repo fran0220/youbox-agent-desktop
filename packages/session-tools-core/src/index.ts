@@ -202,6 +202,12 @@ export {
   RenderTemplateSchema,
   // Browser tool schema
   BrowserToolSchema,
+  // Canvas tool schemas
+  CanvasListNodesSchema,
+  CanvasCreateNodeSchema,
+  CanvasUpdateNodeSchema,
+  CanvasConnectSchema,
+  CanvasGenerateImageSchema,
   // Developer feedback schema
   SendDeveloperFeedbackSchema,
   // Descriptions

@@ -13,6 +13,7 @@
 import type { LLMQueryRequest, LLMQueryResult } from './llm-tool.ts';
 import type { SpawnSessionFn } from './spawn-session-tool.ts';
 import type { BrowserPaneFns } from './browser-tools.ts';
+import type { CanvasToolFns } from './canvas-tools.ts';
 import type { AuthRequest } from '@craft-agent/session-tools-core';
 import { debug } from '../utils/debug.ts';
 
@@ -50,6 +51,14 @@ export interface SessionScopedToolCallbacks {
    * with the session's bound browser instance.
    */
   browserPaneFns?: BrowserPaneFns;
+
+  /**
+   * Canvas tool functions for canvas_* tools.
+   * Set by the Electron session manager only for sessions bound to a canvas doc
+   * (session id === some doc's chatSessionId). Absent for unbound sessions, so
+   * the canvas tools are not registered for them.
+   */
+  canvasFns?: CanvasToolFns;
 
   /** Set labels on a session (defaults to current). */
   setSessionLabelsFn?: (sessionId: string | undefined, labels: string[]) => void | Promise<void>;

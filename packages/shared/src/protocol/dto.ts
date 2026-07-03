@@ -824,3 +824,48 @@ export interface CanvasGenerateImageSuccess {
 }
 
 export type CanvasGenerateImageResult = CanvasGenerateImageSuccess | CanvasGenerateImageError
+
+// ---------------------------------------------------------------------------
+// Canvas asset import (canvas:importAsset)
+// ---------------------------------------------------------------------------
+
+/**
+ * Request to copy an existing workspace-confined image file into a doc's
+ * per-doc asset dir. Used by the chat-image drop so a dropped image becomes a
+ * portable, workspace-confined asset rather than an absolute path that could
+ * point outside canvas/assets.
+ */
+export interface CanvasImportAssetRequest {
+  workspaceId: string
+  docId: string
+  /** Absolute path of the source image. Confined to the workspace (realpath). */
+  sourcePath: string
+}
+
+/** Failure classification for canvas asset import — no secrets are included */
+export type CanvasImportAssetErrorCode =
+  | 'workspace_not_found'
+  | 'doc_not_found'
+  | 'source_not_found'
+  /** Path escapes the workspace after symlink/realpath resolution. */
+  | 'forbidden_path'
+  /** Not an allowed image extension, or exceeds the size cap. */
+  | 'invalid_image'
+  | 'io_error'
+
+export interface CanvasImportAssetError {
+  ok: false
+  code: CanvasImportAssetErrorCode
+  /** Human-readable, secret-redacted error message */
+  message: string
+}
+
+export interface CanvasImportAssetSuccess {
+  ok: true
+  /** Absolute path of the copied asset under <workspace>/canvas/assets/{docId}/ */
+  assetPath: string
+  /** Basename of the written asset (fresh uuid + original extension) */
+  fileName: string
+}
+
+export type CanvasImportAssetResult = CanvasImportAssetSuccess | CanvasImportAssetError

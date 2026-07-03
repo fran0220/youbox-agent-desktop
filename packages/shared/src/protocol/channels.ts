@@ -284,6 +284,7 @@ export const RPC_CHANNELS = {
     UPDATE: 'canvas:update',
     DELETE: 'canvas:delete',
     GENERATE_IMAGE: 'canvas:generateImage',
+    IMPORT_ASSET: 'canvas:importAsset',
     CHANGED: 'canvas:changed',
   },
   gamestudio: {

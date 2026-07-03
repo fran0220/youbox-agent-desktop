@@ -24,6 +24,16 @@ export {
   // Types
   type SessionScopedToolCallbacks,
   type BrowserPaneFns,
+  // Canvas tool wiring (session-scoped canvas_* tools)
+  type CanvasToolFns,
+  type CanvasNodeSummary,
+  type CanvasEdgeSummary,
+  type CanvasListResult,
+  type CanvasCreateNodeParams,
+  type CanvasUpdateNodeParams,
+  type CanvasConnectParams,
+  type CanvasGenerateImageParams,
+  CANVAS_TOOL_NAMES,
   // Auth request types (unified auth flow)
   type AuthRequest,
   type AuthRequestType,

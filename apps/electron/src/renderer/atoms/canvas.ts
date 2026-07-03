@@ -146,6 +146,44 @@ export function serializeCanvasDocState(state: CanvasDocState): CanvasDocStateDt
   }
 }
 
+/**
+ * Merge a remote canvas state onto the current local one for a live
+ * reconcile (canvas:changed from another window/agent). Structural data comes
+ * from remote (nodes/edges), but volatile local interaction state is kept:
+ * - viewport stays local (a remote write must not yank the user's pan/zoom)
+ * - selection is re-applied onto matching remote nodes/edges by id
+ * - a node the user is currently dragging is kept verbatim (position and all)
+ *   so an in-flight drag is never clobbered, even if the remote write removed
+ *   or moved it.
+ */
+export function mergeRemoteCanvasState(
+  local: CanvasDocState,
+  remote: CanvasDocState,
+): CanvasDocState {
+  const localNodesById = new Map(local.nodes.map((node) => [node.id, node]))
+  const nodes = remote.nodes.map((remoteNode) => {
+    const localNode = localNodesById.get(remoteNode.id)
+    if (!localNode) return remoteNode
+    // Do not interrupt an in-flight drag: keep the local node until the drag
+    // settles and the resulting edit re-saves.
+    if (localNode.dragging) return localNode
+    return localNode.selected ? { ...remoteNode, selected: true } : remoteNode
+  })
+  // Keep a node the user is dragging even if the remote write deleted it, so
+  // the interaction isn't pulled out from under the pointer.
+  const remoteIds = new Set(remote.nodes.map((node) => node.id))
+  for (const localNode of local.nodes) {
+    if (localNode.dragging && !remoteIds.has(localNode.id)) nodes.push(localNode)
+  }
+  const selectedEdgeIds = new Set(
+    local.edges.filter((edge) => edge.selected).map((edge) => edge.id),
+  )
+  const edges = remote.edges.map((edge) =>
+    selectedEdgeIds.has(edge.id) ? { ...edge, selected: true } : edge,
+  )
+  return { nodes, edges, viewport: local.viewport }
+}
+
 /** Inverse of serializeCanvasDocState — wire shape back into React Flow types */
 export function deserializeCanvasDocState(dto: CanvasDocStateDto): CanvasDocState {
   return {

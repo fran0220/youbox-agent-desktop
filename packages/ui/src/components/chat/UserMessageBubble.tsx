@@ -417,6 +417,10 @@ export function UserMessageBubble({
           {attachments!.map((att, i) => {
             const isImage = att.type === 'image'
             const hasThumbnail = !!att.thumbnailBase64
+            // Image attachments are draggable onto the canvas (canvas mode);
+            // the payload references the stored file path (no copy). MIME kept
+            // in sync with CANVAS_IMAGE_DND_MIME in the electron renderer.
+            const isDraggableImage = isImage && !!att.storedPath
 
             return (
               <div
@@ -424,6 +428,18 @@ export function UserMessageBubble({
                 className="shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => att.storedPath && onFileClick?.(att.storedPath)}
                 title={t('chat.clickToOpen', { name: att.name })}
+                draggable={isDraggableImage}
+                onDragStart={
+                  isDraggableImage
+                    ? (e) => {
+                        e.dataTransfer.setData(
+                          'application/x-origin-canvas-image',
+                          JSON.stringify({ filePath: att.storedPath, fileName: att.name }),
+                        )
+                        e.dataTransfer.effectAllowed = 'copy'
+                      }
+                    : undefined
+                }
               >
                 {isImage ? (
                   /* IMAGE: Square thumbnail only */

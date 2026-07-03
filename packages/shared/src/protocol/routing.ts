@@ -388,6 +388,7 @@ export const REMOTE_ELIGIBLE_CHANNELS = new Set<string>([
   RPC_CHANNELS.canvas.UPDATE,
   RPC_CHANNELS.canvas.DELETE,
   RPC_CHANNELS.canvas.GENERATE_IMAGE,
+  RPC_CHANNELS.canvas.IMPORT_ASSET,
   RPC_CHANNELS.canvas.CHANGED,
 
   // gamestudio — game projects are workspace content

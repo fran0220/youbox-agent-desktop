@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "Vásznak",
   "canvas.docPicker.renamePlaceholder": "Vászon neve",
   "canvas.docPicker.title": "Vásznak",
+  "canvas.dropImage.error": "A ráhúzott képet nem sikerült hozzáadni. Próbáld újra.",
   "canvas.emptyDescription": "Készíts és rendezz képeket egy végtelen vásznon. Adj hozzá képeket és jegyzeteket az eszköztárból.",
   "canvas.emptyTitle": "Vászon",
   "canvas.fitView": "Nézet igazítása",

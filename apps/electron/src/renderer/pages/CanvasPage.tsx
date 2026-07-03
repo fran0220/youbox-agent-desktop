@@ -12,9 +12,11 @@
  * updated doc, or shows a create-first empty state when none exist.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import type { XYPosition } from '@xyflow/react'
 import {
   Background,
   BackgroundVariant,
@@ -59,10 +61,18 @@ import {
   createImageNode,
   deserializeCanvasDocState,
   hydrateCanvasDocAtom,
+  mergeRemoteCanvasState,
   seedCanvasChatSessionIdAtom,
   selectedCanvasNodeIdsAtom,
   serializeCanvasDocState,
 } from '@/atoms/canvas'
+import {
+  dataTransferHasCanvasImage,
+  imageNodeFromImportedAsset,
+  importRequestFromDrop,
+  parseCanvasImageDrop,
+  type DroppedImageRef,
+} from '@/lib/canvas-dnd'
 import type { CanvasDoc } from '@craft-agent/shared/protocol'
 
 const DELETE_KEY_CODES = ['Backspace', 'Delete']
@@ -119,16 +129,24 @@ function useCanvasDocPersistence(workspaceId: string, docId: string) {
       onError: (err) => console.error('[Canvas] Failed to save canvas doc:', err),
     })
 
-    const applyDoc = (doc: CanvasDoc) => {
+    // 'load' hydrates a freshly opened doc (adopt its persisted viewport).
+    // 'reconcile' applies a live remote change onto the open doc: structural
+    // nodes/edges come from remote, but the local viewport and selection (and
+    // any in-flight drag) are preserved so the update never yanks the view.
+    const applyDoc = (doc: CanvasDoc, mode: 'load' | 'reconcile') => {
       hydrated = false
       guard.reset(doc.version)
-      const state = deserializeCanvasDocState(doc)
-      saver.baseline(serializeCanvasDocState(state))
-      hydrate(state)
+      const remote = deserializeCanvasDocState(doc)
+      const next =
+        mode === 'reconcile'
+          ? mergeRemoteCanvasState(store.get(canvasDocStateAtom), remote)
+          : remote
+      saver.baseline(serializeCanvasDocState(next))
+      hydrate(next)
       // Seed the selection-chat cache from the doc's persisted binding (source
       // of truth) so the chat reuses the same hidden session across restarts.
       seedChatSession({ docId, sessionId: doc.chatSessionId })
-      void setViewport(doc.viewport)
+      if (mode === 'load') void setViewport(doc.viewport)
       hydrated = true
     }
 
@@ -145,7 +163,7 @@ function useCanvasDocPersistence(workspaceId: string, docId: string) {
         saver,
         guard,
         fetchDoc: () => window.electronAPI.canvasGet(workspaceId, docId),
-        applyDoc,
+        applyDoc: (doc) => applyDoc(doc, 'reconcile'),
         isDisposed: () => disposed,
       })
 
@@ -173,7 +191,7 @@ function useCanvasDocPersistence(workspaceId: string, docId: string) {
           navigate(routes.view.canvas())
           return
         }
-        applyDoc(doc)
+        applyDoc(doc, 'load')
       })
       .catch((err) => {
         console.error('[Canvas] Failed to load canvas doc:', err)
@@ -218,8 +236,49 @@ function CanvasFlow({
   const addNode = useSetAtom(addCanvasNodeAtom)
   const [imagePreview, setImagePreview] = useAtom(canvasImagePreviewAtom)
   const [chatDismissed, setChatDismissed] = useState(false)
+  const { screenToFlowPosition } = useReactFlow()
   useDevAddImageHook(addNode)
   useCanvasDocPersistence(workspaceId, docId)
+
+  // Chat-image drag-and-drop: dropping an image dragged from a chat message
+  // copies it into the doc's asset dir (canvas:importAsset) and creates an
+  // image node at the pointer pointing at the portable copy — not the chat
+  // attachment's original absolute path.
+  const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
+    if (!dataTransferHasCanvasImage(event.dataTransfer.types)) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  const importDroppedImage = useCallback(
+    async (ref: DroppedImageRef, position: XYPosition) => {
+      try {
+        const result = await window.electronAPI.canvasImportAsset(
+          importRequestFromDrop(ref, { workspaceId, docId }),
+        )
+        if (!result.ok) {
+          toast.error(t('canvas.dropImage.error'))
+          return
+        }
+        addNode(imageNodeFromImportedAsset(result.assetPath, position, ref.fileName))
+      } catch (err) {
+        console.error('[Canvas] Failed to import dropped image:', err)
+        toast.error(t('canvas.dropImage.error'))
+      }
+    },
+    [workspaceId, docId, addNode, t],
+  )
+
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      const ref = parseCanvasImageDrop(event.dataTransfer)
+      if (!ref) return
+      event.preventDefault()
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+      void importDroppedImage(ref, position)
+    },
+    [screenToFlowPosition, importDroppedImage],
+  )
 
   const nodeTypes = useMemo<NodeTypes>(() => ({ image: ImageNode, text: TextNode }), [])
   const chatOpen = selectedIds.length > 0 && !chatDismissed
@@ -232,7 +291,12 @@ function CanvasFlow({
 
   return (
     <CanvasGenerationProvider workspaceId={workspaceId} docId={docId}>
-    <div ref={wrapperRef} className="canvas-flow relative h-full w-full">
+    <div
+      ref={wrapperRef}
+      className="canvas-flow relative h-full w-full"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

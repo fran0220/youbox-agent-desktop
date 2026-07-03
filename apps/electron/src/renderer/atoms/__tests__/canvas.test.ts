@@ -14,10 +14,13 @@ import {
   createImageNode,
   createTextNode,
   isValidCanvasConnection,
+  mergeRemoteCanvasState,
   seedCanvasChatSessionIdAtom,
   selectedCanvasNodeIdsAtom,
   setTextNodeTextAtom,
+  type CanvasDocState,
   type CanvasEdge,
+  type CanvasNode,
 } from '../canvas'
 
 function connection(source: string, target: string, overrides?: Partial<Connection>): Connection {
@@ -190,5 +193,92 @@ describe('canvas atoms', () => {
     expect(doc.nodes).toHaveLength(1)
     expect(doc.edges).toHaveLength(1)
     expect(doc.viewport).toEqual({ x: 5, y: 6, zoom: 1.5 })
+  })
+})
+
+describe('mergeRemoteCanvasState', () => {
+  const textNode = (id: string, overrides: Partial<CanvasNode> = {}): CanvasNode =>
+    ({
+      id,
+      type: 'text',
+      position: { x: 0, y: 0 },
+      data: { text: id },
+      ...overrides,
+    }) as CanvasNode
+
+  const edge = (id: string, selected = false): CanvasEdge => ({
+    id,
+    source: 'a',
+    target: 'b',
+    selected,
+  })
+
+  const state = (over: Partial<CanvasDocState> = {}): CanvasDocState => ({
+    nodes: [],
+    edges: [],
+    viewport: { x: 0, y: 0, zoom: 1 },
+    ...over,
+  })
+
+  it('takes nodes/edges from remote but keeps the local viewport', () => {
+    const local = state({
+      nodes: [textNode('n1')],
+      viewport: { x: 100, y: 50, zoom: 2 },
+    })
+    const remote = state({
+      nodes: [textNode('n1'), textNode('n2')],
+      edges: [edge('e1')],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    })
+
+    const merged = mergeRemoteCanvasState(local, remote)
+    expect(merged.nodes.map((n) => n.id)).toEqual(['n1', 'n2'])
+    expect(merged.edges.map((e) => e.id)).toEqual(['e1'])
+    // Remote's viewport is discarded — the user's pan/zoom is preserved.
+    expect(merged.viewport).toEqual({ x: 100, y: 50, zoom: 2 })
+  })
+
+  it('re-applies local node selection onto matching remote nodes', () => {
+    const local = state({ nodes: [textNode('n1', { selected: true }), textNode('n2')] })
+    const remote = state({ nodes: [textNode('n1'), textNode('n2'), textNode('n3')] })
+
+    const merged = mergeRemoteCanvasState(local, remote)
+    expect(merged.nodes.find((n) => n.id === 'n1')?.selected).toBe(true)
+    expect(merged.nodes.find((n) => n.id === 'n2')?.selected).toBeFalsy()
+    expect(merged.nodes.find((n) => n.id === 'n3')?.selected).toBeFalsy()
+  })
+
+  it('keeps an in-flight dragged node verbatim, ignoring the remote position', () => {
+    const local = state({
+      nodes: [textNode('n1', { dragging: true, selected: true, position: { x: 300, y: 300 } })],
+    })
+    const remote = state({
+      nodes: [textNode('n1', { position: { x: 0, y: 0 } })],
+    })
+
+    const merged = mergeRemoteCanvasState(local, remote)
+    const n1 = merged.nodes.find((n) => n.id === 'n1')
+    expect(n1?.position).toEqual({ x: 300, y: 300 })
+    expect(n1?.dragging).toBe(true)
+    expect(n1?.selected).toBe(true)
+  })
+
+  it('retains a dragged node even when the remote write removed it', () => {
+    const local = state({
+      nodes: [textNode('n1', { dragging: true }), textNode('n2')],
+    })
+    const remote = state({ nodes: [textNode('n2')] })
+
+    const merged = mergeRemoteCanvasState(local, remote)
+    expect(merged.nodes.map((n) => n.id).sort()).toEqual(['n1', 'n2'])
+  })
+
+  it('re-applies local edge selection onto matching remote edges', () => {
+    const local = state({ edges: [edge('e1', true)] })
+    const remote = state({ edges: [edge('e1'), edge('e2')] })
+
+    const merged = mergeRemoteCanvasState(local, remote)
+    expect(merged.edges.find((e) => e.id === 'e1')?.selected).toBe(true)
+    expect(merged.edges.find((e) => e.id === 'e2')?.selected).toBeFalsy()
   })
 })

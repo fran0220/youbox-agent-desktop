@@ -69,6 +69,7 @@ const EXPECTED_CHANNELS: string[] = [
   'canvas:delete',
   'canvas:generateImage',
   'canvas:get',
+  'canvas:importAsset',
   'canvas:list',
   'canvas:update',
   'chatgpt:cancelOAuth',

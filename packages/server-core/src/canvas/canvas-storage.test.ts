@@ -4,7 +4,9 @@ import { tmpdir } from 'os'
 import { join, relative } from 'path'
 import type { CanvasDocState } from '@craft-agent/shared/protocol'
 import {
+  CANVAS_MAX_NODES,
   CANVAS_SCHEMA_VERSION,
+  addCanvasNode,
   createCanvasDoc,
   deleteCanvasDoc,
   ensureCanvasAssetsDir,
@@ -140,6 +142,44 @@ describe('canvas doc CRUD round-trip', () => {
     expect(existsSync(getCanvasDocPath(wsRoot, doc.id))).toBe(false)
     expect(existsSync(getCanvasAssetsDir(wsRoot, doc.id))).toBe(false)
     expect(await deleteCanvasDoc(wsRoot, doc.id)).toBe(false)
+  })
+})
+
+describe('node-count cap (addCanvasNode)', () => {
+  function nodesState(count: number): CanvasDocState {
+    return {
+      nodes: Array.from({ length: count }, (_, i) => ({
+        id: `n${i}`,
+        type: 'text' as const,
+        position: { x: i, y: i },
+        data: { text: String(i) },
+      })),
+      edges: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    }
+  }
+
+  it('allows appending up to CANVAS_MAX_NODES', async () => {
+    const doc = await createCanvasDoc(wsRoot, { name: 'AtCap', state: nodesState(CANVAS_MAX_NODES - 1) })
+    const { nodeId } = await addCanvasNode(wsRoot, doc.id, {
+      type: 'text',
+      position: { x: 0, y: 0 },
+      data: { text: 'last' },
+    })
+    const stored = loadCanvasDoc(wsRoot, doc.id)!
+    expect(stored.nodes).toHaveLength(CANVAS_MAX_NODES)
+    expect(stored.nodes.some(n => n.id === nodeId)).toBe(true)
+  })
+
+  it('rejects appending beyond CANVAS_MAX_NODES with a limit error and does not write', async () => {
+    const doc = await createCanvasDoc(wsRoot, { name: 'OverCap', state: nodesState(CANVAS_MAX_NODES) })
+    await expect(
+      addCanvasNode(wsRoot, doc.id, { type: 'text', position: { x: 0, y: 0 }, data: { text: 'nope' } }),
+    ).rejects.toThrow('canvas node limit reached')
+
+    const stored = loadCanvasDoc(wsRoot, doc.id)!
+    expect(stored.nodes).toHaveLength(CANVAS_MAX_NODES)
+    expect(stored.version).toBe(doc.version)
   })
 })
 

@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "Kanwy",
   "canvas.docPicker.renamePlaceholder": "Nazwa kanwy",
   "canvas.docPicker.title": "Kanwy",
+  "canvas.dropImage.error": "Nie udało się dodać upuszczonego obrazu. Spróbuj ponownie.",
   "canvas.emptyDescription": "Twórz i układaj obrazy na nieskończonej kanwie. Dodawaj obrazy i notatki z paska narzędzi.",
   "canvas.emptyTitle": "Kanwa",
   "canvas.fitView": "Dopasuj widok",

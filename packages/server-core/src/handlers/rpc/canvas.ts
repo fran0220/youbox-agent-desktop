@@ -77,6 +77,11 @@ export function registerCanvasHandlers(server: RpcServer, deps: HandlerDeps): vo
       // Metadata-only bind — no version bump. Applied after any content change
       // so the returned doc reflects both.
       doc = await setCanvasDocChatSessionId(workspace.rootPath, docId, input.chatSessionId)
+      // Late-binding: if the bound session's agent is already running, re-evaluate
+      // its canvas tool availability so the canvas_* tools appear without a restart.
+      if (input.chatSessionId) {
+        deps.sessionManager.refreshCanvasToolsForSession?.(input.chatSessionId)
+      }
     }
     if (!doc) {
       doc = loadCanvasDoc(workspace.rootPath, docId)

@@ -34,6 +34,7 @@ import {
 import { createLLMTool, type LLMQueryRequest, type LLMQueryResult } from './llm-tool.ts';
 import { createSpawnSessionTool, type SpawnSessionFn } from './spawn-session-tool.ts';
 import { createBrowserTools, type BrowserPaneFns } from './browser-tools.ts';
+import { createCanvasTools, CANVAS_TOOL_NAMES } from './canvas-tools.ts';
 import { FEATURE_FLAGS } from '../feature-flags.ts';
 import { getBrowserToolEnabled } from '../config/storage.ts';
 
@@ -55,6 +56,19 @@ export type {
 
 // Re-export browser pane types for session manager wiring
 export type { BrowserPaneFns } from './browser-tools.ts';
+
+// Re-export canvas tool types for session manager wiring
+export type {
+  CanvasToolFns,
+  CanvasNodeSummary,
+  CanvasEdgeSummary,
+  CanvasListResult,
+  CanvasCreateNodeParams,
+  CanvasUpdateNodeParams,
+  CanvasConnectParams,
+  CanvasGenerateImageParams,
+} from './canvas-tools.ts';
+export { CANVAS_TOOL_NAMES } from './canvas-tools.ts';
 
 // ============================================================
 // Session-Scoped Tool Callbacks (re-exported from dedicated registry module)
@@ -78,6 +92,7 @@ export const CLAUDE_BACKEND_SESSION_TOOL_NAMES = new Set<string>([
   'call_llm',
   'spawn_session',
   'browser_tool',
+  ...CANVAS_TOOL_NAMES,
 ]);
 
 /**
@@ -299,6 +314,21 @@ export function getSessionScopedTools(
           getBrowserPaneFns: () => {
             const callbacks = getSessionScopedToolCallbacks(sessionId);
             return callbacks?.browserPaneFns;
+          },
+        }),
+      );
+    }
+
+    // Add canvas_* tools — session-scoped, only when this session drives a canvas
+    // doc (the Electron session manager merges canvasFns for bound sessions only).
+    // Unbound sessions have no canvasFns, so the tools stay absent.
+    if (getSessionScopedToolCallbacks(sessionId)?.canvasFns) {
+      tools.push(
+        ...createCanvasTools({
+          sessionId,
+          getCanvasFns: () => {
+            const callbacks = getSessionScopedToolCallbacks(sessionId);
+            return callbacks?.canvasFns;
           },
         }),
       );

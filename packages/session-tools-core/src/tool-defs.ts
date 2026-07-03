@@ -220,6 +220,38 @@ export const UnbindMessagingChannelSchema = z.object({
   platform: z.enum(['telegram', 'whatsapp']).optional().describe('Platform to unbind. If omitted, unbinds all.'),
 });
 
+// Canvas tools (session-scoped — only available when the session drives a canvas doc)
+export const CanvasListNodesSchema = z.object({});
+
+export const CanvasCreateNodeSchema = z.object({
+  type: z.enum(['image', 'text']).describe("Node kind: 'text' for a note, 'image' for an existing image file on disk"),
+  text: z.string().optional().describe("Text content (required when type='text')"),
+  imagePath: z.string().optional().describe("Absolute path to an image file INSIDE the workspace (required when type='image'). Paths outside the workspace are rejected."),
+  x: z.number().optional().describe('X position on the canvas (auto-placed when omitted)'),
+  y: z.number().optional().describe('Y position on the canvas (auto-placed when omitted)'),
+});
+
+export const CanvasUpdateNodeSchema = z.object({
+  nodeId: z.string().describe('Id of the node to update (must already exist in the doc)'),
+  x: z.number().optional().describe('New X position'),
+  y: z.number().optional().describe('New Y position'),
+  text: z.string().optional().describe('New text content (text nodes only)'),
+  width: z.number().optional().describe('New node width'),
+  height: z.number().optional().describe('New node height'),
+});
+
+export const CanvasConnectSchema = z.object({
+  source: z.string().describe('Id of the source (upstream) node'),
+  target: z.string().describe('Id of the target (downstream) node'),
+});
+
+export const CanvasGenerateImageSchema = z.object({
+  prompt: z.string().describe('Text prompt describing the image to generate'),
+  referenceNodeIds: z.array(z.string()).optional().describe('Ids of existing image nodes whose assets seed image-to-image generation'),
+  size: z.string().optional().describe("Requested image size, e.g. '1024x1024' (endpoint-defaulted when omitted)"),
+  nodeId: z.string().optional().describe('Existing placeholder node id to backfill; omit to append a new image node'),
+});
+
 // ============================================================
 // Canonical Tool Descriptions (base — no DOC_REFS)
 // ============================================================
@@ -482,6 +514,39 @@ Shows which external chat apps are connected and can send/receive messages.`,
 
   unbind_messaging_channel: `Disconnect a messaging channel from the current session.
 Messages will no longer be forwarded between the chat app and this session.`,
+
+  canvas_list_nodes: `List all nodes and edges on the canvas document bound to this session.
+
+Returns each node's id, type (image/text), position, and content (text for text nodes, fileName for image nodes), plus the edges connecting them. Use this to understand the current canvas before creating, updating, or connecting nodes.
+
+Only available when this session is driving a canvas document.`,
+
+  canvas_create_node: `Create a new node on the canvas.
+
+- Text node: pass \`type: "text"\` and \`text\`.
+- Image node: pass \`type: "image"\` and \`imagePath\` (an absolute path to an image file INSIDE the workspace — paths outside the workspace are rejected for security).
+
+Optionally pass \`x\`/\`y\` to position the node; otherwise it is auto-placed. Returns the new node id.
+
+Only available when this session is driving a canvas document.`,
+
+  canvas_update_node: `Update an existing canvas node.
+
+Change its position (\`x\`/\`y\`), size (\`width\`/\`height\`), and/or \`text\` (text nodes only). The node must already exist. Returns the updated node id.
+
+Only available when this session is driving a canvas document.`,
+
+  canvas_connect: `Connect two canvas nodes with a directed edge (source -> target).
+
+Both node ids must already exist in the doc. Returns the new edge id. Edges express upstream relationships used by image-to-image generation.
+
+Only available when this session is driving a canvas document.`,
+
+  canvas_generate_image: `Generate an image onto the canvas from a text prompt.
+
+Optionally pass \`referenceNodeIds\` (ids of existing image nodes) to seed image-to-image generation, \`size\` (e.g. "1024x1024"), and \`nodeId\` to backfill an existing placeholder node instead of appending a new one. The generated image is persisted as a workspace asset and attached as an image node.
+
+Only available when this session is driving a canvas document.`,
 } as const;
 
 // ============================================================
@@ -557,6 +622,13 @@ export const SESSION_TOOL_DEFS: SessionToolDef[] = [
   // Messaging gateway tools
   { name: 'list_messaging_channels', description: TOOL_DESCRIPTIONS.list_messaging_channels, inputSchema: ListMessagingChannelsSchema, executionMode: 'registry', safeMode: 'allow', readOnly: true, handler: handleListMessagingChannels },
   { name: 'unbind_messaging_channel', description: TOOL_DESCRIPTIONS.unbind_messaging_channel, inputSchema: UnbindMessagingChannelSchema, executionMode: 'registry', safeMode: 'block', handler: handleUnbindMessagingChannel },
+  // Canvas tools (backend-specific — require CanvasToolFns wired by the Electron SessionManager
+  // for sessions bound to a canvas doc). Session-scoped: absent unless the session drives a doc.
+  { name: 'canvas_list_nodes', description: TOOL_DESCRIPTIONS.canvas_list_nodes, inputSchema: CanvasListNodesSchema, executionMode: 'backend', safeMode: 'allow', readOnly: true, handler: null },
+  { name: 'canvas_create_node', description: TOOL_DESCRIPTIONS.canvas_create_node, inputSchema: CanvasCreateNodeSchema, executionMode: 'backend', safeMode: 'allow', handler: null },
+  { name: 'canvas_update_node', description: TOOL_DESCRIPTIONS.canvas_update_node, inputSchema: CanvasUpdateNodeSchema, executionMode: 'backend', safeMode: 'allow', handler: null },
+  { name: 'canvas_connect', description: TOOL_DESCRIPTIONS.canvas_connect, inputSchema: CanvasConnectSchema, executionMode: 'backend', safeMode: 'allow', handler: null },
+  { name: 'canvas_generate_image', description: TOOL_DESCRIPTIONS.canvas_generate_image, inputSchema: CanvasGenerateImageSchema, executionMode: 'backend', safeMode: 'allow', handler: null },
 ];
 
 export interface SessionToolFilterOptions {

@@ -103,6 +103,8 @@ import { extractWorkspaceSlug } from '../utils/workspace.ts';
 // LLM tool types
 import { LLM_QUERY_TIMEOUT_MS, type LLMQueryRequest, type LLMQueryResult } from './llm-tool.ts';
 import { executeBrowserToolCommand } from './browser-tool-runtime.ts';
+import { CANVAS_TOOL_NAMES } from './canvas-tools.ts';
+import { executeCanvasToolCommand } from './canvas-tool-runtime.ts';
 import { saveBinaryResponse } from '../utils/binary-detection.ts';
 
 // ============================================================
@@ -114,6 +116,7 @@ export const PI_BACKEND_SESSION_TOOL_NAMES = new Set<string>([
   'call_llm',
   'spawn_session',
   'browser_tool',
+  ...CANVAS_TOOL_NAMES,
 ]);
 
 /**
@@ -560,6 +563,13 @@ export class PiAgent extends BaseAgent {
     // inconsistently depending on backend.
     if (!getBrowserToolEnabled()) {
       sessionToolDefs = sessionToolDefs.filter(d => d.name !== 'mcp__session__browser_tool');
+    }
+
+    // Canvas tools are session-scoped — only advertise them when this session is
+    // bound to a canvas doc (canvasFns registered by the session manager). This
+    // mirrors Claude's canvasFns gate so backends behave consistently.
+    if (!getSessionScopedToolCallbacks(this._sessionId)?.canvasFns) {
+      sessionToolDefs = sessionToolDefs.filter(d => !d.name.startsWith('mcp__session__canvas_'));
     }
 
     // Patch call_llm description with provider-specific model hint
@@ -1582,6 +1592,18 @@ export class PiAgent extends BaseAgent {
           const friendly = mapBrowserToolErrorCode(code) ?? msg;
           return { content: friendly, isError: true };
         }
+      }
+
+      // canvas_* tools — delegate to CanvasToolFns wired by the session manager
+      // for canvas-bound sessions. Absent otherwise (returns a clear tool error).
+      if ((CANVAS_TOOL_NAMES as readonly string[]).includes(toolName)) {
+        const callbacks = getSessionScopedToolCallbacks(this._sessionId);
+        const canvasFns = callbacks?.canvasFns;
+        if (!canvasFns) {
+          return { content: 'Canvas tools are not available. This session is not bound to a canvas document.', isError: true };
+        }
+        const result = await executeCanvasToolCommand({ toolName, args, fns: canvasFns });
+        return { content: result.output, isError: result.isError };
       }
 
       const def = SESSION_TOOL_REGISTRY.get(toolName);

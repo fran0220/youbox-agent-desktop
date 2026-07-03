@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "Canvases",
   "canvas.docPicker.renamePlaceholder": "Canvas name",
   "canvas.docPicker.title": "Canvases",
+  "canvas.dropImage.error": "Couldn't add the dropped image. Please try again.",
   "canvas.emptyDescription": "Create and arrange images on an infinite canvas. Add images and notes from the toolbar.",
   "canvas.emptyTitle": "Canvas",
   "canvas.fitView": "Fit view",

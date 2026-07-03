@@ -150,6 +150,7 @@
   "canvas.docPicker.open": "Lienzos",
   "canvas.docPicker.renamePlaceholder": "Nombre del lienzo",
   "canvas.docPicker.title": "Lienzos",
+  "canvas.dropImage.error": "No se pudo añadir la imagen soltada. Inténtalo de nuevo.",
   "canvas.emptyDescription": "Crea y organiza imágenes en un lienzo infinito. Añade imágenes y notas desde la barra de herramientas.",
   "canvas.emptyTitle": "Lienzo",
   "canvas.fitView": "Ajustar vista",
