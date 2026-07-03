@@ -13,6 +13,7 @@ import { getSystemPrompt } from '../system'
 
 const GIT_CONVENTIONS_HEADING = '## Git Conventions'
 const CO_AUTHOR_TRAILER = 'Co-Authored-By: OriginAI <agents-noreply@origincoworks.local>'
+const DESIGN_CHARTER_HEADING = '## Design Engineer Charter'
 
 describe('system prompt guidance', () => {
   it('uses youbox agent as the assistant identity', () => {
@@ -64,6 +65,43 @@ describe('system prompt guidance', () => {
 
     expect(prompt).toContain('The subtask needs file/shell tools (for example, Read or Bash)')
     expect(prompt).not.toContain('The subtask needs tools (Read, Bash, Grep)')
+  })
+
+  it('includes the design charter only for the design preset', () => {
+    const designPrompt = getSystemPrompt(
+      undefined,
+      undefined,
+      '/tmp/workspace',
+      '/tmp/workspace',
+      'design',
+      undefined,
+      false
+    )
+    const defaultPrompt = getSystemPrompt(
+      undefined,
+      undefined,
+      '/tmp/workspace',
+      '/tmp/workspace',
+      'default',
+      undefined,
+      false
+    )
+    const implicitDefaultPrompt = getSystemPrompt(
+      undefined,
+      undefined,
+      '/tmp/workspace',
+      '/tmp/workspace',
+      undefined,
+      undefined,
+      false
+    )
+
+    expect(designPrompt).toContain(DESIGN_CHARTER_HEADING)
+    expect(designPrompt).toContain('self-hosted assets only')
+    expect(designPrompt).toContain('no remote CDNs')
+    expect(designPrompt).toContain('real typographic hierarchy')
+    expect(defaultPrompt).not.toContain(DESIGN_CHARTER_HEADING)
+    expect(implicitDefaultPrompt).not.toContain(DESIGN_CHARTER_HEADING)
   })
 })
 

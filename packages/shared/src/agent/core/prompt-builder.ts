@@ -17,11 +17,15 @@ import { formatPreferencesForPrompt } from '../../config/preferences.ts';
 import { formatSessionState } from '../mode-manager.ts';
 import { getDateTimeContext, getWorkingDirectoryContext } from '../../prompts/system.ts';
 import { getSessionPlansPath, getSessionDataPath, getSessionPath } from '../../sessions/storage.ts';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import type {
   PromptBuilderConfig,
   ContextBlockOptions,
   RecoveryMessage,
 } from './types.ts';
+
+const MAX_DESIGN_CONTEXT_FILE_SIZE = 10 * 1024;
 
 /**
  * PromptBuilder provides utilities for building prompts and context blocks.
@@ -139,6 +143,7 @@ export class PromptBuilder {
    * Blocks (in order):
    *  1. workspace capabilities
    *  2. working directory, when available
+   *  3. project DESIGN.md, when present in the working directory
    *
    * Pure and idempotent: holds no one-shot state, so it is safe to call any
    * number of times per turn.
@@ -153,6 +158,11 @@ export class PromptBuilder {
     const workingDirContext = this.getWorkingDirectoryContext();
     if (workingDirContext) {
       parts.push(workingDirContext);
+    }
+
+    const projectDesignContext = this.getProjectDesignContext();
+    if (projectDesignContext) {
+      parts.push(projectDesignContext);
     }
 
     return parts;
@@ -190,6 +200,31 @@ export class PromptBuilder {
       isSessionRoot,
       this.config.session?.sdkCwd
     );
+  }
+
+  getProjectDesignContext(): string | null {
+    const workingDirectory = this.config.session?.workingDirectory;
+    if (!workingDirectory) {
+      return null;
+    }
+
+    const designPath = join(workingDirectory, 'DESIGN.md');
+    if (!existsSync(designPath)) {
+      return null;
+    }
+
+    try {
+      const content = readFileSync(designPath, 'utf-8');
+      const boundedContent = content.length > MAX_DESIGN_CONTEXT_FILE_SIZE
+        ? `${content.slice(0, MAX_DESIGN_CONTEXT_FILE_SIZE)}\n\n... (truncated)`
+        : content;
+
+      return `<project_design_context file="DESIGN.md" working_directory="${workingDirectory}">
+${boundedContent}
+</project_design_context>`;
+    } catch {
+      return null;
+    }
   }
 
   // ============================================================

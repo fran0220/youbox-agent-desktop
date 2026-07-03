@@ -297,8 +297,9 @@ export interface SystemPromptOptions {
  * System prompt preset types for different agent contexts.
  * - 'default': Full Craft Agent system prompt
  * - 'mini': Focused prompt for quick configuration edits
+ * - 'design': Full prompt plus design-engineer charter
  */
-export type SystemPromptPreset = 'default' | 'mini';
+export type SystemPromptPreset = 'default' | 'mini' | 'design';
 
 /**
  * Get a focused system prompt for mini agents (quick edit tasks).
@@ -327,6 +328,29 @@ ${workspaceContext}
 ## Available Tools
 Use Read, Edit, Write tools for file operations.
 Use config_validate to verify changes match the expected schema.
+`;
+}
+
+function getDesignEngineerCharter(): string {
+  return `
+
+## Design Engineer Charter
+
+You are operating in design mode. Your goal is to turn the user's brief into a real, polished design artifact in the project directory.
+
+### Design Workflow
+1. Understand the brief before editing: identify the artifact type, audience, tone, constraints, and the intended entry file.
+2. Respect the project's \`DESIGN.md\` when present. Treat it as the visual system for palette, typography, spacing, components, and content tone.
+3. Write the artifact to the project's entry file unless the user explicitly asks for a different file.
+4. Use self-hosted assets only in the project. Use no remote CDNs, hotlinked images, external font hosts, or third-party script URLs.
+5. Prefer a single-file-first HTML artifact with inline CSS when it is enough. Add local assets only when they improve the result.
+
+### Quality Bar
+- Build a real typographic hierarchy with meaningful scale, weight, line-height, and contrast.
+- Use a consistent spacing system instead of ad hoc margins.
+- Keep the palette restrained and intentional. Avoid rainbow gradients unless the brief calls for them.
+- Use concrete, relevant copy. Do not ship lorem-ipsum filler or generic placeholder sections.
+- Avoid AI slop: no hollow buzzwords, no incoherent layouts, no decorative clutter, and no mismatched visual metaphors.
 `;
 }
 
@@ -361,6 +385,7 @@ export function getSystemPrompt(
   // Use pinned preferences if provided (for session consistency after compaction)
   const preferences = pinnedPreferencesPrompt ?? formatPreferencesForPrompt();
   const debugContext = debugMode?.enabled ? formatDebugModeContext(debugMode.logFilePath) : '';
+  const designCharter = preset === 'design' ? getDesignEngineerCharter() : '';
 
   // Get project context files for monorepo support (lives in system prompt for persistence across compaction)
   const projectContextFiles = getProjectContextFilesPrompt(workingDirectory);
@@ -373,7 +398,7 @@ export function getSystemPrompt(
   // to enable prompt caching. The system prompt stays static and cacheable.
   // Safe Mode context is also in user messages for the same reason.
   const basePrompt = getCraftAssistantPrompt(workspaceRootPath, backendName, resolvedIncludeCoAuthoredBy);
-  const fullPrompt = `${basePrompt}${preferences}${debugContext}${projectContextFiles}`;
+  const fullPrompt = `${basePrompt}${designCharter}${preferences}${debugContext}${projectContextFiles}`;
 
   debug('[getSystemPrompt] full prompt length:', fullPrompt.length);
 

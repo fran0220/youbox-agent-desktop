@@ -17,7 +17,10 @@
  *     volatile builder — never by the stable builder.
  */
 import { describe, it, expect, afterEach } from 'bun:test'
-import { TestAgent, createMockBackendConfig } from './test-utils.ts'
+import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
+import { TestAgent, createMockBackendConfig, createMockSession, createMockWorkspace } from './test-utils.ts'
 import { cleanupModeState, initializeModeState, setPermissionMode } from '../mode-manager.ts'
 
 // Matches createMockSession() in test-utils.ts
@@ -27,6 +30,13 @@ const SOURCE_BLOCK = '<sources>\nActive: none\n</sources>'
 
 function makeBuilder() {
   return new TestAgent(createMockBackendConfig()).getPromptBuilder()
+}
+
+function makeBuilderForWorkingDirectory(workingDirectory: string) {
+  return new TestAgent(createMockBackendConfig({
+    workspace: createMockWorkspace({ rootPath: workingDirectory }),
+    session: createMockSession({ workingDirectory }),
+  })).getPromptBuilder()
 }
 
 describe('PromptBuilder volatile/stable context split (issue #862)', () => {
@@ -77,5 +87,38 @@ describe('PromptBuilder volatile/stable context split (issue #862)', () => {
     const second = builder.buildVolatileContextParts(OPTS, SOURCE_BLOCK).join('\n')
     expect(first).toContain('modeChangeUserSignal:')
     expect(second).not.toContain('modeChangeUserSignal:')
+  })
+
+  it('injects project DESIGN.md into stable context, never volatile context', () => {
+    const workingDirectory = mkdtempSync(join(tmpdir(), 'design-md-stable-'))
+    try {
+      writeFileSync(
+        join(workingDirectory, 'DESIGN.md'),
+        '# Project Design System\n\nUse a restrained cobalt palette.'
+      )
+      const builder = makeBuilderForWorkingDirectory(workingDirectory)
+
+      const stableText = builder.buildStableContextParts().join('\n')
+      const volatileText = builder.buildVolatileContextParts(OPTS, SOURCE_BLOCK).join('\n')
+
+      expect(stableText).toContain('<project_design_context')
+      expect(stableText).toContain('Project Design System')
+      expect(stableText).toContain('restrained cobalt palette')
+      expect(volatileText).not.toContain('Project Design System')
+      expect(volatileText).not.toContain('restrained cobalt palette')
+    } finally {
+      rmSync(workingDirectory, { recursive: true, force: true })
+    }
+  })
+
+  it('omits project design context when DESIGN.md is missing', () => {
+    const workingDirectory = mkdtempSync(join(tmpdir(), 'design-md-missing-'))
+    try {
+      const builder = makeBuilderForWorkingDirectory(workingDirectory)
+
+      expect(builder.buildStableContextParts().join('\n')).not.toContain('<project_design_context')
+    } finally {
+      rmSync(workingDirectory, { recursive: true, force: true })
+    }
   })
 })
