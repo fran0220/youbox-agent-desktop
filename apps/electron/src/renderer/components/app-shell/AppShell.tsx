@@ -115,6 +115,7 @@ import {
   isSkillsNavigation,
   isAutomationsNavigation,
   isCanvasNavigation,
+  isGameStudioNavigation,
   type NavigationState,
 } from "@/contexts/NavigationContext"
 import type { SettingsSubpage } from "../../../shared/types"
@@ -589,11 +590,13 @@ function AppShellContent({
   // Derived from focused panel's route — all panels are peers
   const navState = useNavigationState()
 
-  // Canvas mode is full-bleed: sidebar + navigator collapse via the same
-  // mechanism as focus mode (CMD+.), while the TopBar stays visible.
-  const isCanvasMode = isCanvasNavigation(navState)
+  // Canvas / Game Studio modes are full-bleed: sidebar + navigator collapse via
+  // the same mechanism as focus mode (CMD+.), while the TopBar stays visible.
+  const isFullBleedMode =
+    isCanvasNavigation(navState) || isGameStudioNavigation(navState)
 
-  const effectiveSidebarAndNavigatorHidden = isSidebarAndNavigatorHidden || isAutoCompact || isCanvasMode
+  const effectiveSidebarAndNavigatorHidden =
+    isSidebarAndNavigatorHidden || isAutoCompact || isFullBleedMode
 
   const store = useStore()
   const panelStack = useAtomValue(panelStackAtom)

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test'
 import { APP_MODES, DEFAULT_APP_MODE_ID, getAppMode, getAppModeForNavigation } from '../app-modes'
 import type { NavigationState } from '../types'
+import { isGameStudioNavigation } from '../types'
 
 const sessionsState: NavigationState = {
   navigator: 'sessions',
@@ -16,10 +17,15 @@ const canvasDocState: NavigationState = {
   navigator: 'canvas',
   details: { type: 'doc', docId: 'doc-1' },
 }
+const gamestudioState: NavigationState = { navigator: 'gamestudio', details: null }
+const gamestudioProjectState: NavigationState = {
+  navigator: 'gamestudio',
+  details: { type: 'project', projectId: 'proj-1' },
+}
 
 describe('app-modes registry', () => {
-  it('exposes work and canvas modes in order', () => {
-    expect(APP_MODES.map((m) => m.id)).toEqual(['work', 'canvas'])
+  it('exposes work, canvas, and gamestudio modes in order', () => {
+    expect(APP_MODES.map((m) => m.id)).toEqual(['work', 'canvas', 'gamestudio'])
   })
 
   it('defaults to the work mode', () => {
@@ -40,10 +46,12 @@ describe('app-modes registry', () => {
     expect(work.matches(automationsState)).toBe(true)
   })
 
-  it('work mode does not match canvas navigation', () => {
+  it('work mode does not match canvas or gamestudio navigation', () => {
     const work = getAppMode('work')
     expect(work.matches(canvasState)).toBe(false)
     expect(work.matches(canvasDocState)).toBe(false)
+    expect(work.matches(gamestudioState)).toBe(false)
+    expect(work.matches(gamestudioProjectState)).toBe(false)
   })
 
   it('canvas mode matches only canvas navigation', () => {
@@ -52,11 +60,22 @@ describe('app-modes registry', () => {
     expect(canvas.matches(canvasDocState)).toBe(true)
     expect(canvas.matches(sessionsState)).toBe(false)
     expect(canvas.matches(automationsState)).toBe(false)
+    expect(canvas.matches(gamestudioState)).toBe(false)
+  })
+
+  it('gamestudio mode matches only gamestudio navigation', () => {
+    const gamestudio = getAppMode('gamestudio')
+    expect(gamestudio.matches(gamestudioState)).toBe(true)
+    expect(gamestudio.matches(gamestudioProjectState)).toBe(true)
+    expect(isGameStudioNavigation(gamestudioState)).toBe(true)
+    expect(gamestudio.matches(canvasState)).toBe(false)
+    expect(gamestudio.matches(sessionsState)).toBe(false)
   })
 
   it('defaultRoute returns navigable view routes', () => {
     expect(getAppMode('work').defaultRoute()).toBe('allSessions')
     expect(getAppMode('canvas').defaultRoute()).toBe('canvas')
+    expect(getAppMode('gamestudio').defaultRoute()).toBe('gamestudio')
   })
 
   it('getAppModeForNavigation derives the mode from navigation state', () => {
@@ -64,6 +83,8 @@ describe('app-modes registry', () => {
     expect(getAppModeForNavigation(settingsState).id).toBe('work')
     expect(getAppModeForNavigation(canvasState).id).toBe('canvas')
     expect(getAppModeForNavigation(canvasDocState).id).toBe('canvas')
+    expect(getAppModeForNavigation(gamestudioState).id).toBe('gamestudio')
+    expect(getAppModeForNavigation(gamestudioProjectState).id).toBe('gamestudio')
   })
 
   it('every mode declares a labelKey and iconId for the renderer', () => {

@@ -16,6 +16,7 @@
   "apiSetup.secretAccessKey": "A titkos hozzáférési kulcsa",
   "apiSetup.temporaryCredentials": "Ideiglenes hitelesítő adatokhoz (STS)",
   "appMode.canvas": "Vászon",
+  "appMode.gamestudio": "Játékstúdió",
   "appMode.switcher": "Alkalmazásmód",
   "appMode.work": "Munka",
   "auth.addCredentials": "Hitelesítő adatok hozzáadása",

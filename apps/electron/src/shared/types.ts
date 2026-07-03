@@ -896,6 +896,15 @@ export interface CanvasNavigationState {
 }
 
 /**
+ * Game Studio navigation state
+ */
+export interface GameStudioNavigationState {
+  navigator: 'gamestudio'
+  details: { type: 'project'; projectId: string } | null
+  rightSidebar?: RightSidebarPanel
+}
+
+/**
  * Unified navigation state
  */
 export type NavigationState =
@@ -905,6 +914,7 @@ export type NavigationState =
   | SkillsNavigationState
   | AutomationsNavigationState
   | CanvasNavigationState
+  | GameStudioNavigationState
 
 export const isSessionsNavigation = (
   state: NavigationState
@@ -929,6 +939,10 @@ export const isAutomationsNavigation = (
 export const isCanvasNavigation = (
   state: NavigationState
 ): state is CanvasNavigationState => state.navigator === 'canvas'
+
+export const isGameStudioNavigation = (
+  state: NavigationState
+): state is GameStudioNavigationState => state.navigator === 'gamestudio'
 
 export const DEFAULT_NAVIGATION_STATE: NavigationState = {
   navigator: 'sessions',
@@ -960,6 +974,12 @@ export const getNavigationStateKey = (state: NavigationState): string => {
       return `canvas/doc/${state.details.docId}`
     }
     return 'canvas'
+  }
+  if (state.navigator === 'gamestudio') {
+    if (state.details?.type === 'project') {
+      return `gamestudio/project/${state.details.projectId}`
+    }
+    return 'gamestudio'
   }
   if (state.navigator === 'settings') {
     if (state.subpage === null) return 'settings'
@@ -1017,6 +1037,16 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
       return { navigator: 'canvas', details: { type: 'doc', docId } }
     }
     return { navigator: 'canvas', details: null }
+  }
+
+  // Handle gamestudio
+  if (key === 'gamestudio') return { navigator: 'gamestudio', details: null }
+  if (key.startsWith('gamestudio/project/')) {
+    const projectId = key.slice(19)
+    if (projectId) {
+      return { navigator: 'gamestudio', details: { type: 'project', projectId } }
+    }
+    return { navigator: 'gamestudio', details: null }
   }
 
   // Handle settings

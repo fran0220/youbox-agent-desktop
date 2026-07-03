@@ -36,6 +36,7 @@ import {
 const MODE_ICONS: Record<AppModeIconId, LucideIcon> = {
   briefcase: Icons.Briefcase,
   palette: Icons.Palette,
+  'gamepad-2': Icons.Gamepad2,
 }
 
 /** Breathing room required around the segmented control before degrading to a dropdown. */

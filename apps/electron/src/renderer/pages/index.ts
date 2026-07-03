@@ -5,6 +5,7 @@
  */
 
 export { default as CanvasPage } from './CanvasPage'
+export { default as GameStudioPage } from './GameStudioPage'
 export { default as ChatPage } from './ChatPage'
 export { default as SourceInfoPage } from './SourceInfoPage'
 // Settings pages

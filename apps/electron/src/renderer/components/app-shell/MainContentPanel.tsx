@@ -32,12 +32,13 @@ import {
   isSkillsNavigation,
   isAutomationsNavigation,
   isCanvasNavigation,
+  isGameStudioNavigation,
 } from '@/contexts/NavigationContext'
 import { useSessionSelection, useIsMultiSelectActive, useSelectedIds, useSelectionCount } from '@/hooks/useSession'
 import { sourceSelection, skillSelection, automationSelection } from '@/hooks/useEntitySelection'
 import { extractLabelId } from '@craft-agent/shared/labels'
 import type { SessionStatusId } from '@/config/session-status-config'
-import { SourceInfoPage, ChatPage, CanvasPage } from '@/pages'
+import { SourceInfoPage, ChatPage, CanvasPage, GameStudioPage } from '@/pages'
 import SkillInfoPage from '@/pages/SkillInfoPage'
 import { getSettingsPageComponent } from '@/pages/settings/settings-pages'
 import { AutomationInfoPage } from '../automations/AutomationInfoPage'
@@ -363,6 +364,18 @@ export function MainContentPanel({
         <CanvasPage
           workspaceId={activeWorkspaceId || ''}
           docId={navState.details?.docId ?? null}
+        />
+      </Panel>
+    )
+  }
+
+  // Game Studio navigator - placeholder until full Game Studio UI lands
+  if (isGameStudioNavigation(navState)) {
+    return wrapWithStoplight(
+      <Panel variant="grow" className={className}>
+        <GameStudioPage
+          workspaceId={activeWorkspaceId || ''}
+          projectId={navState.details?.projectId ?? null}
         />
       </Panel>
     )

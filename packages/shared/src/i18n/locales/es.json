@@ -16,6 +16,7 @@
   "apiSetup.secretAccessKey": "Tu clave de acceso secreta",
   "apiSetup.temporaryCredentials": "Para credenciales temporales (STS)",
   "appMode.canvas": "Lienzo",
+  "appMode.gamestudio": "Estudio de juegos",
   "appMode.switcher": "Modo de aplicación",
   "appMode.work": "Trabajo",
   "auth.addCredentials": "Agregar credenciales",

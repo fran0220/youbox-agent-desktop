@@ -183,6 +183,12 @@ export const routes = {
       return `canvas/doc/${docId}` as const
     },
 
+    /** Game Studio view (gamestudio navigator). Pass a project id for a specific project. */
+    gamestudio: (projectId?: string) => {
+      if (!projectId) return 'gamestudio' as const
+      return `gamestudio/project/${projectId}` as const
+    },
+
     /** Settings view (settings navigator) - uses SettingsSubpage from registry */
     settings: (subpage?: SettingsSubpage) =>
       subpage

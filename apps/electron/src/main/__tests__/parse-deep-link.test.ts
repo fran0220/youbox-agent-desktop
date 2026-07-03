@@ -41,4 +41,19 @@ describe('parseDeepLink', () => {
   it('returns null for auth-callback (handled elsewhere)', () => {
     expect(parseDeepLink('origincoworks://auth-callback?code=1')).toBeNull()
   })
+
+  it('accepts origincoworks://gamestudio compound routes', () => {
+    expect(parseDeepLink('origincoworks://gamestudio')).toEqual({
+      workspaceId: undefined,
+      view: 'gamestudio',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+    expect(parseDeepLink('origincoworks://gamestudio/project/proj-42')).toEqual({
+      workspaceId: undefined,
+      view: 'gamestudio/project/proj-42',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+  })
 })
