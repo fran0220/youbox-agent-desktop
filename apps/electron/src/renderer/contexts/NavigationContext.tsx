@@ -51,7 +51,7 @@ import { routes, type Route, type ViewRoute } from '../../shared/routes'
 import { parsePermissionMode } from '@craft-agent/shared/agent/mode-types'
 import { NAVIGATE_EVENT, type NavigateOptions } from '../lib/navigate'
 import { normalizePanelRouteForReconcile } from './navigation-reconcile'
-import { buildSemanticHistoryKey, canReplaceUrlForStateSync, canRunInitialRestore, selectInitialRestoreSearch } from './navigation-history'
+import { buildSemanticHistoryKey, canReplaceUrlForStateSync, canRunInitialRestore, selectInitialRestoreSearch, selectWorkspaceSwitchSearch } from './navigation-history'
 import * as storage from '@/lib/local-storage'
 import type {
   DeepLinkNavigation,
@@ -1013,16 +1013,24 @@ export function NavigationProvider({
     if (isPopstateSwitchRef.current) {
       // Popstate-triggered: URL is already correct, just reconcile from it
       isPopstateSwitchRef.current = false
+      if (!initialRouteRestoredRef.current && (window.location.search.includes('route=') || window.location.search.includes('panels='))) {
+        suppressAutoSelectRef.current = true
+      }
       reconcileFromUrlParamsRef.current(new URLSearchParams(window.location.search))
       lastSemanticHistoryKeyRef.current = getSemanticHistoryKey()
     } else {
       // UI-triggered: load stored URL for the new workspace, push history entry
       const savedSearch = storage.get<string>(storage.KEYS.workspaceUrl, '', workspaceSlug)
+      const restoreSearch = selectWorkspaceSwitchSearch({
+        currentSearch: window.location.search,
+        savedWorkspaceSearch: savedSearch,
+        initialRouteRestored: initialRouteRestoredRef.current,
+      })
 
       const url = new URL(window.location.href)
-      if (savedSearch) {
+      if (restoreSearch) {
         // Replace all params with the saved workspace's URL
-        url.search = savedSearch
+        url.search = restoreSearch
       } else {
         // No saved state — default to allSessions
         for (const key of [...url.searchParams.keys()]) {
@@ -1040,6 +1048,9 @@ export function NavigationProvider({
       updateCanGoBackForward()
 
       // Reconcile panels from the new URL
+      if (!initialRouteRestoredRef.current && (url.searchParams.get('route') || url.searchParams.get('panels'))) {
+        suppressAutoSelectRef.current = true
+      }
       reconcileFromUrlParamsRef.current(new URLSearchParams(url.search))
       lastSemanticHistoryKeyRef.current = getSemanticHistoryKey()
     }
@@ -1085,6 +1096,9 @@ export function NavigationProvider({
     }
 
     // Reconcile panels + sidebar from current URL
+    if (params.get('route') || params.get('panels')) {
+      suppressAutoSelectRef.current = true
+    }
     reconcileFromUrlParamsRef.current(params)
     lastSemanticHistoryKeyRef.current = getSemanticHistoryKey()
 
@@ -1261,7 +1275,10 @@ export function NavigationProvider({
   // =========================================================================
 
   useEffect(() => {
-    if (suppressAutoSelectRef.current) return
+    if (suppressAutoSelectRef.current) {
+      suppressAutoSelectRef.current = false
+      return
+    }
     if (!initialRouteRestoredRef.current) return
     if (!isReady || !workspaceId) return
     // Don't auto-select when panel stack is empty (user closed all panels)

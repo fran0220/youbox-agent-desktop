@@ -8,6 +8,12 @@ import { createHash, randomUUID } from 'crypto'
 import { hostname, homedir } from 'os'
 import * as Sentry from '@sentry/electron/main'
 
+const customUserDataDir = process.env.CRAFT_USER_DATA_DIR
+if (customUserDataDir) {
+  app.setPath('userData', customUserDataDir)
+  app.setPath('sessionData', customUserDataDir)
+}
+
 // Initialize Sentry error tracking as early as possible after app import.
 // Only enabled in production (packaged) builds to avoid noise during development.
 // DSN is baked in at build time via esbuild --define (same pattern as OAuth secrets).

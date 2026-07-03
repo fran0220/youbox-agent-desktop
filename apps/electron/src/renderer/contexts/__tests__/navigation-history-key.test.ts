@@ -4,6 +4,7 @@ import {
   canReplaceUrlForStateSync,
   canRunInitialRestore,
   selectInitialRestoreSearch,
+  selectWorkspaceSwitchSearch,
 } from '../navigation-history'
 
 describe('buildSemanticHistoryKey', () => {
@@ -135,6 +136,28 @@ describe('selectInitialRestoreSearch', () => {
     const selected = selectInitialRestoreSearch({
       currentSearch: '?workspaceId=ws-1',
       savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+    })
+
+    expect(selected).toBe('?ws=workspace&route=allSessions/session/s1')
+  })
+})
+
+describe('selectWorkspaceSwitchSearch', () => {
+  it('preserves a current restored mode route during startup workspace reconciliation', () => {
+    const selected = selectWorkspaceSwitchSearch({
+      currentSearch: '?workspaceId=ws-1&ws=workspace&route=design',
+      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+      initialRouteRestored: false,
+    })
+
+    expect(selected).toBe('?workspaceId=ws-1&ws=workspace&route=design')
+  })
+
+  it('uses saved workspace state for normal post-startup workspace switches', () => {
+    const selected = selectWorkspaceSwitchSearch({
+      currentSearch: '?workspaceId=ws-1&ws=workspace&route=design',
+      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+      initialRouteRestored: true,
     })
 
     expect(selected).toBe('?ws=workspace&route=allSessions/session/s1')

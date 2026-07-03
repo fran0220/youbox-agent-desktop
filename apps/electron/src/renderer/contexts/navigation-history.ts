@@ -22,6 +22,10 @@ interface InitialRestoreSearchInput {
   savedWorkspaceSearch: string
 }
 
+interface WorkspaceSwitchSearchInput extends InitialRestoreSearchInput {
+  initialRouteRestored: boolean
+}
+
 /**
  * Builds a semantic history key used to dedupe pushState entries.
  *
@@ -88,4 +92,16 @@ export function selectInitialRestoreSearch({
   }
 
   return savedWorkspaceSearch || currentSearch
+}
+
+export function selectWorkspaceSwitchSearch({
+  currentSearch,
+  savedWorkspaceSearch,
+  initialRouteRestored,
+}: WorkspaceSwitchSearchInput): string {
+  if (!initialRouteRestored) {
+    return selectInitialRestoreSearch({ currentSearch, savedWorkspaceSearch })
+  }
+
+  return savedWorkspaceSearch
 }
