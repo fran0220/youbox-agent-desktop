@@ -81,19 +81,33 @@ export function registerGameStudioHandlers(server: RpcServer, deps: HandlerDeps)
   })
 }
 
+function uniqueCandidates(candidates: string[]): string[] {
+  return [...new Set(candidates)]
+}
+
 export function getGameStudioResourcesRootCandidates(platform: Pick<PlatformServices, 'appRootPath' | 'resourcesPath' | 'isPackaged'>): string[] {
-  return platform.isPackaged
+  return uniqueCandidates(platform.isPackaged
     ? [
-        join(platform.resourcesPath, 'app', 'resources'),
-        join(platform.appRootPath, 'apps', 'electron', 'dist', 'resources'),
+        // electron-builder includes build:copy output via `files: dist/**/*`.
+        // With `asar: false`, app.getAppPath() points at Resources/app, so
+        // bundled Game Studio assets live under Resources/app/dist/resources.
+        join(platform.appRootPath, 'dist', 'resources'),
+        // Platform-specific extraResources mappings in electron-builder.yml use
+        // `to: app/...`; keep this sibling fallback aligned with that layout.
         join(platform.appRootPath, 'resources'),
-        join(platform.resourcesPath, 'resources'),
+        // If a future build flips ASAR back on, app.getAppPath() may be
+        // Resources/app.asar while extraResources still target Resources/app.
+        join(platform.resourcesPath, 'app', 'dist', 'resources'),
+        join(platform.resourcesPath, 'app', 'resources'),
       ]
     : [
         join(platform.appRootPath, 'apps', 'electron', 'resources'),
+        join(platform.appRootPath, 'apps', 'electron', 'dist', 'resources'),
         join(platform.appRootPath, 'resources'),
+        join(platform.appRootPath, 'dist', 'resources'),
         join(process.cwd(), 'apps', 'electron', 'resources'),
-      ]
+        join(process.cwd(), 'apps', 'electron', 'dist', 'resources'),
+      ])
 }
 
 export function resolveGameStudioResourcesRoot(

@@ -133,7 +133,7 @@ describe('gamestudio RPC handlers', () => {
 })
 
 describe('resolveGameStudioResourcesRoot', () => {
-  it('exposes the packaged candidate matrix for pure path existence tests', () => {
+  it('exposes the packaged candidate matrix for electron-builder app and asar-style layouts', () => {
     const platform = {
       appRootPath: '/Applications/OriginAI.app/Contents/Resources/app.asar',
       resourcesPath: '/Applications/OriginAI.app/Contents/Resources',
@@ -143,26 +143,38 @@ describe('resolveGameStudioResourcesRoot', () => {
     const candidates = getGameStudioResourcesRootCandidates(platform)
 
     expect(candidates).toEqual([
-      '/Applications/OriginAI.app/Contents/Resources/app/resources',
-      '/Applications/OriginAI.app/Contents/Resources/app.asar/apps/electron/dist/resources',
+      '/Applications/OriginAI.app/Contents/Resources/app.asar/dist/resources',
       '/Applications/OriginAI.app/Contents/Resources/app.asar/resources',
-      '/Applications/OriginAI.app/Contents/Resources/resources',
+      '/Applications/OriginAI.app/Contents/Resources/app/dist/resources',
+      '/Applications/OriginAI.app/Contents/Resources/app/resources',
     ])
   })
 
-  it('resolves a candidate using an injected path existence predicate', () => {
-    const appRootPath = '/repo'
-    const resourcesPath = '/packaged/Resources'
-    const distResources = join(appRootPath, 'apps', 'electron', 'dist', 'resources')
-    const existingVendorFile = join(distResources, 'gamestudio', 'vendor', 'three.module.js')
+  it('deduplicates overlapping packaged candidates for pure path existence tests', () => {
+    const appRootPath = '/Applications/OriginAI.app/Contents/Resources/app'
 
-    const resolved = resolveGameStudioResourcesRoot({
+    expect(getGameStudioResourcesRootCandidates({
       appRootPath,
-      resourcesPath,
+      resourcesPath: '/Applications/OriginAI.app/Contents/Resources',
       isPackaged: true,
-    } as HandlerDeps['platform'], candidate => candidate === existingVendorFile)
+    })).toEqual([
+      join(appRootPath, 'dist', 'resources'),
+      join(appRootPath, 'resources'),
+    ])
+  })
 
-    expect(resolved).toBe(distResources)
+  it('exposes the dev candidate matrix for source resources and built dist resources', () => {
+    const platform = {
+      appRootPath: '/repo',
+      resourcesPath: '/repo/apps/electron',
+      isPackaged: false,
+    }
+
+    const candidates = getGameStudioResourcesRootCandidates(platform)
+
+    expect(candidates).toContain('/repo/apps/electron/resources')
+    expect(candidates).toContain('/repo/apps/electron/dist/resources')
+    expect(candidates).toContain('/repo/resources')
   })
 
   it('prefers the dev source resources path when the app is not packaged', () => {
@@ -183,32 +195,52 @@ describe('resolveGameStudioResourcesRoot', () => {
     }
   })
 
-  it('resolves packaged resources copied by copy-assets to apps/electron/dist/resources', () => {
-    const packagedAppRoot = mkdtempSync(join(tmpdir(), 'gamestudio-rpc-packaged-dist-app-'))
+  it('resolves dev built dist resources when source resources are unavailable', () => {
+    const devAppRoot = mkdtempSync(join(tmpdir(), 'gamestudio-rpc-dev-dist-app-'))
     try {
-      const resourcesRoot = join(packagedAppRoot, 'apps', 'electron', 'dist', 'resources')
+      const resourcesRoot = join(devAppRoot, 'apps', 'electron', 'dist', 'resources')
       writeVendorFixture(resourcesRoot)
 
       const resolved = resolveGameStudioResourcesRoot({
-        appRootPath: packagedAppRoot,
-        resourcesPath: packagedAppRoot,
+        appRootPath: devAppRoot,
+        resourcesPath: devAppRoot,
+        isPackaged: false,
+      } as HandlerDeps['platform'])
+
+      expect(resolved).toBe(resourcesRoot)
+    } finally {
+      rmSync(devAppRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('resolves packaged resources from the app dist/resources directory included by electron-builder files', () => {
+    const packagedResourcesRoot = mkdtempSync(join(tmpdir(), 'gamestudio-rpc-packaged-dist-'))
+    try {
+      const appRootPath = join(packagedResourcesRoot, 'app')
+      const resourcesRoot = join(appRootPath, 'dist', 'resources')
+      writeVendorFixture(resourcesRoot)
+
+      const resolved = resolveGameStudioResourcesRoot({
+        appRootPath,
+        resourcesPath: packagedResourcesRoot,
         isPackaged: true,
       } as HandlerDeps['platform'])
 
       expect(resolved).toBe(resourcesRoot)
     } finally {
-      rmSync(packagedAppRoot, { recursive: true, force: true })
+      rmSync(packagedResourcesRoot, { recursive: true, force: true })
     }
   })
 
-  it('resolves packaged app.asar layouts from resourcesPath/resources', () => {
-    const packagedResourcesRoot = mkdtempSync(join(tmpdir(), 'gamestudio-rpc-packaged-asar-'))
+  it('resolves packaged resources from app/resources when a platform-specific extraResources mapping places assets there', () => {
+    const packagedResourcesRoot = mkdtempSync(join(tmpdir(), 'gamestudio-rpc-packaged-extra-'))
     try {
-      const resourcesRoot = join(packagedResourcesRoot, 'resources')
+      const appRootPath = join(packagedResourcesRoot, 'app')
+      const resourcesRoot = join(appRootPath, 'resources')
       writeVendorFixture(resourcesRoot)
 
       const resolved = resolveGameStudioResourcesRoot({
-        appRootPath: join(packagedResourcesRoot, 'app.asar'),
+        appRootPath,
         resourcesPath: packagedResourcesRoot,
         isPackaged: true,
       } as HandlerDeps['platform'])
