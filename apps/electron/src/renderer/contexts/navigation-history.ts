@@ -17,6 +17,11 @@ interface UrlReplaceSyncGateInput {
   pushPending: boolean
 }
 
+interface InitialRestoreSearchInput {
+  currentSearch: string
+  savedWorkspaceSearch: string
+}
+
 /**
  * Builds a semantic history key used to dedupe pushState entries.
  *
@@ -64,4 +69,23 @@ export function canRunInitialRestore({
   initialRouteRestored,
 }: InitialRestoreGateInput): boolean {
   return isReady && isSessionsReady && !!workspaceId && !initialRouteRestored
+}
+
+/**
+ * Chooses the search string to reconcile during app startup.
+ *
+ * A window restore URL from the main process is the freshest persisted state on
+ * app restart. Workspace-scoped localStorage is only a fallback for launches
+ * whose URL does not already carry a route/panel restore target.
+ */
+export function selectInitialRestoreSearch({
+  currentSearch,
+  savedWorkspaceSearch,
+}: InitialRestoreSearchInput): string {
+  const currentParams = new URLSearchParams(currentSearch)
+  if (currentParams.get('route') || currentParams.get('panels')) {
+    return currentSearch
+  }
+
+  return savedWorkspaceSearch || currentSearch
 }

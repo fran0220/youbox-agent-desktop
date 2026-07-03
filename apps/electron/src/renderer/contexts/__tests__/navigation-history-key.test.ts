@@ -3,6 +3,7 @@ import {
   buildSemanticHistoryKey,
   canReplaceUrlForStateSync,
   canRunInitialRestore,
+  selectInitialRestoreSearch,
 } from '../navigation-history'
 
 describe('buildSemanticHistoryKey', () => {
@@ -88,5 +89,54 @@ describe('canRunInitialRestore', () => {
       workspaceId: 'ws-1',
       initialRouteRestored: true,
     })).toBe(false)
+  })
+})
+
+describe('selectInitialRestoreSearch', () => {
+  it('keeps a current restored design route ahead of saved workspace session state', () => {
+    const selected = selectInitialRestoreSearch({
+      currentSearch: '?workspaceId=ws-1&route=design',
+      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+    })
+
+    expect(selected).toBe('?workspaceId=ws-1&route=design')
+  })
+
+  it('keeps current restored mode routes ahead of saved workspace session state', () => {
+    for (const route of ['canvas', 'gamestudio']) {
+      const selected = selectInitialRestoreSearch({
+        currentSearch: `?workspaceId=ws-1&route=${route}`,
+        savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+      })
+
+      expect(selected).toBe(`?workspaceId=ws-1&route=${route}`)
+    }
+  })
+
+  it('keeps a current restored work-mode session route', () => {
+    const selected = selectInitialRestoreSearch({
+      currentSearch: '?workspaceId=ws-1&route=allSessions/session/s2',
+      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+    })
+
+    expect(selected).toBe('?workspaceId=ws-1&route=allSessions/session/s2')
+  })
+
+  it('keeps current restored panel state ahead of saved workspace state', () => {
+    const selected = selectInitialRestoreSearch({
+      currentSearch: '?workspaceId=ws-1&route=design&panels=design:1.0000&fi=0',
+      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+    })
+
+    expect(selected).toBe('?workspaceId=ws-1&route=design&panels=design:1.0000&fi=0')
+  })
+
+  it('uses saved workspace state when the current URL has no restore route', () => {
+    const selected = selectInitialRestoreSearch({
+      currentSearch: '?workspaceId=ws-1',
+      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+    })
+
+    expect(selected).toBe('?ws=workspace&route=allSessions/session/s1')
   })
 })

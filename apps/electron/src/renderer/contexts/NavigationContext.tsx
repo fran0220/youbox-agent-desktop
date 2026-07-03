@@ -51,7 +51,7 @@ import { routes, type Route, type ViewRoute } from '../../shared/routes'
 import { parsePermissionMode } from '@craft-agent/shared/agent/mode-types'
 import { NAVIGATE_EVENT, type NavigateOptions } from '../lib/navigate'
 import { normalizePanelRouteForReconcile } from './navigation-reconcile'
-import { buildSemanticHistoryKey, canReplaceUrlForStateSync, canRunInitialRestore } from './navigation-history'
+import { buildSemanticHistoryKey, canReplaceUrlForStateSync, canRunInitialRestore, selectInitialRestoreSearch } from './navigation-history'
 import * as storage from '@/lib/local-storage'
 import type {
   DeepLinkNavigation,
@@ -1072,9 +1072,13 @@ export function NavigationProvider({
 
     if (workspaceSlug) {
       const savedSearch = storage.get<string>(storage.KEYS.workspaceUrl, '', workspaceSlug)
-      if (savedSearch) {
+      const restoreSearch = selectInitialRestoreSearch({
+        currentSearch: window.location.search,
+        savedWorkspaceSearch: savedSearch,
+      })
+      if (restoreSearch && restoreSearch !== window.location.search) {
         const url = new URL(window.location.href)
-        url.search = savedSearch
+        url.search = restoreSearch
         history.replaceState({ seq: 0 }, '', url.toString())
         params = new URLSearchParams(url.search)
       }
