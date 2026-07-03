@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
-import { useAtomValue, useStore } from 'jotai'
+import { useAtom, useAtomValue, useStore } from 'jotai'
 import { useTranslation } from 'react-i18next'
 import { formatDistanceToNowStrict } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { Check, ChevronDown, MessageSquare, Pencil, Play, Plus, Square, Trash2, X } from 'lucide-react'
 import { getDateLocale } from '@craft-agent/shared/i18n'
 import { Button } from '@/components/ui/button'
-import { gamestudioProjectsAtom, mostRecentGameProject, sortGameProjectsByUpdatedAtDesc } from '@/atoms/gamestudio'
+import {
+  createPendingGameProjectRename,
+  gamestudioProjectsAtom,
+  mostRecentGameProject,
+  pendingGameProjectRenameAtom,
+  resolveGameProjectRenameCommit,
+  sortGameProjectsByUpdatedAtDesc,
+} from '@/atoms/gamestudio'
 import { navigate, routes } from '@/lib/navigate'
 import { cn } from '@/lib/utils'
 import type { GameProjectMeta } from '@craft-agent/shared/protocol'
@@ -77,8 +84,9 @@ function ProjectPickerOverlay({
     [projects],
   )
 
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [renameDraft, setRenameDraft] = useState('')
+  const [pendingRename, setPendingRename] = useAtom(pendingGameProjectRenameAtom)
+  const renamingId = pendingRename?.projectId ?? null
+  const renameDraft = pendingRename?.draft ?? ''
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const creatingRef = useRef(false)
@@ -88,7 +96,7 @@ function ProjectPickerOverlay({
       if (event.key !== 'Escape') return
       event.stopPropagation()
       if (renamingId) {
-        setRenamingId(null)
+        setPendingRename(null)
       } else if (confirmDeleteId) {
         setConfirmDeleteId(null)
       } else {
@@ -97,20 +105,19 @@ function ProjectPickerOverlay({
     }
     window.addEventListener('keydown', handleKeyDown, true)
     return () => window.removeEventListener('keydown', handleKeyDown, true)
-  }, [renamingId, confirmDeleteId, onClose])
+  }, [renamingId, confirmDeleteId, onClose, setPendingRename])
 
   const startRename = (project: GameProjectMeta) => {
     setConfirmDeleteId(null)
-    setRenameDraft(project.name)
-    setRenamingId(project.id)
+    setPendingRename(createPendingGameProjectRename(project))
   }
 
   const commitRename = async (project: GameProjectMeta) => {
-    setRenamingId(null)
-    const name = renameDraft.trim()
-    if (!name || name === project.name) return
+    const commit = resolveGameProjectRenameCommit(pendingRename, project)
+    setPendingRename(null)
+    if (!commit) return
     try {
-      await window.electronAPI.gameProjectUpdate(workspaceId, project.id, { name })
+      await window.electronAPI.gameProjectUpdate(workspaceId, commit.projectId, { name: commit.name })
     } catch (err) {
       console.error('[GameStudio] Failed to rename project:', err)
     }
@@ -124,10 +131,9 @@ function ProjectPickerOverlay({
       const project = await window.electronAPI.gameProjectCreate(workspaceId, {
         name: t('gamestudio.defaultProjectName'),
       })
-      navigate(routes.view.gamestudio(project.id))
       setConfirmDeleteId(null)
-      setRenameDraft(project.name)
-      setRenamingId(project.id)
+      setPendingRename(createPendingGameProjectRename(project))
+      navigate(routes.view.gamestudio(project.id))
     } catch (err) {
       console.error('[GameStudio] Failed to create project:', err)
     } finally {
@@ -201,7 +207,7 @@ function ProjectPickerOverlay({
                     autoFocus
                     value={renameDraft}
                     placeholder={t('gamestudio.projectPicker.renamePlaceholder')}
-                    onChange={(event) => setRenameDraft(event.target.value)}
+                    onChange={(event) => setPendingRename({ projectId: project.id, draft: event.target.value })}
                     onFocus={(event) => event.target.select()}
                     onClick={(event) => event.stopPropagation()}
                     onBlur={() => void commitRename(project)}
@@ -252,7 +258,7 @@ function ProjectPickerOverlay({
                       label={t('common.delete')}
                       destructive
                       onClick={() => {
-                        setRenamingId(null)
+                        setPendingRename(null)
                         setConfirmDeleteId(project.id)
                       }}
                     >
