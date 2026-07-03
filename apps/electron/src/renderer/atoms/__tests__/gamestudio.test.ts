@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { createStore } from 'jotai'
 import type { GameProjectMeta } from '@craft-agent/shared/protocol'
-import { gamestudioProjectsAtom, mostRecentGameProject } from '../gamestudio'
+import { gamestudioProjectsAtom, mostRecentGameProject, sortGameProjectsByUpdatedAtDesc } from '../gamestudio'
 
 function project(id: string, updatedAt: number): GameProjectMeta {
   return {
@@ -28,5 +28,16 @@ describe('gamestudio project atoms', () => {
       project('newest', 300),
       project('middle', 200),
     ])?.id).toBe('newest')
+  })
+
+  it('sorts project metadata by updatedAt descending without mutating the source list', () => {
+    const source = [
+      project('older', 100),
+      project('newest', 300),
+      project('middle', 200),
+    ]
+
+    expect(sortGameProjectsByUpdatedAtDesc(source).map(p => p.id)).toEqual(['newest', 'middle', 'older'])
+    expect(source.map(p => p.id)).toEqual(['older', 'newest', 'middle'])
   })
 })

@@ -19,3 +19,8 @@ export function mostRecentGameProject(projects: readonly GameProjectMeta[]): Gam
   }
   return best
 }
+
+/** Display order for project pickers and fallback navigation. */
+export function sortGameProjectsByUpdatedAtDesc(projects: readonly GameProjectMeta[]): GameProjectMeta[] {
+  return [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
+}

@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useMemo, useState, type PointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
 import { useAtomValue, useStore } from 'jotai'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, MessageSquare, Play, Square } from 'lucide-react'
+import { formatDistanceToNowStrict } from 'date-fns'
+import type { Locale } from 'date-fns'
+import { Check, ChevronDown, MessageSquare, Pencil, Play, Plus, Square, Trash2, X } from 'lucide-react'
+import { getDateLocale } from '@craft-agent/shared/i18n'
 import { Button } from '@/components/ui/button'
-import { gamestudioProjectsAtom, mostRecentGameProject } from '@/atoms/gamestudio'
+import { gamestudioProjectsAtom, mostRecentGameProject, sortGameProjectsByUpdatedAtDesc } from '@/atoms/gamestudio'
 import { navigate, routes } from '@/lib/navigate'
+import { cn } from '@/lib/utils'
 import type { GameProjectMeta } from '@craft-agent/shared/protocol'
 
 const SPLIT_STORAGE_KEY = 'gamestudio.previewSplitRatio'
@@ -24,52 +28,240 @@ function readPreviewRatio(): number {
   return Number.isFinite(parsed) ? clampPreviewRatio(parsed) : DEFAULT_PREVIEW_RATIO
 }
 
-function ProjectSwitchOverlay({
+function RowIconButton({
+  label,
+  onClick,
+  destructive = false,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  destructive?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+      className={cn(
+        'flex h-6 w-6 shrink-0 items-center justify-center rounded-[5px] text-foreground/50 transition-colors duration-100 hover:bg-foreground/5',
+        destructive ? 'hover:text-destructive' : 'hover:text-foreground',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ProjectPickerOverlay({
+  workspaceId,
   projects,
   currentProjectId,
   onClose,
 }: {
+  workspaceId: string
   projects: readonly GameProjectMeta[]
   currentProjectId: string
   onClose: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const dateLocale = getDateLocale(i18n.resolvedLanguage ?? 'en') as Locale | undefined
+  const sortedProjects = useMemo(
+    () => sortGameProjectsByUpdatedAtDesc(projects),
+    [projects],
+  )
+
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape') return
+      event.stopPropagation()
+      if (renamingId) {
+        setRenamingId(null)
+      } else if (confirmDeleteId) {
+        setConfirmDeleteId(null)
+      } else {
+        onClose()
+      }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [renamingId, confirmDeleteId, onClose])
+
+  const startRename = (project: GameProjectMeta) => {
+    setConfirmDeleteId(null)
+    setRenameDraft(project.name)
+    setRenamingId(project.id)
+  }
+
+  const commitRename = async (project: GameProjectMeta) => {
+    setRenamingId(null)
+    const name = renameDraft.trim()
+    if (!name || name === project.name) return
+    try {
+      await window.electronAPI.gameProjectUpdate(workspaceId, project.id, { name })
+    } catch (err) {
+      console.error('[GameStudio] Failed to rename project:', err)
+    }
+  }
+
+  const handleCreate = async () => {
+    if (creatingRef.current) return
+    creatingRef.current = true
+    setCreating(true)
+    try {
+      const project = await window.electronAPI.gameProjectCreate(workspaceId, {
+        name: t('gamestudio.defaultProjectName'),
+      })
+      navigate(routes.view.gamestudio(project.id))
+      setConfirmDeleteId(null)
+      setRenameDraft(project.name)
+      setRenamingId(project.id)
+    } catch (err) {
+      console.error('[GameStudio] Failed to create project:', err)
+    } finally {
+      creatingRef.current = false
+      setCreating(false)
+    }
+  }
+
+  const handleDelete = async (projectId: string) => {
+    const remaining = sortedProjects.filter((project) => project.id !== projectId)
+    setConfirmDeleteId(null)
+    try {
+      await window.electronAPI.gameProjectDelete(workspaceId, projectId)
+    } catch (err) {
+      console.error('[GameStudio] Failed to delete project:', err)
+      return
+    }
+    if (projectId === currentProjectId) {
+      const next = mostRecentGameProject(remaining)
+      navigate(routes.view.gamestudio(next?.id))
+    }
+  }
+
+  const handleSwitch = (projectId: string) => {
+    if (projectId !== currentProjectId) navigate(routes.view.gamestudio(projectId))
+    onClose()
+  }
 
   return (
-    <div className="absolute inset-0 z-20 flex items-start justify-center bg-background/60 p-8 backdrop-blur-sm" onClick={onClose}>
+    <div
+      className="absolute inset-0 z-20 flex items-start justify-center bg-black/20 pt-14"
+      onClick={onClose}
+    >
       <div
-        className="mt-12 flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card shadow-modal-small"
+        role="dialog"
+        aria-label={t('gamestudio.projectPicker.title')}
+        className="popover-styled flex max-h-[70%] w-80 flex-col overflow-hidden"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="border-b border-border px-4 py-3">
-          <h2 className="text-sm font-medium text-foreground">{t('gamestudio.projectSwitcher.title')}</h2>
+        <div className="flex items-center justify-between border-b border-foreground/5 px-3 py-2">
+          <h3 className="text-xs font-medium text-foreground">{t('gamestudio.projectPicker.title')}</h3>
+          <button
+            type="button"
+            aria-label={t('gamestudio.projectPicker.new')}
+            onClick={() => void handleCreate()}
+            disabled={creating}
+            className="flex h-6 items-center gap-1 rounded-[5px] px-1.5 text-xs text-foreground/70 transition-colors duration-100 hover:bg-foreground/5 hover:text-foreground disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {t('gamestudio.projectPicker.new')}
+          </button>
         </div>
-        <div className="max-h-80 overflow-y-auto p-2">
-          {projects.map((project) => (
-            <button
+        <div className="flex-1 overflow-y-auto p-1">
+          {sortedProjects.length === 0 && (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+              {t('gamestudio.projectPicker.empty')}
+            </div>
+          )}
+          {sortedProjects.map((project) => (
+            <div
               key={project.id}
-              type="button"
-              className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-accent ${
-                project.id === currentProjectId ? 'bg-accent text-accent-foreground' : 'text-foreground'
-              }`}
-              onClick={() => {
-                navigate(routes.view.gamestudio(project.id))
-                onClose()
-              }}
+              onClick={() => handleSwitch(project.id)}
+              className={cn(
+                'group flex cursor-default items-center gap-2 rounded-[6px] px-2 py-1.5',
+                project.id === currentProjectId ? 'bg-foreground/5' : 'hover:bg-foreground/5',
+              )}
             >
-              <span className="truncate">{project.name}</span>
-              {project.id === currentProjectId ? (
-                <span className="shrink-0 text-xs text-muted-foreground">{t('gamestudio.projectSwitcher.current')}</span>
+              {renamingId === project.id ? (
+                <div className="flex min-w-0 flex-1 items-center gap-1">
+                  <input
+                    autoFocus
+                    value={renameDraft}
+                    placeholder={t('gamestudio.projectPicker.renamePlaceholder')}
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                    onFocus={(event) => event.target.select()}
+                    onClick={(event) => event.stopPropagation()}
+                    onBlur={() => void commitRename(project)}
+                    onKeyDown={(event) => {
+                      if (event.nativeEvent.isComposing) return
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void commitRename(project)
+                      }
+                    }}
+                    className="min-w-0 flex-1 rounded-[4px] bg-foreground/5 px-1.5 py-0.5 text-xs text-foreground outline-none"
+                  />
+                  <RowIconButton label={t('common.save')} onClick={() => void commitRename(project)}>
+                    <Check className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </RowIconButton>
+                </div>
               ) : null}
-            </button>
+              {renamingId !== project.id && (
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs text-foreground">{project.name}</div>
+                  <div className="truncate text-[10px] text-muted-foreground">
+                    {formatDistanceToNowStrict(new Date(project.updatedAt), {
+                      addSuffix: true,
+                      locale: dateLocale,
+                    })}
+                  </div>
+                </div>
+              )}
+              {confirmDeleteId === project.id ? (
+                <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
+                  <span className="text-[10px] text-muted-foreground">
+                    {t('gamestudio.projectPicker.deleteConfirm')}
+                  </span>
+                  <RowIconButton label={t('common.delete')} destructive onClick={() => void handleDelete(project.id)}>
+                    <Check className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </RowIconButton>
+                  <RowIconButton label={t('common.cancel')} onClick={() => setConfirmDeleteId(null)}>
+                    <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  </RowIconButton>
+                </div>
+              ) : (
+                renamingId !== project.id && (
+                  <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-100 group-hover:opacity-100">
+                    <RowIconButton label={t('common.rename')} onClick={() => startRename(project)}>
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </RowIconButton>
+                    <RowIconButton
+                      label={t('common.delete')}
+                      destructive
+                      onClick={() => {
+                        setRenamingId(null)
+                        setConfirmDeleteId(project.id)
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </RowIconButton>
+                  </div>
+                )
+              )}
+            </div>
           ))}
         </div>
       </div>
@@ -85,9 +277,11 @@ export interface GameStudioPageProps {
 function GameStudioEmptyState({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation()
   const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
 
   const handleCreate = async () => {
-    if (creating) return
+    if (creatingRef.current) return
+    creatingRef.current = true
     setCreating(true)
     try {
       const project = await window.electronAPI.gameProjectCreate(workspaceId, {
@@ -96,6 +290,8 @@ function GameStudioEmptyState({ workspaceId }: { workspaceId: string }) {
       navigate(routes.view.gamestudio(project.id))
     } catch (err) {
       console.error('[GameStudio] Failed to create project:', err)
+    } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }
@@ -114,14 +310,19 @@ function GameStudioEmptyState({ workspaceId }: { workspaceId: string }) {
 }
 
 function GameStudioProjectShell({
+  workspaceId,
   projectId,
   projects,
+  pickerOpen,
+  setPickerOpen,
 }: {
+  workspaceId: string
   projectId: string
   projects: readonly GameProjectMeta[]
+  pickerOpen: boolean
+  setPickerOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const { t } = useTranslation()
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [previewRatio, setPreviewRatio] = useState(readPreviewRatio)
   const currentProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
@@ -205,7 +406,8 @@ function GameStudioProjectShell({
       </aside>
 
       {pickerOpen && (
-        <ProjectSwitchOverlay
+        <ProjectPickerOverlay
+          workspaceId={workspaceId}
           projects={projects}
           currentProjectId={projectId}
           onClose={() => setPickerOpen(false)}
@@ -218,6 +420,7 @@ function GameStudioProjectShell({
 export default function GameStudioPage({ workspaceId, projectId }: GameStudioPageProps) {
   const projects = useAtomValue(gamestudioProjectsAtom)
   const store = useStore()
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   // Bare gamestudio route: open the most recently updated project once the
   // project list is known. NavigationContext usually does this synchronously;
@@ -261,8 +464,11 @@ export default function GameStudioPage({ workspaceId, projectId }: GameStudioPag
   return (
     <GameStudioProjectShell
       key={projectId}
+      workspaceId={workspaceId}
       projectId={projectId}
       projects={projects ?? []}
+      pickerOpen={pickerOpen}
+      setPickerOpen={setPickerOpen}
     />
   )
 }
