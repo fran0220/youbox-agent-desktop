@@ -18,8 +18,12 @@ import {
   mostRecentDesignProject,
   pendingDesignProjectRenameAtom,
   resolveDesignProjectRenameCommit,
+  seedDesignChatSessionIdAtom,
   sortDesignProjectsByUpdatedAtDesc,
 } from '@/atoms/design'
+import { DesignChatPanel } from '@/components/design/DesignChatPanel'
+import { useActiveWorkspace } from '@/context/AppShellContext'
+import { resolveDesignProjectDir } from '@/lib/design-chat'
 import { navigate, routes } from '@/lib/navigate'
 import { cn } from '@/lib/utils'
 
@@ -458,13 +462,25 @@ function DesignProjectShell({
 }) {
   const { t } = useTranslation()
   const [pendingRename, setPendingRename] = useAtom(pendingDesignProjectRenameAtom)
+  const seedDesignChatSessionId = useSetAtom(seedDesignChatSessionIdAtom)
   const refreshProjects = useRefreshDesignProjects(workspaceId)
+  const activeWorkspace = useActiveWorkspace()
   const currentProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
     [projects, projectId],
   )
   const [galleryOpen, setGalleryOpen] = useState(false)
   const renaming = pendingRename?.projectId === projectId
+  const projectDir = useMemo(
+    () => activeWorkspace?.rootPath ? resolveDesignProjectDir(activeWorkspace.rootPath, projectId) : null,
+    [activeWorkspace?.rootPath, projectId],
+  )
+
+  useEffect(() => {
+    if (currentProject) {
+      seedDesignChatSessionId({ projectId: currentProject.id, sessionId: currentProject.sessionId })
+    }
+  }, [currentProject, seedDesignChatSessionId])
 
   const commitRename = async () => {
     if (!currentProject) return
@@ -541,7 +557,15 @@ function DesignProjectShell({
         </div>
       </div>
       {currentProject ? (
-        <DesignPreviewStage workspaceId={workspaceId} project={currentProject} />
+        <div className="flex min-h-0 flex-1">
+          <DesignPreviewStage workspaceId={workspaceId} project={currentProject} />
+          <DesignChatPanel
+            workspaceId={workspaceId}
+            projectId={currentProject.id}
+            projectDir={projectDir}
+            persistedSessionId={currentProject.sessionId}
+          />
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/20 p-6 text-xs text-muted-foreground">
           {t('design.project.loading')}

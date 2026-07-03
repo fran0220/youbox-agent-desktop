@@ -181,8 +181,18 @@ export const updateSessionAtom = atom(
     if (newSession) {
       const metaMap = get(sessionMetaMapAtom)
       const newMetaMap = new Map(metaMap)
-      newMetaMap.set(sessionId, extractSessionMeta(newSession))
+      if (newSession.hidden) {
+        newMetaMap.delete(sessionId)
+      } else {
+        newMetaMap.set(sessionId, extractSessionMeta(newSession))
+      }
       set(sessionMetaMapAtom, newMetaMap)
+      if (newSession.hidden) {
+        const ids = get(sessionIdsAtom)
+        if (ids.includes(sessionId)) {
+          set(sessionIdsAtom, ids.filter(id => id !== sessionId))
+        }
+      }
     }
   }
 )
@@ -219,8 +229,18 @@ export const replaceLoadedSessionAtom = atom(
 
     const metaMap = get(sessionMetaMapAtom)
     const newMetaMap = new Map(metaMap)
-    newMetaMap.set(session.id, extractSessionMeta(session))
+    if (session.hidden) {
+      newMetaMap.delete(session.id)
+    } else {
+      newMetaMap.set(session.id, extractSessionMeta(session))
+    }
     set(sessionMetaMapAtom, newMetaMap)
+    if (session.hidden) {
+      const ids = get(sessionIdsAtom)
+      if (ids.includes(session.id)) {
+        set(sessionIdsAtom, ids.filter(id => id !== session.id))
+      }
+    }
 
     const loadedSessions = get(loadedSessionsAtom)
     if (!loadedSessions.has(session.id)) {
@@ -410,6 +430,14 @@ export const addSessionAtom = atom(
   (get, set, session: Session) => {
     // Set session atom
     set(sessionAtomFamily(session.id), session)
+
+    if (session.hidden) {
+      const loadedSessions = get(loadedSessionsAtom)
+      const newLoadedSessions = new Set(loadedSessions)
+      newLoadedSessions.add(session.id)
+      set(loadedSessionsAtom, newLoadedSessions)
+      return
+    }
 
     // Add to metadata map
     const metaMap = get(sessionMetaMapAtom)

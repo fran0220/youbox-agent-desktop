@@ -12,12 +12,24 @@ import type { DesignArtifactKind, DesignProjectMeta } from '@craft-agent/shared/
 
 export const designProjectsAtom = atom<DesignProjectMeta[] | null>(null)
 
+export const designChatSessionIdsAtom = atom<Record<string, string>>({})
+
 export interface PendingDesignProjectRename {
   projectId: string
   draft: string
 }
 
 export const pendingDesignProjectRenameAtom = atom<PendingDesignProjectRename | null>(null)
+
+export const seedDesignChatSessionIdAtom = atom(
+  null,
+  (get, set, { projectId, sessionId }: { projectId: string; sessionId: string | null | undefined }) => {
+    if (!sessionId) return
+    const current = get(designChatSessionIdsAtom)
+    if (current[projectId] === sessionId) return
+    set(designChatSessionIdsAtom, { ...current, [projectId]: sessionId })
+  },
+)
 
 export type DesignPrototypeDevice = 'desktop' | 'tablet' | 'mobile'
 

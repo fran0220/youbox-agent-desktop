@@ -4,12 +4,14 @@ import type { DesignProjectMeta } from '@craft-agent/shared/protocol'
 import {
   buildDesignPreviewUrl,
   createPendingDesignProjectRename,
+  designChatSessionIdsAtom,
   designProjectsAtom,
   DESIGN_PROTOTYPE_DEVICE_WIDTHS,
   getDesignPreviewFrameStyle,
   mostRecentDesignProject,
   pendingDesignProjectRenameAtom,
   resolveDesignProjectRenameCommit,
+  seedDesignChatSessionIdAtom,
   sortDesignProjectsByUpdatedAtDesc,
 } from '../design'
 
@@ -33,6 +35,15 @@ describe('design project atoms', () => {
   it('starts project metadata as null so loading is distinct from empty', () => {
     const store = createStore()
     expect(store.get(designProjectsAtom)).toBeNull()
+  })
+
+  it('seeds the in-memory chat session cache from project metadata', () => {
+    const store = createStore()
+    store.set(seedDesignChatSessionIdAtom, { projectId: 'project-a', sessionId: 'session-a' })
+    store.set(seedDesignChatSessionIdAtom, { projectId: 'project-empty', sessionId: null })
+    store.set(seedDesignChatSessionIdAtom, { projectId: 'project-a', sessionId: 'session-a' })
+
+    expect(store.get(designChatSessionIdsAtom)).toEqual({ 'project-a': 'session-a' })
   })
 
   it('selects the project with the newest updatedAt', () => {
