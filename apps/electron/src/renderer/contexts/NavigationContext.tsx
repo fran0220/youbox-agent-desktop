@@ -76,6 +76,7 @@ import { sessionMetaMapAtom, updateSessionMetaAtom, type SessionMeta } from '@/a
 import { sourcesAtom } from '@/atoms/sources'
 import { skillsAtom } from '@/atoms/skills'
 import { canvasDocsAtom } from '@/atoms/canvas'
+import { gamestudioProjectsAtom, mostRecentGameProject } from '@/atoms/gamestudio'
 import { mostRecentCanvasDoc } from '@/lib/canvas-persistence'
 import {
   panelStackAtom,
@@ -670,6 +671,17 @@ export function NavigationProvider({
         const mostRecent = mostRecentCanvasDoc(store.get(canvasDocsAtom) ?? [])
         if (mostRecent) {
           return { ...nextState, details: { type: 'doc', docId: mostRecent.id } }
+        }
+        return nextState
+      }
+
+      // Game Studio: auto-select the most recently updated project. As with
+      // canvas, the page redirects once the project list arrives if it is still
+      // loading when navigation first settles.
+      if (isGameStudioNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
+        const mostRecent = mostRecentGameProject(store.get(gamestudioProjectsAtom) ?? [])
+        if (mostRecent) {
+          return { ...nextState, details: { type: 'project', projectId: mostRecent.id } }
         }
         return nextState
       }

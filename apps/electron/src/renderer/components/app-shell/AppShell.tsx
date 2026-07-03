@@ -92,6 +92,7 @@ import { sessionMetaMapAtom, sendToWorkspaceAtom, type SessionMeta } from "@/ato
 import { sourcesAtom } from "@/atoms/sources"
 import { skillsAtom } from "@/atoms/skills"
 import { canvasDocsAtom } from "@/atoms/canvas"
+import { gamestudioProjectsAtom } from "@/atoms/gamestudio"
 import { panelStackAtom, panelCountAtom, focusedPanelIdAtom, focusedPanelRouteAtom, focusedSessionIdAtom, focusNextPanelAtom, focusPrevPanelAtom, parseSessionIdFromRoute } from "@/atoms/panel-stack"
 import { type SessionStatusId, type SessionStatus, statusConfigsToSessionStatuses } from "@/config/session-status-config"
 import { useStatuses } from "@/hooks/useStatuses"
@@ -971,6 +972,34 @@ function AppShellContent({
     })
     return () => { stale = true; cleanup() }
   }, [activeWorkspaceId, setCanvasDocs])
+
+  // Game Studio projects (workspace-scoped): mirrors canvas docs so bare
+  // gamestudio routes can auto-select the most recently updated project and
+  // project lists stay live across windows.
+  const setGameStudioProjects = useSetAtom(gamestudioProjectsAtom)
+  React.useEffect(() => {
+    setGameStudioProjects(null)
+    if (!activeWorkspaceId) return
+    let stale = false
+    const refresh = () => {
+      window.electronAPI.gameProjectList(activeWorkspaceId).then((projects) => {
+        if (!stale) setGameStudioProjects(projects || [])
+      }).catch(err => {
+        console.error('[GameStudio] Failed to load projects:', err)
+      })
+    }
+    refresh()
+    const cleanup = window.electronAPI.onGameProjectChanged((event) => {
+      if (event.workspaceId !== activeWorkspaceId) return
+      if (event.kind === 'deleted') {
+        // Drop synchronously so navigation auto-select never re-picks a
+        // project that was just deleted before the refetch lands.
+        setGameStudioProjects((prev) => prev ? prev.filter((p) => p.id !== event.projectId) : prev)
+      }
+      refresh()
+    })
+    return () => { stale = true; cleanup() }
+  }, [activeWorkspaceId, setGameStudioProjects])
 
   // Handle session source selection changes
   const handleSessionSourcesChange = React.useCallback(async (sessionId: string, sourceSlugs: string[]) => {
