@@ -426,7 +426,7 @@ function DesignPreviewStage({
             'relative overflow-hidden border border-border bg-background shadow-modal-small transition-[max-width,width] duration-150',
             isDeck ? 'max-h-full rounded-xl' : 'h-full max-h-full rounded-2xl',
             isPrototype && 'mx-auto',
-            project.kind === 'doc' && 'shadow-xl',
+            project.kind === 'doc' && 'shadow-middle',
             project.kind === 'image' && 'bg-card',
           )}
           style={frameStyle}
