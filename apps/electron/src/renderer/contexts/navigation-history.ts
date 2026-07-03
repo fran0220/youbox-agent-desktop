@@ -78,20 +78,23 @@ export function canRunInitialRestore({
 /**
  * Chooses the search string to reconcile during app startup.
  *
- * A window restore URL from the main process is the freshest persisted state on
- * app restart. Workspace-scoped localStorage is only a fallback for launches
- * whose URL does not already carry a route/panel restore target.
+ * A window restore URL from the main process is the only startup route restore
+ * signal. Workspace-scoped localStorage belongs to Chromium userData, which is
+ * not isolated by CRAFT_CONFIG_DIR in desktop validation, so using it on a
+ * route-less fresh launch can leak a prior gamestudio/canvas route into an
+ * otherwise clean workspace. Workspace switches still use saved workspace
+ * state via selectWorkspaceSwitchSearch after startup.
  */
 export function selectInitialRestoreSearch({
   currentSearch,
-  savedWorkspaceSearch,
+  savedWorkspaceSearch: _savedWorkspaceSearch,
 }: InitialRestoreSearchInput): string {
   const currentParams = new URLSearchParams(currentSearch)
   if (currentParams.get('route') || currentParams.get('panels')) {
     return currentSearch
   }
 
-  return savedWorkspaceSearch || currentSearch
+  return currentSearch
 }
 
 export function selectWorkspaceSwitchSearch({

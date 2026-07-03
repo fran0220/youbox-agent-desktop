@@ -132,13 +132,13 @@ describe('selectInitialRestoreSearch', () => {
     expect(selected).toBe('?workspaceId=ws-1&route=design&panels=design:1.0000&fi=0')
   })
 
-  it('uses saved workspace state when the current URL has no restore route', () => {
+  it('keeps a fresh startup URL on work mode instead of using saved gamestudio state', () => {
     const selected = selectInitialRestoreSearch({
       currentSearch: '?workspaceId=ws-1',
-      savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
+      savedWorkspaceSearch: '?ws=workspace&route=gamestudio',
     })
 
-    expect(selected).toBe('?ws=workspace&route=allSessions/session/s1')
+    expect(selected).toBe('?workspaceId=ws-1')
   })
 })
 
