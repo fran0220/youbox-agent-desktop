@@ -771,6 +771,55 @@ export interface GameProjectChangedEvent {
 }
 
 // ---------------------------------------------------------------------------
+// Design projects (design:* channels)
+// ---------------------------------------------------------------------------
+
+export type DesignArtifactKind = 'prototype' | 'deck' | 'doc' | 'image'
+
+export interface DesignProjectMeta {
+  id: string
+  name: string
+  kind: DesignArtifactKind
+  sessionId: string | null
+  designSystemId: string | null
+  templateId: string | null
+  entryFile: string
+  thumbnailPath: string | null
+  /** Unix epoch ms */
+  createdAt: number
+  /** Unix epoch ms */
+  updatedAt: number
+  /** Monotonic metadata write counter, bumped on every design:update */
+  version: number
+}
+
+export type DesignProject = DesignProjectMeta
+
+export interface DesignProjectCreateInput {
+  name?: string
+  kind?: DesignArtifactKind
+  designSystemId?: string | null
+  templateId?: string | null
+}
+
+export interface DesignProjectUpdateInput {
+  name?: string
+  sessionId?: string | null
+  designSystemId?: string | null
+  templateId?: string | null
+  thumbnailPath?: string | null
+}
+
+export type DesignProjectChangedKind = 'created' | 'updated' | 'deleted'
+
+/** Payload of the design:changed workspace broadcast */
+export interface DesignProjectChangedEvent {
+  workspaceId: string
+  projectId: string
+  kind: DesignProjectChangedKind
+}
+
+// ---------------------------------------------------------------------------
 // Canvas image generation (canvas:generateImage)
 // ---------------------------------------------------------------------------
 

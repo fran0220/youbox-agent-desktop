@@ -295,6 +295,14 @@ export const RPC_CHANNELS = {
     DELETE: 'gamestudio:delete',
     CHANGED: 'gamestudio:changed',
   },
+  design: {
+    LIST: 'design:list',
+    GET: 'design:get',
+    CREATE: 'design:create',
+    UPDATE: 'design:update',
+    DELETE: 'design:delete',
+    CHANGED: 'design:changed',
+  },
   statuses: {
     LIST: 'statuses:list',
     REORDER: 'statuses:reorder',

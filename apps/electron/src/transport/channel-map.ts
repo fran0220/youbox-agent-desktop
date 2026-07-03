@@ -257,6 +257,14 @@ export const CHANNEL_MAP = {
   gameProjectDelete: invoke(RPC_CHANNELS.gamestudio.DELETE),
   onGameProjectChanged: listener(RPC_CHANNELS.gamestudio.CHANGED),
 
+  // Design projects
+  designProjectList: invoke(RPC_CHANNELS.design.LIST),
+  designProjectGet: invoke(RPC_CHANNELS.design.GET),
+  designProjectCreate: invoke(RPC_CHANNELS.design.CREATE),
+  designProjectUpdate: invoke(RPC_CHANNELS.design.UPDATE),
+  designProjectDelete: invoke(RPC_CHANNELS.design.DELETE),
+  onDesignProjectChanged: listener(RPC_CHANNELS.design.CHANGED),
+
   // Statuses
   listStatuses: invoke(RPC_CHANNELS.statuses.LIST),
   reorderStatuses: invoke(RPC_CHANNELS.statuses.REORDER),

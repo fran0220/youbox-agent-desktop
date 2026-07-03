@@ -528,6 +528,16 @@ export interface ElectronAPI {
   // Game Studio project change listener
   onGameProjectChanged(callback: (event: import('@craft-agent/shared/protocol').GameProjectChangedEvent) => void): () => void
 
+  // Design projects (workspace-scoped)
+  designProjectList(workspaceId: string): Promise<import('@craft-agent/shared/protocol').DesignProjectMeta[]>
+  designProjectGet(workspaceId: string, projectId: string): Promise<import('@craft-agent/shared/protocol').DesignProject | null>
+  designProjectCreate(workspaceId: string, input?: import('@craft-agent/shared/protocol').DesignProjectCreateInput): Promise<import('@craft-agent/shared/protocol').DesignProject>
+  designProjectUpdate(workspaceId: string, projectId: string, patch: import('@craft-agent/shared/protocol').DesignProjectUpdateInput): Promise<import('@craft-agent/shared/protocol').DesignProject>
+  designProjectDelete(workspaceId: string, projectId: string): Promise<void>
+
+  // Design project change listener
+  onDesignProjectChanged(callback: (event: import('@craft-agent/shared/protocol').DesignProjectChangedEvent) => void): () => void
+
   // Statuses (workspace-scoped)
   listStatuses(workspaceId: string): Promise<import('@craft-agent/shared/statuses').StatusConfig[]>
   reorderStatuses(workspaceId: string, orderedIds: string[]): Promise<void>
