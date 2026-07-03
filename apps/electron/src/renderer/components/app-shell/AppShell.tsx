@@ -93,6 +93,7 @@ import { sourcesAtom } from "@/atoms/sources"
 import { skillsAtom } from "@/atoms/skills"
 import { canvasDocsAtom } from "@/atoms/canvas"
 import { gamestudioProjectsAtom } from "@/atoms/gamestudio"
+import { designProjectsAtom } from "@/atoms/design"
 import { panelStackAtom, panelCountAtom, focusedPanelIdAtom, focusedPanelRouteAtom, focusedSessionIdAtom, focusNextPanelAtom, focusPrevPanelAtom, parseSessionIdFromRoute } from "@/atoms/panel-stack"
 import { type SessionStatusId, type SessionStatus, statusConfigsToSessionStatuses } from "@/config/session-status-config"
 import { useStatuses } from "@/hooks/useStatuses"
@@ -1002,6 +1003,32 @@ function AppShellContent({
     })
     return () => { stale = true; cleanup() }
   }, [activeWorkspaceId, setGameStudioProjects])
+
+  // Design projects (workspace-scoped): mirrors canvas/gamestudio so bare
+  // design routes can auto-select the most recently updated project and the
+  // gallery reflects external design:changed mutations live.
+  const setDesignProjects = useSetAtom(designProjectsAtom)
+  React.useEffect(() => {
+    setDesignProjects(null)
+    if (!activeWorkspaceId) return
+    let stale = false
+    const refresh = () => {
+      window.electronAPI.designProjectList(activeWorkspaceId).then((projects) => {
+        if (!stale) setDesignProjects(projects || [])
+      }).catch(err => {
+        console.error('[Design] Failed to load projects:', err)
+      })
+    }
+    refresh()
+    const cleanup = window.electronAPI.onDesignProjectChanged((event) => {
+      if (event.workspaceId !== activeWorkspaceId) return
+      if (event.kind === 'deleted') {
+        setDesignProjects((prev) => prev ? prev.filter((p) => p.id !== event.projectId) : prev)
+      }
+      refresh()
+    })
+    return () => { stale = true; cleanup() }
+  }, [activeWorkspaceId, setDesignProjects])
 
   // Handle session source selection changes
   const handleSessionSourcesChange = React.useCallback(async (sessionId: string, sourceSlugs: string[]) => {

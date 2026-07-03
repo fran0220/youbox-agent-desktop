@@ -78,6 +78,7 @@ import { sourcesAtom } from '@/atoms/sources'
 import { skillsAtom } from '@/atoms/skills'
 import { canvasDocsAtom } from '@/atoms/canvas'
 import { gamestudioProjectsAtom, mostRecentGameProject } from '@/atoms/gamestudio'
+import { designProjectsAtom, mostRecentDesignProject } from '@/atoms/design'
 import { mostRecentCanvasDoc } from '@/lib/canvas-persistence'
 import {
   panelStackAtom,
@@ -681,6 +682,14 @@ export function NavigationProvider({
       // loading when navigation first settles.
       if (isGameStudioNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
         const mostRecent = mostRecentGameProject(store.get(gamestudioProjectsAtom) ?? [])
+        if (mostRecent) {
+          return { ...nextState, details: { type: 'project', projectId: mostRecent.id } }
+        }
+        return nextState
+      }
+
+      if (isDesignNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
+        const mostRecent = mostRecentDesignProject(store.get(designProjectsAtom) ?? [])
         if (mostRecent) {
           return { ...nextState, details: { type: 'project', projectId: mostRecent.id } }
         }
