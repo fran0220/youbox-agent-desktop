@@ -6,6 +6,7 @@ import type { SessionEvent } from '@craft-agent/shared/protocol'
 import { designChatSessionIdsAtom } from '@/atoms/design'
 import {
   buildDesignSessionCreateOptions,
+  designToolInputTouchesProject,
   sessionMessagesToDesignChatMessages,
   type DesignChatMessage,
 } from '@/lib/design-chat'
@@ -15,11 +16,13 @@ export function DesignChatPanel({
   projectId,
   projectDir,
   persistedSessionId,
+  onProjectFileWrite,
 }: {
   workspaceId: string
   projectId: string
   projectDir: string | null
   persistedSessionId: string | null
+  onProjectFileWrite?: () => void
 }) {
   const { t } = useTranslation()
   const [sessionIds, setSessionIds] = useAtom(designChatSessionIdsAtom)
@@ -29,6 +32,9 @@ export function DesignChatPanel({
   const [loadingHistory, setLoadingHistory] = useState(false)
   const sessionIdRef = useRef<string | null>(sessionIds[projectId] ?? persistedSessionId ?? null)
   const verifiedSessionIdRef = useRef<string | null>(null)
+  const toolInputsRef = useRef<Map<string, Record<string, unknown>>>(new Map())
+  const projectDirRef = useRef<string | null>(projectDir)
+  const onProjectFileWriteRef = useRef(onProjectFileWrite)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -36,7 +42,16 @@ export function DesignChatPanel({
   }, [sessionIds, persistedSessionId, projectId])
 
   useEffect(() => {
+    projectDirRef.current = projectDir
+  }, [projectDir])
+
+  useEffect(() => {
+    onProjectFileWriteRef.current = onProjectFileWrite
+  }, [onProjectFileWrite])
+
+  useEffect(() => {
     verifiedSessionIdRef.current = null
+    toolInputsRef.current.clear()
     setMessages([])
     setStreaming(false)
   }, [projectId])
@@ -98,6 +113,14 @@ export function DesignChatPanel({
       } else if (event.type === 'typed_error') {
         setMessages((prev) => replaceAssistantText(prev, event.error.message))
         setStreaming(false)
+      } else if (event.type === 'tool_start') {
+        toolInputsRef.current.set(event.toolUseId, event.toolInput)
+      } else if (event.type === 'tool_result') {
+        const toolInput = toolInputsRef.current.get(event.toolUseId)
+        toolInputsRef.current.delete(event.toolUseId)
+        if (!event.isError && designToolInputTouchesProject(toolInput, projectDirRef.current)) {
+          onProjectFileWriteRef.current?.()
+        }
       }
     })
     return cleanup

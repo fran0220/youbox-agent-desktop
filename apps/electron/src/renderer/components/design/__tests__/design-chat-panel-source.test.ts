@@ -23,4 +23,14 @@ describe('design chat panel source wiring', () => {
     expect(src).toContain('disabled={!input.trim() || streaming || !projectDir}')
     expect(src).toContain('sessionMessagesToDesignChatMessages(session.messages)')
   })
+
+  it('correlates tool_start inputs with tool_result events for preview refresh', () => {
+    const src = readFileSync(DESIGN_CHAT_PANEL_PATH, 'utf8')
+
+    expect(src).toContain("event.type === 'tool_start'")
+    expect(src).toContain('toolInputsRef.current.set(event.toolUseId, event.toolInput)')
+    expect(src).toContain("event.type === 'tool_result'")
+    expect(src).toContain('designToolInputTouchesProject(toolInput, projectDirRef.current)')
+    expect(src).toContain('onProjectFileWriteRef.current?.()')
+  })
 })

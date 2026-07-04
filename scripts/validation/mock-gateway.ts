@@ -70,7 +70,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
         type: 'tool_calls',
         toolCalls: [
           {
-            name: 'Write',
+            name: 'write',
             arguments: {
               file_path: 'index.html',
               content: '<!doctype html><html><body><h1>MOCK-WRITE-ENTRY-FILE</h1></body></html>',
@@ -87,9 +87,9 @@ export const PLAYBOOKS: Record<string, Playbook> = {
       {
         type: 'tool_calls',
         toolCalls: [
-          { name: 'Write', arguments: { file_path: 'index.html', content: '<h1>MOCK-RAPID-WRITE-1</h1>' } },
-          { name: 'Write', arguments: { file_path: 'assets/rapid-a.txt', content: 'rapid-a' } },
-          { name: 'Write', arguments: { file_path: 'assets/rapid-b.txt', content: 'rapid-b' } },
+          { name: 'write', arguments: { file_path: 'index.html', content: '<h1>MOCK-RAPID-WRITE-1</h1>' } },
+          { name: 'write', arguments: { file_path: 'assets/rapid-a.txt', content: 'rapid-a' } },
+          { name: 'write', arguments: { file_path: 'assets/rapid-b.txt', content: 'rapid-b' } },
         ],
       },
       { type: 'text', text: 'Completed rapid writes.' },
@@ -102,7 +102,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
         type: 'tool_calls',
         toolCalls: [
           {
-            name: 'Write',
+            name: 'write',
             arguments: {
               file_path: '/tmp/originai-validation-outside-project.html',
               content: '<h1>SHOULD-NOT-BE-WRITTEN-BY-DESIGN-SESSION</h1>',

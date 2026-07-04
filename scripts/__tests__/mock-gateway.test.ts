@@ -83,7 +83,7 @@ describe('validation mock gateway playbooks', () => {
     const writeRunId = await arm(baseUrl, 'write-entry-file');
     const writeTurn = await chat(baseUrl, writeRunId);
     expect(writeTurn.choices[0].finish_reason).toBe('tool_calls');
-    expect(writeTurn.choices[0].message.tool_calls[0].function.name).toBe('Write');
+    expect(writeTurn.choices[0].message.tool_calls[0].function.name).toBe('write');
     expect(writeTurn.choices[0].message.tool_calls[0].function.arguments).toContain('index.html');
 
     const echoRunId = await arm(baseUrl, 'echo-context');
@@ -106,7 +106,7 @@ describe('validation mock gateway playbooks', () => {
     expect(toolCalls).toHaveLength(1);
     expect(toolCalls[0]).toMatchObject({
       type: 'function',
-      function: { name: 'Write' },
+      function: { name: 'write' },
     });
 
     await applyWriteToolCalls(projectDir, toolCalls);

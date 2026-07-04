@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import {
   buildDesignPreviewUrl,
   createPendingDesignProjectRename,
+  designChatSessionIdsAtom,
   designProjectsAtom,
   DESIGN_PROTOTYPE_DEVICE_WIDTHS,
   type DesignPrototypeDevice,
@@ -23,7 +24,7 @@ import {
 } from '@/atoms/design'
 import { DesignChatPanel } from '@/components/design/DesignChatPanel'
 import { useActiveWorkspace } from '@/context/AppShellContext'
-import { resolveDesignProjectDir } from '@/lib/design-chat'
+import { createDesignPreviewRefreshScheduler, resolveDesignProjectDir } from '@/lib/design-chat'
 import { navigate, routes } from '@/lib/navigate'
 import { cn } from '@/lib/utils'
 
@@ -89,6 +90,7 @@ function DesignProjectGallery({
   const dateLocale = getDateLocale(i18n.resolvedLanguage ?? 'en') as Locale | undefined
   const sortedProjects = useMemo(() => sortDesignProjectsByUpdatedAtDesc(projects), [projects])
   const [pendingRename, setPendingRename] = useAtom(pendingDesignProjectRenameAtom)
+  const setSessionIds = useSetAtom(designChatSessionIdsAtom)
   const [deleteTarget, setDeleteTarget] = useState<DesignProjectMeta | null>(null)
   const [creating, setCreating] = useState(false)
   const creatingRef = useRef(false)
@@ -140,10 +142,23 @@ function DesignProjectGallery({
   const handleDelete = async () => {
     if (!deleteTarget) return
     const targetId = deleteTarget.id
+    const targetSessionId = deleteTarget.sessionId
     const remaining = sortedProjects.filter((project) => project.id !== targetId)
     setDeleteTarget(null)
     try {
+      if (targetSessionId) {
+        try {
+          await window.electronAPI.deleteSession(targetSessionId)
+        } catch (sessionErr) {
+          console.warn('[Design] Failed to delete hidden chat session for project:', sessionErr)
+        }
+      }
       await window.electronAPI.designProjectDelete(workspaceId, targetId)
+      setSessionIds((prev) => {
+        const next = { ...prev }
+        delete next[targetId]
+        return next
+      })
       await refreshProjects()
       if (targetId === currentProjectId) {
         navigate(routes.view.design())
@@ -356,12 +371,15 @@ const DESIGN_DEVICE_OPTIONS: Array<{ id: DesignPrototypeDevice; icon: typeof Mon
 function DesignPreviewStage({
   workspaceId,
   project,
+  reloadToken,
+  onRefresh,
 }: {
   workspaceId: string
   project: DesignProjectMeta
+  reloadToken: number
+  onRefresh: () => void
 }) {
   const { t } = useTranslation()
-  const [reloadToken, setReloadToken] = useState(0)
   const [device, setDevice] = useState<DesignPrototypeDevice>('desktop')
   const previewUrl = useMemo(
     () => buildDesignPreviewUrl(workspaceId, project.id, project.entryFile, reloadToken),
@@ -414,7 +432,7 @@ function DesignPreviewStage({
             variant="ghost"
             size="sm"
             className="gap-1.5"
-            onClick={() => setReloadToken((value) => value + 1)}
+            onClick={onRefresh}
           >
             <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />
             {t('design.preview.refresh')}
@@ -470,10 +488,21 @@ function DesignProjectShell({
     [projects, projectId],
   )
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const [previewReloadToken, setPreviewReloadToken] = useState(0)
   const renaming = pendingRename?.projectId === projectId
   const projectDir = useMemo(
     () => activeWorkspace?.rootPath ? resolveDesignProjectDir(activeWorkspace.rootPath, projectId) : null,
     [activeWorkspace?.rootPath, projectId],
+  )
+  const refreshPreview = useCallback(() => {
+    setPreviewReloadToken((value) => value + 1)
+  }, [])
+  const previewRefreshScheduler = useMemo(
+    () => createDesignPreviewRefreshScheduler({
+      delayMs: 400,
+      refresh: refreshPreview,
+    }),
+    [refreshPreview],
   )
 
   useEffect(() => {
@@ -481,6 +510,8 @@ function DesignProjectShell({
       seedDesignChatSessionId({ projectId: currentProject.id, sessionId: currentProject.sessionId })
     }
   }, [currentProject, seedDesignChatSessionId])
+
+  useEffect(() => () => previewRefreshScheduler.cancel(), [previewRefreshScheduler])
 
   const commitRename = async () => {
     if (!currentProject) return
@@ -558,12 +589,18 @@ function DesignProjectShell({
       </div>
       {currentProject ? (
         <div className="flex min-h-0 flex-1">
-          <DesignPreviewStage workspaceId={workspaceId} project={currentProject} />
+          <DesignPreviewStage
+            workspaceId={workspaceId}
+            project={currentProject}
+            reloadToken={previewReloadToken}
+            onRefresh={refreshPreview}
+          />
           <DesignChatPanel
             workspaceId={workspaceId}
             projectId={currentProject.id}
             projectDir={projectDir}
             persistedSessionId={currentProject.sessionId}
+            onProjectFileWrite={previewRefreshScheduler.schedule}
           />
         </div>
       ) : (

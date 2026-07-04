@@ -18,6 +18,8 @@ describe('design preview stage source wiring', () => {
     const src = readFileSync(DESIGN_PAGE_PATH, 'utf8')
 
     expect(src).toContain("t('design.preview.refresh')")
+    expect(src).toContain('createDesignPreviewRefreshScheduler')
+    expect(src).toContain('onProjectFileWrite={previewRefreshScheduler.schedule}')
     expect(src).toContain("project.kind === 'deck'")
     expect(src).toContain("project.kind === 'prototype'")
     expect(src).toContain('DESIGN_PROTOTYPE_DEVICE_WIDTHS')
