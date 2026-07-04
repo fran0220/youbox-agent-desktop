@@ -25,6 +25,17 @@ describe('design preview stage source wiring', () => {
     expect(src).toContain('DESIGN_PROTOTYPE_DEVICE_WIDTHS')
   })
 
+  it('keeps one-click blank creation while preserving the richer picker', () => {
+    const src = readFileSync(DESIGN_PAGE_PATH, 'utf8')
+
+    expect(src).toContain('buildBlankDesignProjectCreateInput')
+    expect(src).toContain("t('design.gallery.createBlank')")
+    expect(src).toContain("t('design.gallery.create')")
+    expect(src).toContain("t('design.createFirst.button')")
+    expect(src).toContain("t('design.createFirst.chooseStarter')")
+    expect(src).toContain('setCreateFlowOpen(true)')
+  })
+
   it('allows design protocol frames through the renderer CSP', () => {
     const src = readFileSync(RENDERER_INDEX_PATH, 'utf8')
 

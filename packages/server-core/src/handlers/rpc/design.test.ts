@@ -144,6 +144,10 @@ describe('design RPC handlers', () => {
     expect(updated.name).toBe('Renamed')
     expect(updated.version).toBe(2)
     expect(h.pushes[1]!.args).toEqual([{ workspaceId: WORKSPACE_ID, projectId: project.id, kind: 'updated' }])
+    await expect(update(ctx(), WORKSPACE_ID, project.id, { templateId: '' })).rejects.toThrow('Invalid design template id')
+    await expect(update(ctx(), WORKSPACE_ID, project.id, { templateId: '   ' })).rejects.toThrow('Invalid design template id')
+    await expect(update(ctx(), WORKSPACE_ID, project.id, { designSystemId: '' })).rejects.toThrow('Invalid design system id')
+    await expect(update(ctx(), WORKSPACE_ID, project.id, { designSystemId: '   ' })).rejects.toThrow('Invalid design system id')
 
     const metas = await list(ctx(), WORKSPACE_ID)
     expect(metas.map((meta: { id: string }) => meta.id)).toEqual([project.id])
@@ -172,6 +176,10 @@ describe('design RPC handlers', () => {
 
     await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', templateId: 'missing-template' })).rejects.toThrow('Unknown design template id')
     await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', designSystemId: 'missing-system' })).rejects.toThrow('Unknown design system id')
+    await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', templateId: '' })).rejects.toThrow('Invalid design template id')
+    await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', templateId: '   ' })).rejects.toThrow('Invalid design template id')
+    await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', designSystemId: '' })).rejects.toThrow('Invalid design system id')
+    await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', designSystemId: '   ' })).rejects.toThrow('Invalid design system id')
     expect(existsSync(join(wsRoot, 'design', 'missing-template'))).toBe(false)
   })
 

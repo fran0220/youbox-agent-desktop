@@ -33,3 +33,7 @@ export function buildDesignProjectCreateInput(
     designSystemId: state.designSystemId === NONE_DESIGN_SYSTEM_ID ? null : state.designSystemId,
   }
 }
+
+export function buildBlankDesignProjectCreateInput(name: string): DesignProjectCreateInput {
+  return buildDesignProjectCreateInput(name, createInitialDesignCreationState())
+}

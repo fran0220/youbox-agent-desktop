@@ -71,6 +71,12 @@ function assertValidContentId(id: string, label: string): void {
   }
 }
 
+function normalizeOptionalContentId(id: string | null | undefined, label: string): string | null {
+  if (id === null || id === undefined) return null
+  assertValidContentId(id, label)
+  return id
+}
+
 export function getWorkspaceDesignDir(workspaceRootPath: string): string {
   return join(workspaceRootPath, 'design')
 }
@@ -239,8 +245,8 @@ async function scaffoldProject(
   input: DesignProjectCreateInput,
   options: DesignProjectStorageOptions,
 ): Promise<{ kind: DesignArtifactKind; entryFile: string; templateId: string | null; designSystemId: string | null }> {
-  const templateId = input.templateId ?? null
-  const designSystemId = input.designSystemId ?? null
+  const templateId = normalizeOptionalContentId(input.templateId, 'template')
+  const designSystemId = normalizeOptionalContentId(input.designSystemId, 'system')
   let kind = normalizeKind(input.kind)
   let entryFile = 'index.html'
   const template = templateId ? resolveTemplate(requireResourcesRoot(options, 'copy a design template'), templateId) : null
@@ -308,8 +314,8 @@ export async function updateDesignProject(
       ...current,
       name: patch.name ?? current.name,
       sessionId: patch.sessionId !== undefined ? patch.sessionId : current.sessionId,
-      designSystemId: patch.designSystemId !== undefined ? patch.designSystemId : current.designSystemId,
-      templateId: patch.templateId !== undefined ? patch.templateId : current.templateId,
+      designSystemId: patch.designSystemId !== undefined ? normalizeOptionalContentId(patch.designSystemId, 'system') : current.designSystemId,
+      templateId: patch.templateId !== undefined ? normalizeOptionalContentId(patch.templateId, 'template') : current.templateId,
       thumbnailPath: patch.thumbnailPath !== undefined ? patch.thumbnailPath : current.thumbnailPath,
       updatedAt: Date.now(),
       version: current.version + 1,

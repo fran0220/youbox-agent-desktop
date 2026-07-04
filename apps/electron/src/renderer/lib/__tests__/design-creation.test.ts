@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
   BLANK_DESIGN_TEMPLATE_ID,
   NONE_DESIGN_SYSTEM_ID,
+  buildBlankDesignProjectCreateInput,
   buildDesignProjectCreateInput,
   createInitialDesignCreationState,
   selectDesignCreationSystem,
@@ -48,6 +49,14 @@ describe('design creation picker state', () => {
       name: 'Deck',
       templateId: 'html-ppt',
       designSystemId: 'stripe',
+    })
+  })
+
+  it('builds one-click blank create input without picker sentinels', () => {
+    expect(buildBlankDesignProjectCreateInput('Untitled design')).toEqual({
+      name: 'Untitled design',
+      templateId: null,
+      designSystemId: null,
     })
   })
 })

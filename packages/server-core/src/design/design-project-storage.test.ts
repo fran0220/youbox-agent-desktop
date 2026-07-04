@@ -143,6 +143,10 @@ describe('design project scaffold and CRUD', () => {
     await expect(createDesignProject(wsRoot, { name: 'Bad Template', templateId: 'missing-template' }, { resourcesRoot })).rejects.toThrow('Unknown design template id')
     await expect(createDesignProject(wsRoot, { name: 'Bad System', designSystemId: 'missing-system' }, { resourcesRoot })).rejects.toThrow('Unknown design system id')
     await expect(createDesignProject(wsRoot, { name: 'Traversal', templateId: '../escape' }, { resourcesRoot })).rejects.toThrow('Invalid design template id')
+    await expect(createDesignProject(wsRoot, { name: 'Empty Template', templateId: '' }, { resourcesRoot })).rejects.toThrow('Invalid design template id')
+    await expect(createDesignProject(wsRoot, { name: 'Whitespace Template', templateId: '   ' }, { resourcesRoot })).rejects.toThrow('Invalid design template id')
+    await expect(createDesignProject(wsRoot, { name: 'Empty System', designSystemId: '' }, { resourcesRoot })).rejects.toThrow('Invalid design system id')
+    await expect(createDesignProject(wsRoot, { name: 'Whitespace System', designSystemId: '   ' }, { resourcesRoot })).rejects.toThrow('Invalid design system id')
 
     expect(existsSync(getWorkspaceDesignDir(wsRoot))).toBe(false)
   })
@@ -205,6 +209,17 @@ describe('design project scaffold and CRUD', () => {
     expect(cleared.templateId).toBeNull()
     expect(cleared.thumbnailPath).toBeNull()
     expect(cleared.version).toBe(3)
+  })
+
+  it('update rejects blank template and design-system ids without persisting them', async () => {
+    const project = await createDesignProject(wsRoot, { name: 'Before' })
+
+    await expect(updateDesignProject(wsRoot, project.id, { templateId: '' })).rejects.toThrow('Invalid design template id')
+    await expect(updateDesignProject(wsRoot, project.id, { templateId: '   ' })).rejects.toThrow('Invalid design template id')
+    await expect(updateDesignProject(wsRoot, project.id, { designSystemId: '' })).rejects.toThrow('Invalid design system id')
+    await expect(updateDesignProject(wsRoot, project.id, { designSystemId: '   ' })).rejects.toThrow('Invalid design system id')
+
+    expect(loadDesignProject(wsRoot, project.id)).toEqual(project)
   })
 
   it('update rejects a missing project without partial files', async () => {

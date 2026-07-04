@@ -28,6 +28,7 @@ import { useActiveWorkspace } from '@/context/AppShellContext'
 import {
   BLANK_DESIGN_TEMPLATE_ID,
   NONE_DESIGN_SYSTEM_ID,
+  buildBlankDesignProjectCreateInput,
   buildDesignProjectCreateInput,
   createInitialDesignCreationState,
   selectDesignCreationSystem,
@@ -291,6 +292,10 @@ function DesignProjectGallery({
     }
   }
 
+  const handleCreateBlank = () => {
+    void handleCreate(buildBlankDesignProjectCreateInput(t('design.defaultProjectName')))
+  }
+
   const handleDelete = async () => {
     if (!deleteTarget) return
     const targetId = deleteTarget.id
@@ -343,10 +348,15 @@ function DesignProjectGallery({
           <h2 className="truncate text-sm font-medium text-foreground">{t('design.gallery.title')}</h2>
           <p className="truncate text-xs text-muted-foreground">{t('design.gallery.description')}</p>
         </div>
-        <Button size="sm" disabled={creating} onClick={() => setCreateFlowOpen(true)}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          {t('design.gallery.create')}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button size="sm" variant="ghost" disabled={creating} onClick={() => setCreateFlowOpen(true)}>
+            {t('design.gallery.create')}
+          </Button>
+          <Button size="sm" disabled={creating} onClick={handleCreateBlank}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            {t('design.gallery.createBlank')}
+          </Button>
+        </div>
       </div>
 
       <div className={cn('min-h-0 flex-1 overflow-y-auto', compact ? 'p-3' : 'p-8')}>
@@ -505,6 +515,10 @@ function DesignEmptyState({ workspaceId }: { workspaceId: string }) {
     }
   }
 
+  const handleCreateBlank = () => {
+    void handleCreate(buildBlankDesignProjectCreateInput(t('design.defaultProjectName')))
+  }
+
   return (
     <div className="flex h-full w-full select-none flex-col items-center justify-center gap-3 bg-background text-center">
       <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground">
@@ -514,9 +528,14 @@ function DesignEmptyState({ workspaceId }: { workspaceId: string }) {
         <h2 className="text-sm font-medium text-foreground">{t('design.createFirst.title')}</h2>
         <p className="max-w-sm text-xs text-muted-foreground">{t('design.createFirst.description')}</p>
       </div>
-      <Button size="sm" disabled={creating} onClick={() => setCreateFlowOpen(true)}>
-        {t('design.createFirst.button')}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button size="sm" disabled={creating} onClick={handleCreateBlank}>
+          {t('design.createFirst.button')}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={creating} onClick={() => setCreateFlowOpen(true)}>
+          {t('design.createFirst.chooseStarter')}
+        </Button>
+      </div>
       {createFlowOpen && (
         <DesignCreationDialog
           creating={creating}
