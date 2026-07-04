@@ -24,6 +24,7 @@ interface InitialRestoreSearchInput {
 
 interface WorkspaceSwitchSearchInput extends InitialRestoreSearchInput {
   initialRouteRestored: boolean
+  workspaceSlug: string | null
 }
 
 /**
@@ -101,9 +102,16 @@ export function selectWorkspaceSwitchSearch({
   currentSearch,
   savedWorkspaceSearch,
   initialRouteRestored,
+  workspaceSlug,
 }: WorkspaceSwitchSearchInput): string {
   if (!initialRouteRestored) {
     return selectInitialRestoreSearch({ currentSearch, savedWorkspaceSearch })
+  }
+
+  const savedParams = new URLSearchParams(savedWorkspaceSearch)
+  const savedWorkspaceSlug = savedParams.get('ws')
+  if (workspaceSlug && savedWorkspaceSlug && savedWorkspaceSlug !== workspaceSlug) {
+    return ''
   }
 
   return savedWorkspaceSearch

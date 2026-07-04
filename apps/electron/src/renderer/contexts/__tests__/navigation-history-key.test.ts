@@ -148,6 +148,7 @@ describe('selectWorkspaceSwitchSearch', () => {
       currentSearch: '?workspaceId=ws-1&ws=workspace&route=design',
       savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
       initialRouteRestored: false,
+      workspaceSlug: 'workspace',
     })
 
     expect(selected).toBe('?workspaceId=ws-1&ws=workspace&route=design')
@@ -158,8 +159,20 @@ describe('selectWorkspaceSwitchSearch', () => {
       currentSearch: '?workspaceId=ws-1&ws=workspace&route=design',
       savedWorkspaceSearch: '?ws=workspace&route=allSessions/session/s1',
       initialRouteRestored: true,
+      workspaceSlug: 'workspace',
     })
 
     expect(selected).toBe('?ws=workspace&route=allSessions/session/s1')
+  })
+
+  it('ignores saved workspace state whose slug belongs to another workspace', () => {
+    const selected = selectWorkspaceSwitchSearch({
+      currentSearch: '?workspaceId=ws-2&ws=workspace-b&route=design',
+      savedWorkspaceSearch: '?ws=workspace-a&route=design/project/project-a',
+      initialRouteRestored: true,
+      workspaceSlug: 'workspace-b',
+    })
+
+    expect(selected).toBe('')
   })
 })

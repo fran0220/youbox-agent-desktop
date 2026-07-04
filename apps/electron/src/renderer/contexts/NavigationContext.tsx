@@ -1034,6 +1034,7 @@ export function NavigationProvider({
         currentSearch: window.location.search,
         savedWorkspaceSearch: savedSearch,
         initialRouteRestored: initialRouteRestoredRef.current,
+        workspaceSlug,
       })
 
       const url = new URL(window.location.href)

@@ -8,6 +8,7 @@ import { getWorkspaceByNameOrId } from '@craft-agent/shared/config'
 import { classifyExternalUrl, formatBlockedUrlError } from '@craft-agent/shared/utils/url-safety'
 import { RPC_CHANNELS, type WindowCloseRequestSource } from '../shared/types'
 import type { SavedWindow } from './window-state'
+import { buildDevRestoredWindowUrl, buildRestoredWindowQuery } from './window-restore-url'
 
 // Vite dev server URL for hot reload
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
@@ -324,16 +325,12 @@ export class WindowManager {
 
     // Load the renderer - use restoreUrl if provided, otherwise build from options
     if (restoreUrl) {
+      const workspaceSlug = getWorkspaceByNameOrId(workspaceId)?.slug
       // Restore from saved URL - need to adapt for dev vs prod
       if (VITE_DEV_SERVER_URL) {
         // In dev mode, replace the base URL but keep the path and query
         try {
-          const savedUrl = new URL(restoreUrl)
-          const devUrl = new URL(VITE_DEV_SERVER_URL)
-          // Preserve pathname and search from saved URL, use dev server host
-          devUrl.pathname = savedUrl.pathname
-          devUrl.search = savedUrl.search
-          window.loadURL(devUrl.toString())
+          window.loadURL(buildDevRestoredWindowUrl(restoreUrl, VITE_DEV_SERVER_URL, workspaceId, workspaceSlug, focused))
         } catch {
           // Fallback if URL parsing fails
           windowLog.warn('Failed to parse restoreUrl, using default:', restoreUrl)
@@ -345,9 +342,7 @@ export class WindowManager {
         // Never load file:// URLs directly — the path may be stale (e.g. Linux AppImage
         // mounts to a different /tmp dir on each launch). See #13.
         try {
-          const savedUrl = new URL(restoreUrl)
-          const query: Record<string, string> = {}
-          savedUrl.searchParams.forEach((value, key) => { query[key] = value })
+          const query = buildRestoredWindowQuery(restoreUrl, workspaceId, workspaceSlug, focused)
           window.loadFile(join(__dirname, 'renderer/index.html'), { query })
         } catch {
           window.loadFile(join(__dirname, 'renderer/index.html'), { query: { workspaceId } })

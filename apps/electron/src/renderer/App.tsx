@@ -32,6 +32,7 @@ import { stripMarkdown } from './utils/text'
 import { coerceInputText } from './lib/input-text'
 import { getSessionsToRefreshAfterStaleReconnect } from './lib/reconnect-recovery'
 import { formatSessionLoadFailure, shouldTreatSessionLoadFailureAsTransportFallback } from './lib/session-load'
+import { selectInitialWindowWorkspaceId } from './lib/workspace-selection'
 import { extractWorkspaceSlugFromPath } from '@craft-agent/shared/utils/workspace-slug'
 import { DEFAULT_THINKING_LEVEL } from '@craft-agent/shared/agent/thinking-levels'
 import { initRendererPerf } from './lib/perf'
@@ -632,8 +633,11 @@ export default function App() {
       setSetupNeeds(needs)
       const ws = await window.electronAPI.getWorkspaces()
       if (ws.length > 0) {
-        await window.electronAPI.switchWorkspace(ws[0].id)
-        setWindowWorkspaceId(ws[0].id)
+        const targetWorkspaceId = selectInitialWindowWorkspaceId(wsId, ws)
+        if (targetWorkspaceId && targetWorkspaceId !== wsId) {
+          await window.electronAPI.switchWorkspace(targetWorkspaceId)
+        }
+        setWindowWorkspaceId(targetWorkspaceId)
         setWorkspaces(ws)
       } else {
         setWorkspaces(ws)
