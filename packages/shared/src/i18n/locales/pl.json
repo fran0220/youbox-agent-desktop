@@ -390,6 +390,7 @@
   "design.chat.empty": "Opisz artefakt, który chcesz utworzyć lub edytować.",
   "design.chat.loading": "Wczytywanie rozmowy...",
   "design.chat.missingProjectDir": "Katalog projektu designu jest niedostępny.",
+  "design.chat.persistSessionError": "Nie udało się zapisać tego chatu designu. Spróbuj wysłać ponownie.",
   "design.chat.placeholder": "Poproś agenta designu o edycję tego projektu...",
   "design.chat.send": "Wyślij",
   "design.chat.streaming": "Streamowanie",

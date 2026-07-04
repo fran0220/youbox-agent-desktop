@@ -390,6 +390,7 @@
   "design.chat.empty": "Írd le, milyen artefaktot szeretnél létrehozni vagy szerkeszteni.",
   "design.chat.loading": "Beszélgetés betöltése...",
   "design.chat.missingProjectDir": "A designprojekt mappája nem érhető el.",
+  "design.chat.persistSessionError": "Nem sikerült menteni ezt a design chatet. Próbáld újra elküldeni.",
   "design.chat.placeholder": "Kérd meg a designügynököt a projekt szerkesztésére...",
   "design.chat.send": "Küldés",
   "design.chat.streaming": "Streamelés",

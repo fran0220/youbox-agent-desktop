@@ -68,6 +68,34 @@ export interface DesignPreviewRefreshScheduler {
   cancel: () => void
 }
 
+export type DesignChatSessionBindingResult =
+  | { ok: true }
+  | { ok: false; error: unknown }
+
+export async function persistDesignChatSessionBinding({
+  cleanupSession,
+  onCleanupError,
+  persistSessionId,
+  sessionId,
+}: {
+  cleanupSession: (sessionId: string) => Promise<void>
+  onCleanupError?: (err: unknown) => void
+  persistSessionId: (sessionId: string) => Promise<void>
+  sessionId: string
+}): Promise<DesignChatSessionBindingResult> {
+  try {
+    await persistSessionId(sessionId)
+    return { ok: true }
+  } catch (err) {
+    try {
+      await cleanupSession(sessionId)
+    } catch (cleanupErr) {
+      onCleanupError?.(cleanupErr)
+    }
+    return { ok: false, error: err }
+  }
+}
+
 export function createDesignPreviewRefreshScheduler({
   delayMs,
   refresh,

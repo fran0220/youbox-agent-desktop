@@ -390,6 +390,7 @@
   "design.chat.empty": "Describe el artefacto que quieres crear o editar.",
   "design.chat.loading": "Cargando conversación...",
   "design.chat.missingProjectDir": "El directorio del proyecto de diseño no está disponible.",
+  "design.chat.persistSessionError": "No se pudo guardar este chat de diseño. Intenta enviar de nuevo.",
   "design.chat.placeholder": "Pide al agente de diseño que edite este proyecto...",
   "design.chat.send": "Enviar",
   "design.chat.streaming": "Transmitiendo",

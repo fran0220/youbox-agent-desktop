@@ -4,6 +4,7 @@ import {
   createDesignPreviewRefreshScheduler,
   designToolInputTouchesProject,
   extractDesignToolPaths,
+  persistDesignChatSessionBinding,
   resolveDesignProjectDir,
   sessionMessagesToDesignChatMessages,
 } from '../design-chat'
@@ -115,5 +116,64 @@ describe('design chat helpers', () => {
       if (!cleared.has(index)) callback()
     })
     expect(refreshCount).toBe(0)
+  })
+
+  it('persists a new hidden session binding without cleanup on success', async () => {
+    const calls: string[] = []
+
+    const result = await persistDesignChatSessionBinding({
+      cleanupSession: async (sessionId) => {
+        calls.push(`cleanup:${sessionId}`)
+      },
+      persistSessionId: async (sessionId) => {
+        calls.push(`persist:${sessionId}`)
+      },
+      sessionId: 'session-a',
+    })
+
+    expect(result).toEqual({ ok: true })
+    expect(calls).toEqual(['persist:session-a'])
+  })
+
+  it('cleans up a new hidden session when binding persistence fails', async () => {
+    const persistError = new Error('write failed')
+    const cleanupErrors: unknown[] = []
+    const calls: string[] = []
+
+    const result = await persistDesignChatSessionBinding({
+      cleanupSession: async (sessionId) => {
+        calls.push(`cleanup:${sessionId}`)
+      },
+      onCleanupError: (err) => cleanupErrors.push(err),
+      persistSessionId: async (sessionId) => {
+        calls.push(`persist:${sessionId}`)
+        throw persistError
+      },
+      sessionId: 'session-b',
+    })
+
+    expect(result).toEqual({ ok: false, error: persistError })
+    expect(calls).toEqual(['persist:session-b', 'cleanup:session-b'])
+    expect(cleanupErrors).toEqual([])
+  })
+
+  it('keeps the persistence failure primary when best-effort cleanup also fails', async () => {
+    const persistError = new Error('write failed')
+    const cleanupError = new Error('cleanup failed')
+    const cleanupErrors: unknown[] = []
+
+    const result = await persistDesignChatSessionBinding({
+      cleanupSession: async () => {
+        throw cleanupError
+      },
+      onCleanupError: (err) => cleanupErrors.push(err),
+      persistSessionId: async () => {
+        throw persistError
+      },
+      sessionId: 'session-c',
+    })
+
+    expect(result).toEqual({ ok: false, error: persistError })
+    expect(cleanupErrors).toEqual([cleanupError])
   })
 })

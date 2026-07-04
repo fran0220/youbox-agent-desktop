@@ -19,9 +19,19 @@ describe('design chat panel source wiring', () => {
   it('persists the session id through design:update and disables send while streaming', () => {
     const src = readFileSync(DESIGN_CHAT_PANEL_PATH, 'utf8')
 
-    expect(src).toContain("designProjectUpdate(workspaceId, projectId, { sessionId: session.id })")
+    expect(src).toContain('await window.electronAPI.designProjectUpdate(workspaceId, projectId, { sessionId })')
     expect(src).toContain('disabled={!input.trim() || streaming || !projectDir}')
     expect(src).toContain('sessionMessagesToDesignChatMessages(session.messages)')
+  })
+
+  it('blocks send, toasts, and cleans up hidden sessions when persistence fails', () => {
+    const src = readFileSync(DESIGN_CHAT_PANEL_PATH, 'utf8')
+
+    expect(src).toContain('persistDesignChatSessionBinding({')
+    expect(src).toContain('cleanupSession: (sessionId) => window.electronAPI.deleteSession(sessionId)')
+    expect(src).toContain("toast.error(message)")
+    expect(src).toContain("t('design.chat.persistSessionError')")
+    expect(src).toContain('throw new Error(message)')
   })
 
   it('correlates tool_start inputs with tool_result events for preview refresh', () => {

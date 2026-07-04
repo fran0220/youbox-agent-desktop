@@ -390,6 +390,7 @@
   "design.chat.empty": "Describe the artifact you want to create or edit.",
   "design.chat.loading": "Loading conversation...",
   "design.chat.missingProjectDir": "Design project directory is unavailable.",
+  "design.chat.persistSessionError": "Couldn't save this design chat. Please try sending again.",
   "design.chat.placeholder": "Ask the design agent to edit this project...",
   "design.chat.send": "Send",
   "design.chat.streaming": "Streaming",

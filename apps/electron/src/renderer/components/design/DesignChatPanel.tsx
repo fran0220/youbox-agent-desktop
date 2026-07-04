@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAtom } from 'jotai'
 import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { SessionEvent } from '@craft-agent/shared/protocol'
 import { designChatSessionIdsAtom } from '@/atoms/design'
 import {
   buildDesignSessionCreateOptions,
   designToolInputTouchesProject,
+  persistDesignChatSessionBinding,
   sessionMessagesToDesignChatMessages,
   type DesignChatMessage,
 } from '@/lib/design-chat'
@@ -145,14 +147,33 @@ export function DesignChatPanel({
       workspaceId,
       buildDesignSessionCreateOptions(projectDir),
     )
+    const binding = await persistDesignChatSessionBinding({
+      cleanupSession: (sessionId) => window.electronAPI.deleteSession(sessionId),
+      onCleanupError: (cleanupErr) => {
+        console.error('[Design] Failed to clean up unpersisted chat session:', cleanupErr)
+      },
+      persistSessionId: async (sessionId) => {
+        await window.electronAPI.designProjectUpdate(workspaceId, projectId, { sessionId })
+      },
+      sessionId: session.id,
+    })
+    if (!binding.ok) {
+      const message = t('design.chat.persistSessionError')
+      const err = binding.error
+      console.error('[Design] Failed to persist chat session id:', err)
+      sessionIdRef.current = null
+      verifiedSessionIdRef.current = null
+      setSessionIds((prev) => {
+        const next = { ...prev }
+        delete next[projectId]
+        return next
+      })
+      toast.error(message)
+      throw new Error(message)
+    }
     sessionIdRef.current = session.id
     verifiedSessionIdRef.current = session.id
     setSessionIds((prev) => ({ ...prev, [projectId]: session.id }))
-    try {
-      await window.electronAPI.designProjectUpdate(workspaceId, projectId, { sessionId: session.id })
-    } catch (err) {
-      console.error('[Design] Failed to persist chat session id:', err)
-    }
     return session.id
   }, [workspaceId, projectId, projectDir, setSessionIds, t])
 

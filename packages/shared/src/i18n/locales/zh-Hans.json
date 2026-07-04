@@ -390,6 +390,7 @@
   "design.chat.empty": "描述你想创建或编辑的作品。",
   "design.chat.loading": "正在加载对话...",
   "design.chat.missingProjectDir": "设计项目目录不可用。",
+  "design.chat.persistSessionError": "无法保存此设计聊天。请重新发送。",
   "design.chat.placeholder": "让设计代理编辑此项目...",
   "design.chat.send": "发送",
   "design.chat.streaming": "正在流式输出",

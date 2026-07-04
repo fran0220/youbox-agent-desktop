@@ -390,6 +390,7 @@
   "design.chat.empty": "Beschreibe das Artefakt, das du erstellen oder bearbeiten möchtest.",
   "design.chat.loading": "Unterhaltung wird geladen...",
   "design.chat.missingProjectDir": "Designprojektordner ist nicht verfügbar.",
+  "design.chat.persistSessionError": "Dieser Design-Chat konnte nicht gespeichert werden. Bitte erneut senden.",
   "design.chat.placeholder": "Bitte den Design-Agenten, dieses Projekt zu bearbeiten...",
   "design.chat.send": "Senden",
   "design.chat.streaming": "Streamt",

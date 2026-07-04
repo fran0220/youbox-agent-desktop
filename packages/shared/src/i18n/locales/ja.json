@@ -390,6 +390,7 @@
   "design.chat.empty": "作成または編集したいアーティファクトを説明してください。",
   "design.chat.loading": "会話を読み込み中...",
   "design.chat.missingProjectDir": "デザインプロジェクトのディレクトリを利用できません。",
+  "design.chat.persistSessionError": "このデザインチャットを保存できませんでした。もう一度送信してください。",
   "design.chat.placeholder": "デザインエージェントにこのプロジェクトの編集を依頼...",
   "design.chat.send": "送信",
   "design.chat.streaming": "ストリーミング中",
