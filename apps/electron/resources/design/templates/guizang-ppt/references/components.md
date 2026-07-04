@@ -303,15 +303,23 @@ When the image isn't in place yet, use a dashed frame as a placeholder:
 
 ## Icons
 
-**Emoji are strictly forbidden**. Use Lucide via CDN (already included in template.html).
+**Emoji are strictly forbidden**. Use inline SVG icons styled by the `.ico-*` classes in `template.html`; the deck must stay self-contained with no remote icon scripts.
 
 ```html
-<i data-lucide="compass" class="ico-lg"></i>     <!-- large icon (for pillars) -->
-<i data-lucide="target" class="ico-md"></i>      <!-- medium icon (for list items) -->
-<i data-lucide="check-circle" class="ico-sm"></i>  <!-- small icon (inline) -->
+<svg class="ico-lg" viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="9"></circle>
+  <path d="M15 9l-2 6-4 2 2-6 4-2z"></path>
+</svg>
+<svg class="ico-md" viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="8"></circle>
+  <circle cx="12" cy="12" r="3"></circle>
+</svg>
+<svg class="ico-sm" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M20 6L9 17l-5-5"></path>
+</svg>
 ```
 
-**Common Lucide icon names** (grouped by meaning):
+**Common icon metaphors** (grouped by meaning):
 
 - Judgment: `compass`, `target`, `crosshair`, `search-check`
 - Relationships: `share-2`, `users`, `network`, `link`, `handshake`
@@ -325,7 +333,7 @@ When the image isn't in place yet, use a dashed frame as a placeholder:
 **Inline combination of icon and text**:
 ```html
 <div class="h3-zh" style="display:flex;align-items:center;gap:.8em">
-  <i data-lucide="target" class="ico-md"></i>
+  <svg class="ico-md" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>
   判断 — 什么值得写
 </div>
 ```

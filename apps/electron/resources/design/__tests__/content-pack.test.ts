@@ -9,7 +9,7 @@ import {
   statSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { extname, join, relative } from 'path';
 import { loadWorkspaceSkills } from '../../../../../packages/shared/src/skills/storage.ts';
 
 const DESIGN_ROOT = join(import.meta.dir, '..');
@@ -67,6 +67,27 @@ function directorySizeBytes(path: string): number {
     (total, entry) => total + directorySizeBytes(join(path, entry)),
     0
   );
+}
+
+function listFilesRecursive(path: string): string[] {
+  return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = join(path, entry.name);
+    if (entry.isDirectory()) {
+      return listFilesRecursive(entryPath);
+    }
+
+    return [entryPath];
+  });
+}
+
+function runtimeTemplateFiles(): string[] {
+  const templatesRoot = join(DESIGN_ROOT, 'templates');
+  const runtimeExtensions = new Set(['.css', '.html', '.js', '.json']);
+
+  return listFilesRecursive(templatesRoot)
+    .filter((file) => runtimeExtensions.has(extname(file)))
+    .filter((file) => !relative(templatesRoot, file).split('/').includes('references'))
+    .sort();
 }
 
 describe('design content pack integrity', () => {
@@ -180,6 +201,39 @@ describe('design content pack integrity', () => {
 
   test('resources/design stays below the 15MB payload budget', () => {
     expect(directorySizeBytes(DESIGN_ROOT)).toBeLessThan(SIZE_LIMIT_BYTES);
+  });
+
+  test('runtime template files do not reference remote origins', () => {
+    const remoteOriginPattern = /https?:\/\/|\/\/fonts\.googleapis|\/\/unpkg|\bcdn\b/i;
+
+    for (const file of runtimeTemplateFiles()) {
+      expect(readFileSync(file, 'utf8'), relative(DESIGN_ROOT, file)).not.toMatch(remoteOriginPattern);
+    }
+  });
+
+  test('html-ppt theme ids map to shipped CSS files', () => {
+    const htmlPptRoot = join(DESIGN_ROOT, 'templates', 'html-ppt');
+    const themesRoot = join(htmlPptRoot, 'assets', 'themes');
+    const shippedThemeIds = new Set(
+      readdirSync(themesRoot)
+        .filter((file) => file.endsWith('.css'))
+        .map((file) => file.replace(/\.css$/, ''))
+    );
+    const htmlFiles = listFilesRecursive(join(htmlPptRoot, 'templates'))
+      .filter((file) => extname(file) === '.html');
+
+    for (const file of htmlFiles) {
+      const content = readFileSync(file, 'utf8');
+      const themeIds = [
+        ...Array.from(content.matchAll(/data-theme=["']([^"']+)["']/g), (match) => match[1]),
+        ...Array.from(content.matchAll(/data-themes=["']([^"']+)["']/g), (match) => match[1])
+          .flatMap((value) => value.split(',').map((theme) => theme.trim()).filter(Boolean)),
+      ];
+
+      for (const themeId of themeIds) {
+        expect(shippedThemeIds.has(themeId), `${relative(DESIGN_ROOT, file)} references missing theme ${themeId}`).toBe(true);
+      }
+    }
   });
 });
 

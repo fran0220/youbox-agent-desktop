@@ -24,17 +24,16 @@ Read it through once before generating a deck; after generating, self-check item
 
 **Symptom**: using emoji (🎯 💡 ✅) in a Chinese editorial-magazine style instantly ruins the tone.
 
-**What to do**: use the Lucide icon library, referenced via CDN:
+**What to do**: use simple inline SVG icons styled with the `.ico-*` classes already defined in `template.html`. Do not add icon font links, remote loader scripts, or emoji.
 
 ```html
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-...
-<i data-lucide="target" class="ico-md"></i>
-...
-<script>lucide.createIcons();</script>
+<svg class="ico-md" viewBox="0 0 24 24" aria-hidden="true">
+  <circle cx="12" cy="12" r="8"></circle>
+  <circle cx="12" cy="12" r="3"></circle>
+</svg>
 ```
 
-Common icon names: `target / palette / search-check / compass / share-2 / crown / check-circle / x-circle / plus / arrow-right / grid-2x2 / network`
+Common icon metaphors: target, palette, search, compass, share, crown, check, x, plus, arrow, grid, network.
 
 ### 2. Images may only be cropped at the bottom; the sides and top must never be cut
 
@@ -110,11 +109,11 @@ In the CSS, `.frame-img img` already presets `object-position:top`, so only the 
 ### 4. Type division of labor: serif for headlines, sans-serif for body
 
 **What to do**:
-- Big headlines, key quotes, large numerals → **serif** (Noto Serif SC + Playfair Display + Source Serif)
-- Body, descriptions, pipeline step names → **sans-serif** (Noto Sans SC + Inter)
-- Metadata, code, labels → **monospace** (IBM Plex Mono + JetBrains Mono)
+- Big headlines, key quotes, large numerals → **serif** (system Chinese/English serif stack in `template.html`)
+- Body, descriptions, pipeline step names → **sans-serif** (system Chinese/English sans stack in `template.html`)
+- Metadata, code, labels → **monospace** (system monospace stack in `template.html`)
 
-All fonts are loaded via Google Fonts CDN, already preset in the template.
+The template is self-contained for the `design://` CSP. Do not add remote webfont links.
 
 ### 4b. Do not pin images to the bottom with `align-self:end`
 

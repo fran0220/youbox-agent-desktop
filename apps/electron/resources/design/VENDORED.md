@@ -10,8 +10,8 @@ License summary: upstream open-design is Apache-2.0. The two copied upstream dec
 
 ### Templates
 
-- `guizang-ppt`: kept `assets/template.html`, core reference guides, and the upstream MIT LICENSE. Dropped README translations, example slides, and non-runtime prose bloat.
-- `html-ppt`: kept the deck starter, core CSS/runtime/animation assets, selected reusable single-page layouts, selected high-signal themes, references, and the upstream MIT LICENSE. Dropped screenshots, demo media, generated docs montages, shell render scripts, and exhaustive theme/layout demos.
+- `guizang-ppt`: kept `assets/template.html`, core reference guides, and the upstream MIT LICENSE. Dropped README translations, example slides, non-runtime prose bloat, remote Google Fonts links, and the remote Lucide loader so the template is fully self-contained under the `design://` CSP. Icon guidance now uses inline SVG.
+- `html-ppt`: kept the deck starter, core CSS/runtime/animation assets, selected reusable single-page layouts, selected high-signal themes, references, and the upstream MIT LICENSE. Dropped screenshots, demo media, generated docs montages, shell render scripts, exhaustive theme/layout demos, remote font imports, and references to themes whose CSS was not shipped.
 - `blank-prototype` and `blank-doc`: minimal in-house starters, not upstream content.
 
 ### Design systems

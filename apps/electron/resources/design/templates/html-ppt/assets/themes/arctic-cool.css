@@ -10,5 +10,5 @@
   --radius:14px;--radius-sm:10px;--radius-lg:22px;
   --shadow:0 10px 28px rgba(40,70,110,.12);
   --shadow-lg:0 24px 60px rgba(40,70,110,.18);
-  --font-sans:'Inter','Noto Sans SC',sans-serif;
+  --font-sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
 }

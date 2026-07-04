@@ -9,7 +9,7 @@ Before touching files, clarify:
 
 1. **Audience** — engineers? designers? executives? consumers?
 2. **Length** — 5 min lightning? 20 min share? 45 min talk?
-3. **Language** — Chinese, English, bilingual? (Noto Sans SC is preloaded.)
+3. **Language** — Chinese, English, bilingual? (system Chinese/English font stacks are preset.)
 4. **Format** — on-screen live, PDF export, 小红书图文?
 5. **Tone** — clinical / playful / editorial / cyber?
 
@@ -21,13 +21,13 @@ CSS, already handled in `base.css`).
 
 Use `references/themes.md`. When in doubt:
 
-- **Engineers** → `catppuccin-mocha` / `tokyo-night` / `dracula`.
-- **Designers / product** → `editorial-serif` / `aurora` / `soft-pastel`.
-- **Execs** → `minimal-white` / `arctic-cool` / `swiss-grid`.
-- **Consumers** → `xiaohongshu-white` / `sunset-warm` / `soft-pastel`.
-- **Cyber / CLI / infra** → `terminal-green` / `blueprint` / `gruvbox-dark`.
-- **Pitch / bold** → `neo-brutalism` / `sharp-mono` / `bauhaus`.
-- **Launch / product reveal** → `glassmorphism` / `aurora`.
+- **Engineers** → `tokyo-night` / `arctic-cool`.
+- **Designers / product** → `editorial-serif` / `soft-pastel`.
+- **Execs** → `minimal-white` / `arctic-cool`.
+- **Consumers** → `soft-pastel` / `minimal-white`.
+- **Cyber / CLI / infra** → `tokyo-night`.
+- **Pitch / bold** → `neo-brutalism`.
+- **Launch / product reveal** → `soft-pastel` / `neo-brutalism`.
 
 Wire the theme as `<link id="theme-link" href="../assets/themes/NAME.css">`
 and list 3-5 alternatives in `data-themes` so the user can press T to audition.
@@ -80,7 +80,7 @@ Pick **one** accent animation per slide. Everything else should be calm.
 
 ## 7. Chinese + English decks
 
-- Fonts are already imported in `fonts.css` (Noto Sans SC + Noto Serif SC).
+- Fonts are already configured in `fonts.css` and `base.css` as local/system fallback stacks.
 - Use `lang="zh-CN"` on `<html>`.
 - For bilingual titles, stack lines: `<h1 class="h1">主标题<br><span class="dim">English subtitle</span></h1>`.
 - Keep English subtitles in a lighter weight (300) and dim color to avoid

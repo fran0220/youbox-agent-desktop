@@ -10,9 +10,9 @@
   --radius:4px;--radius-sm:2px;--radius-lg:8px;
   --shadow:0 2px 12px rgba(40,28,18,.06);
   --shadow-lg:0 20px 50px rgba(40,28,18,.14);
-  --font-sans:'Playfair Display','Noto Serif SC',serif;
-  --font-display:'Playfair Display','Noto Serif SC',serif;
-  --font-serif:'Playfair Display','Noto Serif SC',serif;
+  --font-sans:"Iowan Old Style","Songti SC","STSong","Noto Serif CJK SC",Georgia,serif;
+  --font-display:var(--font-sans);
+  --font-serif:var(--font-sans);
   --letter-tight:-.02em;
 }
 .h1,.h2,h1.title,h2.title{font-style:italic;font-weight:600}
