@@ -19,8 +19,8 @@ import type { NavigationState } from '../../shared/types'
  * - sessions: a session is selected
  * - settings: a subpage is selected (bare `settings` route → false)
  * - sources / skills / automations: a detail item is selected
- * - canvas / gamestudio / design: always content-focused — no navigator list, so compact
- *   mode must show the mode content rather than an empty navigator slot
+ * - studio: always content-focused — compact mode must show Studio Home or the
+ *   selected artifact rather than an empty navigator slot
  */
 export function isDetailNavState(navState: NavigationState | null): boolean {
   if (!navState) return false
@@ -33,9 +33,7 @@ export function isDetailNavState(navState: NavigationState | null): boolean {
     case 'skills':
     case 'automations':
       return navState.details !== null
-    case 'canvas':
-    case 'gamestudio':
-    case 'design':
+    case 'studio':
       return true
   }
 }

@@ -7,88 +7,57 @@ import {
   buildRouteFromNavigationState,
 } from '../route-parser'
 import { routes } from '../routes'
-import { isDesignNavigation, isGameStudioNavigation } from '../types'
+import { isStudioNavigation } from '../types'
 import type { NavigationState } from '../types'
 
-describe('route-parser: design routes', () => {
-  it('recognizes "design" as a compound route', () => {
+describe('route-parser: design studio routes', () => {
+  it('recognizes canonical studio design routes and legacy design aliases', () => {
+    expect(isCompoundRoute('studio/design')).toBe(true)
+    expect(isCompoundRoute('studio/design/proj-1')).toBe(true)
     expect(isCompoundRoute('design')).toBe(true)
     expect(isCompoundRoute('design/project/proj-1')).toBe(true)
   })
 
-  it('parses "design" as design navigator with no details', () => {
-    const result = parseCompoundRoute('design')
-    expect(result).not.toBeNull()
-    expect(result!.navigator).toBe('design')
-    expect(result!.details).toBeNull()
+  it('parses legacy design routes into studio design navigation', () => {
+    expect(parseCompoundRoute('design')).toEqual({ navigator: 'studio', studioKind: 'design', details: null })
+    expect(parseCompoundRoute('design/project/abc')).toEqual({
+      navigator: 'studio',
+      studioKind: 'design',
+      details: { type: 'artifact', id: 'abc' },
+    })
   })
 
-  it('parses "design/project/proj-1" as design navigator with project details', () => {
-    const result = parseCompoundRoute('design/project/proj-1')
-    expect(result).not.toBeNull()
-    expect(result!.navigator).toBe('design')
-    expect(result!.details).toEqual({ type: 'project', id: 'proj-1' })
-  })
+  it('serializes design navigation to canonical studio routes', () => {
+    expect(buildCompoundRoute(parseCompoundRoute('design')!)).toBe('studio/design')
+    expect(buildCompoundRoute(parseCompoundRoute('design/project/abc')!)).toBe('studio/design/abc')
 
-  it('rejects unknown design subroutes', () => {
-    expect(parseCompoundRoute('design/bogus')).toBeNull()
-    expect(parseCompoundRoute('design/project')).toBeNull()
-  })
-
-  it('roundtrips design (no details)', () => {
-    const parsed = parseCompoundRoute('design')!
-    const built = buildCompoundRoute(parsed)
-    expect(built).toBe('design')
-  })
-
-  it('roundtrips design/project/proj-1', () => {
-    const parsed = parseCompoundRoute('design/project/proj-1')!
-    const built = buildCompoundRoute(parsed)
-    expect(built).toBe('design/project/proj-1')
-  })
-
-  it('parses "design" to DesignNavigationState', () => {
-    const state = parseRouteToNavigationState('design')
-    expect(state).not.toBeNull()
-    expect(state!.navigator).toBe('design')
-    expect(isDesignNavigation(state!)).toBe(true)
-    if (isDesignNavigation(state!)) {
-      expect(state!.details).toBeNull()
-    }
-  })
-
-  it('parses "design/project/abc" to DesignNavigationState with project details', () => {
-    const state = parseRouteToNavigationState('design/project/abc')
-    expect(state).not.toBeNull()
-    expect(isDesignNavigation(state!)).toBe(true)
-    if (isDesignNavigation(state!)) {
-      expect(state!.details).toEqual({ type: 'project', projectId: 'abc' })
-    }
-  })
-
-  it('roundtrips DesignNavigationState through buildRouteFromNavigationState', () => {
-    const root: NavigationState = { navigator: 'design', details: null }
-    expect(buildRouteFromNavigationState(root)).toBe('design')
+    const root: NavigationState = { navigator: 'studio', kind: 'design', details: null }
+    expect(buildRouteFromNavigationState(root)).toBe('studio/design')
 
     const withProject: NavigationState = {
-      navigator: 'design',
-      details: { type: 'project', projectId: 'proj-42' },
+      navigator: 'studio',
+      kind: 'design',
+      details: { type: 'artifact', artifactId: 'proj-42' },
     }
     const route = buildRouteFromNavigationState(withProject)
-    expect(route).toBe('design/project/proj-42')
+    expect(route).toBe('studio/design/proj-42')
     expect(parseRouteToNavigationState(route)).toEqual(withProject)
   })
 
-  it('routes.view.design builders emit design routes', () => {
-    expect(routes.view.design()).toBe('design')
-    expect(routes.view.design('abc')).toBe('design/project/abc')
+  it('parses canonical and legacy design routes to StudioNavigationState', () => {
+    for (const route of ['studio/design/abc', 'design/project/abc']) {
+      const state = parseRouteToNavigationState(route)
+      expect(state).not.toBeNull()
+      expect(isStudioNavigation(state!)).toBe(true)
+      if (isStudioNavigation(state!)) {
+        expect(state.kind).toBe('design')
+        expect(state.details).toEqual({ type: 'artifact', artifactId: 'abc' })
+      }
+    }
   })
 
-  it('isDesignNavigation is specific to design states', () => {
-    const design: NavigationState = { navigator: 'design', details: null }
-    const gamestudio: NavigationState = { navigator: 'gamestudio', details: null }
-    expect(isDesignNavigation(design)).toBe(true)
-    expect(isDesignNavigation(gamestudio)).toBe(false)
-    expect(isGameStudioNavigation(design)).toBe(false)
+  it('routes.view.design compatibility builder emits canonical studio routes', () => {
+    expect(routes.view.design()).toBe('studio/design')
+    expect(routes.view.design('abc')).toBe('studio/design/abc')
   })
 })

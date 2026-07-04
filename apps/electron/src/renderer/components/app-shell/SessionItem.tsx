@@ -1,6 +1,7 @@
 import { formatDistanceToNowStrict } from "date-fns"
 import type { Locale } from "date-fns"
-import { Flag, ShieldAlert } from "lucide-react"
+import { Flag, Gamepad2, Palette, PenTool, ShieldAlert } from "lucide-react"
+import { useMemo } from "react"
 import { useActionLabel } from "@/actions"
 import { cn } from "@/lib/utils"
 import { rendererPerf } from "@/lib/perf"
@@ -20,8 +21,12 @@ import { useAppShellContext } from "@/context/AppShellContext"
 import { navigate, routes } from "@/lib/navigate"
 import type { SessionMeta } from "@/atoms/sessions"
 import { messagingBindingsBySessionAtom } from "@/atoms/messaging"
+import { canvasDocsAtom } from "@/atoms/canvas"
+import { designProjectsAtom } from "@/atoms/design"
+import { gamestudioProjectsAtom } from "@/atoms/gamestudio"
 import { useAtomValue } from "jotai"
 import { extractLabelId } from "@craft-agent/shared/labels"
+import type { StudioKind } from "../../../shared/types"
 
 const PLATFORM_PILL: Record<'telegram' | 'whatsapp', { label: string; colorClass: string }> = {
   telegram: {
@@ -32,6 +37,13 @@ const PLATFORM_PILL: Record<'telegram' | 'whatsapp', { label: string; colorClass
     label: 'WhatsApp',
     colorClass: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300',
   },
+}
+
+type SessionArtifactRef = {
+  kind: StudioKind
+  id: string
+  label: string
+  icon: typeof Palette
 }
 
 export interface SessionItemProps {
@@ -79,6 +91,18 @@ export function SessionItem({
   const messagingBindingsBySession = useAtomValue(messagingBindingsBySessionAtom)
   const sessionBindings = messagingBindingsBySession.get(item.id) ?? []
   const hasMessagingBinding = sessionBindings.length > 0
+  const canvasDocs = useAtomValue(canvasDocsAtom)
+  const designProjects = useAtomValue(designProjectsAtom)
+  const gameProjects = useAtomValue(gamestudioProjectsAtom)
+  const artifactRef = useMemo<SessionArtifactRef | null>(() => {
+    const canvas = (canvasDocs ?? []).find((doc) => doc.chatSessionId === item.id)
+    if (canvas) return { kind: 'canvas', id: canvas.id, label: 'Canvas', icon: Palette }
+    const design = (designProjects ?? []).find((project) => project.sessionId === item.id)
+    if (design) return { kind: 'design', id: design.id, label: 'Design', icon: PenTool }
+    const game = (gameProjects ?? []).find((project) => project.sessionId === item.id)
+    if (game) return { kind: 'game', id: game.id, label: 'Game', icon: Gamepad2 }
+    return null
+  }, [canvasDocs, designProjects, gameProjects, item.id])
 
   const handleClick = (e: React.MouseEvent) => {
     ctx.onFocusZone()
@@ -198,17 +222,45 @@ export function SessionItem({
       titleClassName={cn("text-[13px]", item.isAsyncOperationOngoing && "animate-shimmer-text")}
       subtitle={previewText}
       titleSuffix={
-        isImported ? (
-          <EntityListBadge
-            variant="text"
-            colorClass="bg-muted/60 text-muted-foreground border border-border/60"
-            tooltip={t('session.importedReadOnlyBanner')}
-          >
-            {t('session.importedBadge')}
-          </EntityListBadge>
-        ) : hasMessagingBinding ? (
+        (isImported || hasMessagingBinding || artifactRef) ? (
           <div className="flex items-center gap-1">
-            {sessionBindings.map((binding) => {
+            {artifactRef ? (
+              <span
+                role="button"
+                tabIndex={0}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  navigate(routes.view.studio(artifactRef.kind, artifactRef.id))
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return
+                  event.preventDefault()
+                  event.stopPropagation()
+                  navigate(routes.view.studio(artifactRef.kind, artifactRef.id))
+                }}
+              >
+                <EntityListBadge
+                  variant="text"
+                  colorClass="bg-primary/10 text-primary border border-primary/15"
+                  tooltip={`Open ${artifactRef.label} in Studio`}
+                  className="gap-1 cursor-pointer"
+                >
+                  <artifactRef.icon className="h-3 w-3" strokeWidth={1.7} />
+                  {artifactRef.label}
+                </EntityListBadge>
+              </span>
+            ) : null}
+            {isImported ? (
+              <EntityListBadge
+                variant="text"
+                colorClass="bg-muted/60 text-muted-foreground border border-border/60"
+                tooltip={t('session.importedReadOnlyBanner')}
+              >
+                {t('session.importedBadge')}
+              </EntityListBadge>
+            ) : null}
+            {hasMessagingBinding ? sessionBindings.map((binding) => {
               const pill = PLATFORM_PILL[binding.platform as 'telegram' | 'whatsapp']
               if (!pill) return null
               return (
@@ -221,7 +273,7 @@ export function SessionItem({
                   {pill.label}
                 </EntityListBadge>
               )
-            })}
+            }) : null}
           </div>
         ) : undefined
       }

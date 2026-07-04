@@ -207,6 +207,7 @@ export class GameServerManager {
     response.statusCode = 200
     response.setHeader('Content-Type', contentTypeForPath(candidateRealPath))
     response.setHeader('X-Content-Type-Options', 'nosniff')
+    response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
     createReadStream(candidateRealPath).pipe(response)
   }
 

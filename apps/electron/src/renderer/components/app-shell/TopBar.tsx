@@ -227,11 +227,8 @@ export function TopBar({
           </div>
         </div>
 
-        {/* === CENTER: App mode switcher (work | canvas) ===
-            Registry-driven segmented control, centered in the space left of the
-            right slot; degrades to a dropdown in compact mode or when the
-            centered space is insufficient. */}
-        <AppModeSwitcher isCompact={isCompact} />
+        {/* Compact keeps a mode dropdown; desktop uses the persistent GlobalRail. */}
+        {isCompact && <AppModeSwitcher isCompact={isCompact} />}
       </div>
 
       {/* === RIGHT: Browser strip + add + help === */}

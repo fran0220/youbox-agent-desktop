@@ -7,80 +7,57 @@ import {
   buildRouteFromNavigationState,
 } from '../route-parser'
 import { routes } from '../routes'
-import { isGameStudioNavigation } from '../types'
+import { isStudioNavigation } from '../types'
 import type { NavigationState } from '../types'
 
-describe('route-parser: gamestudio routes', () => {
-  it('recognizes "gamestudio" as a compound route', () => {
+describe('route-parser: game studio routes', () => {
+  it('recognizes canonical studio game routes and legacy gamestudio aliases', () => {
+    expect(isCompoundRoute('studio/game')).toBe(true)
+    expect(isCompoundRoute('studio/game/proj-1')).toBe(true)
     expect(isCompoundRoute('gamestudio')).toBe(true)
     expect(isCompoundRoute('gamestudio/project/proj-1')).toBe(true)
   })
 
-  it('parses "gamestudio" as gamestudio navigator with no details', () => {
-    const result = parseCompoundRoute('gamestudio')
-    expect(result).not.toBeNull()
-    expect(result!.navigator).toBe('gamestudio')
-    expect(result!.details).toBeNull()
+  it('parses legacy gamestudio routes into studio game navigation', () => {
+    expect(parseCompoundRoute('gamestudio')).toEqual({ navigator: 'studio', studioKind: 'game', details: null })
+    expect(parseCompoundRoute('gamestudio/project/abc')).toEqual({
+      navigator: 'studio',
+      studioKind: 'game',
+      details: { type: 'artifact', id: 'abc' },
+    })
   })
 
-  it('parses "gamestudio/project/proj-1" as gamestudio navigator with project details', () => {
-    const result = parseCompoundRoute('gamestudio/project/proj-1')
-    expect(result).not.toBeNull()
-    expect(result!.navigator).toBe('gamestudio')
-    expect(result!.details).toEqual({ type: 'project', id: 'proj-1' })
-  })
+  it('serializes game navigation to canonical studio routes', () => {
+    expect(buildCompoundRoute(parseCompoundRoute('gamestudio')!)).toBe('studio/game')
+    expect(buildCompoundRoute(parseCompoundRoute('gamestudio/project/abc')!)).toBe('studio/game/abc')
 
-  it('rejects unknown gamestudio subroutes', () => {
-    expect(parseCompoundRoute('gamestudio/bogus')).toBeNull()
-    expect(parseCompoundRoute('gamestudio/project')).toBeNull()
-  })
-
-  it('roundtrips gamestudio (no details)', () => {
-    const parsed = parseCompoundRoute('gamestudio')!
-    const built = buildCompoundRoute(parsed)
-    expect(built).toBe('gamestudio')
-  })
-
-  it('roundtrips gamestudio/project/proj-1', () => {
-    const parsed = parseCompoundRoute('gamestudio/project/proj-1')!
-    const built = buildCompoundRoute(parsed)
-    expect(built).toBe('gamestudio/project/proj-1')
-  })
-
-  it('parses "gamestudio" to GameStudioNavigationState', () => {
-    const state = parseRouteToNavigationState('gamestudio')
-    expect(state).not.toBeNull()
-    expect(state!.navigator).toBe('gamestudio')
-    expect(isGameStudioNavigation(state!)).toBe(true)
-    if (isGameStudioNavigation(state!)) {
-      expect(state!.details).toBeNull()
-    }
-  })
-
-  it('parses "gamestudio/project/abc" to GameStudioNavigationState with project details', () => {
-    const state = parseRouteToNavigationState('gamestudio/project/abc')
-    expect(state).not.toBeNull()
-    expect(isGameStudioNavigation(state!)).toBe(true)
-    if (isGameStudioNavigation(state!)) {
-      expect(state!.details).toEqual({ type: 'project', projectId: 'abc' })
-    }
-  })
-
-  it('roundtrips GameStudioNavigationState through buildRouteFromNavigationState', () => {
-    const root: NavigationState = { navigator: 'gamestudio', details: null }
-    expect(buildRouteFromNavigationState(root)).toBe('gamestudio')
+    const root: NavigationState = { navigator: 'studio', kind: 'game', details: null }
+    expect(buildRouteFromNavigationState(root)).toBe('studio/game')
 
     const withProject: NavigationState = {
-      navigator: 'gamestudio',
-      details: { type: 'project', projectId: 'proj-42' },
+      navigator: 'studio',
+      kind: 'game',
+      details: { type: 'artifact', artifactId: 'proj-42' },
     }
     const route = buildRouteFromNavigationState(withProject)
-    expect(route).toBe('gamestudio/project/proj-42')
+    expect(route).toBe('studio/game/proj-42')
     expect(parseRouteToNavigationState(route)).toEqual(withProject)
   })
 
-  it('routes.view.gamestudio builders emit gamestudio routes', () => {
-    expect(routes.view.gamestudio()).toBe('gamestudio')
-    expect(routes.view.gamestudio('proj-1')).toBe('gamestudio/project/proj-1')
+  it('parses canonical and legacy game routes to StudioNavigationState', () => {
+    for (const route of ['studio/game/abc', 'gamestudio/project/abc']) {
+      const state = parseRouteToNavigationState(route)
+      expect(state).not.toBeNull()
+      expect(isStudioNavigation(state!)).toBe(true)
+      if (isStudioNavigation(state!)) {
+        expect(state.kind).toBe('game')
+        expect(state.details).toEqual({ type: 'artifact', artifactId: 'abc' })
+      }
+    }
+  })
+
+  it('routes.view.gamestudio compatibility builder emits canonical studio routes', () => {
+    expect(routes.view.gamestudio()).toBe('studio/game')
+    expect(routes.view.gamestudio('proj-1')).toBe('studio/game/proj-1')
   })
 })

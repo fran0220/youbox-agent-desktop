@@ -55,12 +55,18 @@ describe('game project scaffold and CRUD', () => {
     expect(project.name).toBe('My Game')
     expect(project.sessionId).toBeNull()
     expect(project.thumbnailPath).toBeNull()
+    expect(project.lastPlayableCommit).toEqual(expect.any(String))
+    expect(project.lastGeneratedCommit).toBe(project.lastPlayableCommit)
+    expect(project.lastError).toBeNull()
     expect(project.version).toBe(1)
     expect(project.updatedAt).toBe(project.createdAt)
 
     expect(existsSync(getGameProjectMetaPath(wsRoot, project.id))).toBe(true)
     expect(existsSync(join(projectDir, 'index.html'))).toBe(true)
     expect(existsSync(join(projectDir, 'src', 'main.js'))).toBe(true)
+    expect(existsSync(join(projectDir, 'gameblocks_usage.md'))).toBe(true)
+    expect(existsSync(join(projectDir, '.agents', 'AGENTS.md'))).toBe(true)
+    expect(existsSync(join(projectDir, '.git'))).toBe(true)
     expect(existsSync(join(projectDir, 'vendor', 'three.module.js'))).toBe(true)
     expect(existsSync(join(projectDir, 'vendor', 'rapier.es.js'))).toBe(true)
 
@@ -70,6 +76,9 @@ describe('game project scaffold and CRUD', () => {
     expect(raw.name).toBe('My Game')
     expect(raw.sessionId).toBeNull()
     expect(raw.thumbnailPath).toBeNull()
+    expect(raw.lastPlayableCommit).toBe(project.lastPlayableCommit)
+    expect(raw.lastGeneratedCommit).toBe(project.lastGeneratedCommit)
+    expect(raw.lastError).toBeNull()
 
     const html = readFileSync(join(projectDir, 'index.html'), 'utf-8')
     expect(html).toContain('<script type="importmap">')
@@ -98,6 +107,9 @@ describe('game project scaffold and CRUD', () => {
       name: 'B',
       sessionId: null,
       thumbnailPath: null,
+      lastPlayableCommit: b.lastPlayableCommit,
+      lastGeneratedCommit: b.lastGeneratedCommit,
+      lastError: null,
       createdAt: b.createdAt,
       updatedAt: b.updatedAt,
       version: 1,

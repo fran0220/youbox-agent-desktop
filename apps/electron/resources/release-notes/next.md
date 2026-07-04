@@ -4,6 +4,8 @@ This file accumulates release notes for the next unreleased version. PRs that ad
 
 ## Features
 
+- **Game Studio playable workspace** — Added a prompt-first Game Studio flow with local project scaffolding, sandboxed live preview, runtime console capture, agent repair handoff, and playable checkpoint/restore controls.
+
 ## Improvements
 
 ## Bug Fixes

@@ -5,7 +5,6 @@ import { useAtomValue, useStore } from "jotai"
 import { motion, AnimatePresence } from "motion/react"
 import {
   Archive,
-  Settings,
   ChevronRight,
   ChevronDown,
   MoreHorizontal,
@@ -23,7 +22,6 @@ import {
   Inbox,
   Globe,
   FolderOpen,
-  Cake,
   Calendar,
   Layers,
   ListTodo,
@@ -36,6 +34,8 @@ import {
 // SessionStatusIcons no longer used - icons come from dynamic sessionStatuses
 import { SourceAvatar } from "@/components/ui/source-avatar"
 import { TopBar } from "./TopBar"
+import { GlobalRail } from "./GlobalRail"
+import { StudioNavigator } from "./StudioNavigator"
 import { SquarePenRounded } from "../icons/SquarePenRounded"
 import { McpIcon } from "../icons/McpIcon"
 import { cn } from "@/lib/utils"
@@ -117,9 +117,7 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
   isAutomationsNavigation,
-  isCanvasNavigation,
-  isGameStudioNavigation,
-  isDesignNavigation,
+  isStudioNavigation,
   type NavigationState,
 } from "@/contexts/NavigationContext"
 import type { SettingsSubpage } from "../../../shared/types"
@@ -595,13 +593,12 @@ function AppShellContent({
   const navState = useNavigationState()
   const focusedRoute = useAtomValue(focusedPanelRouteAtom)
 
-  // Canvas / Game Studio modes are full-bleed: sidebar + navigator collapse via
-  // the same mechanism as focus mode (CMD+.), while the TopBar stays visible.
-  const isFullBleedMode =
-    isCanvasNavigation(navState) ||
-    isGameStudioNavigation(navState) ||
-    isDesignNavigation(navState) ||
-    isFullBleedRoute(focusedRoute)
+  // Studio artifact detail routes hide mode navigators, while the global rail
+  // remains visible. CMD+. still hides all navigation chrome.
+  const isFullBleedMode = isFullBleedRoute(focusedRoute)
+  const isStudioMode = isStudioNavigation(navState)
+  const isGlobalRailHidden = isAutoCompact || isSidebarAndNavigatorHidden
+  const globalRailWidth = isGlobalRailHidden ? 0 : 52
 
   const effectiveSidebarAndNavigatorHidden =
     isSidebarAndNavigatorHidden || isAutoCompact || isFullBleedMode
@@ -977,7 +974,7 @@ function AppShellContent({
   }, [activeWorkspaceId, setCanvasDocs])
 
   // Game Studio projects (workspace-scoped): mirrors canvas docs so bare
-  // gamestudio routes can auto-select the most recently updated project and
+  // studio/game routes can auto-select the most recently updated project and
   // project lists stay live across windows.
   const setGameStudioProjects = useSetAtom(gamestudioProjectsAtom)
   React.useEffect(() => {
@@ -1004,9 +1001,9 @@ function AppShellContent({
     return () => { stale = true; cleanup() }
   }, [activeWorkspaceId, setGameStudioProjects])
 
-  // Design projects (workspace-scoped): mirrors canvas/gamestudio so bare
-  // design routes can auto-select the most recently updated project and the
-  // gallery reflects external design:changed mutations live.
+  // Design projects (workspace-scoped): mirrors canvas/game so bare
+  // studio/design routes can auto-select the most recently updated project and
+  // the gallery reflects external design:changed mutations live.
   const setDesignProjects = useSetAtom(designProjectsAtom)
   React.useEffect(() => {
     setDesignProjects(null)
@@ -2056,15 +2053,13 @@ function AppShellContent({
     }
     flattenTree(labelTree)
 
-    // 3. Sources, Skills, Settings
+    // 3. Sources, Skills, Automations
     result.push({ id: 'nav:sources', type: 'nav', action: handleSourcesClick })
     result.push({ id: 'nav:skills', type: 'nav', action: handleSkillsClick })
     result.push({ id: 'nav:automations', type: 'nav', action: handleAutomationsClick })
-    result.push({ id: 'nav:settings', type: 'nav', action: () => handleSettingsClick() })
-    result.push({ id: 'nav:whats-new', type: 'nav', action: handleWhatsNewClick })
 
     return result
-  }, [handleAllSessionsClick, handleFlaggedClick, handleArchivedClick, handleSessionStatusClick, effectiveSessionStatuses, handleLabelClick, labelConfigs, labelTree, viewConfigs, handleViewClick, handleSourcesClick, handleSkillsClick, handleAutomationsClick, handleSettingsClick, handleWhatsNewClick])
+  }, [handleAllSessionsClick, handleFlaggedClick, handleArchivedClick, handleSessionStatusClick, effectiveSessionStatuses, handleLabelClick, labelTree, handleSourcesClick, handleSkillsClick, handleAutomationsClick])
 
   // Toggle folder expanded state
   const handleToggleFolder = React.useCallback((path: string) => {
@@ -2314,8 +2309,27 @@ function AppShellContent({
           gap: PANEL_GAP,
         }}
       >
+        <GlobalRail
+          isHidden={isGlobalRailHidden}
+          isSettingsActive={isSettingsNavigation(navState)}
+          hasUnseenReleaseNotes={hasUnseenReleaseNotes}
+          onOpenSettings={() => handleSettingsClick()}
+          onOpenWhatsNew={handleWhatsNewClick}
+        />
         <PanelStackContainer
           sidebarSlot={
+            isStudioMode ? (
+            <div
+              ref={sidebarRef}
+              style={{ width: sidebarWidth }}
+              className="h-full font-sans relative"
+              data-focus-zone="sidebar"
+              tabIndex={sidebarFocused ? 0 : -1}
+              onKeyDown={handleSidebarKeyDown}
+            >
+              <StudioNavigator workspaceId={activeWorkspaceId} />
+            </div>
+            ) : (
             <div
               ref={sidebarRef}
               style={{ width: sidebarWidth }}
@@ -2355,7 +2369,7 @@ function AppShellContent({
                     <TooltipContent side="right">{newChatHotkey}</TooltipContent>
                   </Tooltip>
                 </div>
-                {/* Primary Nav: All Sessions (▸ Statuses, Flagged, Archived), Labels | Sources, Skills | Settings */}
+                {/* Primary Nav: All Sessions (▸ Statuses, Flagged, Archived), Labels | Sources, Skills, Automations */}
                 {/* pb-4 provides clearance so the last item scrolls above the mask-fade-bottom gradient */}
                 <div className="flex-1 overflow-y-auto min-h-0 mask-fade-bottom pb-4">
                 <LeftSidebar
@@ -2569,29 +2583,6 @@ function AppShellContent({
                         },
                       ],
                     },
-                    // --- Separator ---
-                    { id: "separator:skills-settings", type: "separator" },
-                    // --- Settings ---
-                    {
-                      id: "nav:settings",
-                      title: t("sidebar.settings"),
-                      icon: Settings,
-                      variant: isSettingsNavigation(navState) ? "default" : "ghost",
-                      onClick: () => handleSettingsClick(),
-                    },
-                    // --- What's New ---
-                    {
-                      id: "nav:whats-new",
-                      title: t("sidebar.whatsNew"),
-                      icon: hasUnseenReleaseNotes ? (
-                        <span className="relative">
-                          <Cake className="h-3.5 w-3.5" />
-                          <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-accent" />
-                        </span>
-                      ) : Cake,
-                      variant: "ghost" as const,
-                      onClick: handleWhatsNewClick,
-                    },
                   ]}
                 />
                 {/* Agent Tree: Hierarchical list of agents */}
@@ -2601,6 +2592,7 @@ function AppShellContent({
 
             </div>
           </div>
+            )
           }
           sidebarWidth={effectiveSidebarAndNavigatorHidden ? 0 : (isSidebarVisible ? sidebarWidth : 0)}
           navigatorSlot={
@@ -3363,7 +3355,7 @@ function AppShellContent({
             )}
             </div>
           }
-          navigatorWidth={isAutoCompact ? sessionListWidth : (effectiveSidebarAndNavigatorHidden ? 0 : sessionListWidth)}
+          navigatorWidth={isStudioMode ? 0 : (isAutoCompact ? sessionListWidth : (effectiveSidebarAndNavigatorHidden ? 0 : sessionListWidth))}
           isSidebarAndNavigatorHidden={effectiveSidebarAndNavigatorHidden}
           isRightSidebarVisible={false}
           isCompact={isAutoCompact}
@@ -3388,8 +3380,8 @@ function AppShellContent({
             top: PANEL_STACK_VERTICAL_OVERFLOW,
             bottom: PANEL_STACK_VERTICAL_OVERFLOW,
             left: isSidebarVisible
-              ? sidebarWidth + (PANEL_GAP / 2) - PANEL_SASH_HALF_HIT_WIDTH
-              : -PANEL_GAP,
+              ? globalRailWidth + PANEL_GAP + sidebarWidth + (PANEL_GAP / 2) - PANEL_SASH_HALF_HIT_WIDTH
+              : globalRailWidth - PANEL_GAP,
             transition: isResizing === 'sidebar' ? undefined : 'left 0.15s ease-out',
           }}
         >
@@ -3404,7 +3396,7 @@ function AppShellContent({
         )}
 
         {/* Session List Resize Handle (absolute, hidden in focused mode) */}
-        {!effectiveSidebarAndNavigatorHidden && (
+        {!effectiveSidebarAndNavigatorHidden && !isStudioMode && (
         <div
           ref={sessionListHandleRef}
           onMouseDown={(e) => { e.preventDefault(); setIsResizing('session-list') }}
@@ -3421,6 +3413,7 @@ function AppShellContent({
             top: PANEL_STACK_VERTICAL_OVERFLOW,
             bottom: PANEL_STACK_VERTICAL_OVERFLOW,
             left:
+              globalRailWidth + PANEL_GAP +
               (isSidebarVisible ? sidebarWidth + PANEL_GAP : PANEL_EDGE_INSET) +
               sessionListWidth +
               (PANEL_GAP / 2) -

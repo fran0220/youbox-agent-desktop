@@ -57,6 +57,21 @@ describe('parseDeepLink', () => {
     })
   })
 
+  it('accepts canonical studio compound routes', () => {
+    expect(parseDeepLink('origincoworks://studio')).toEqual({
+      workspaceId: undefined,
+      view: 'studio',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+    expect(parseDeepLink('origincoworks://studio/game/proj-42')).toEqual({
+      workspaceId: undefined,
+      view: 'studio/game/proj-42',
+      windowMode: undefined,
+      rightSidebar: undefined,
+    })
+  })
+
   it('accepts origincoworks://design compound routes', () => {
     expect(parseDeepLink('origincoworks://design')).toEqual({
       workspaceId: undefined,

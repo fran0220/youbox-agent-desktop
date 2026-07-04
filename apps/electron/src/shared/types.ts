@@ -527,6 +527,8 @@ export interface ElectronAPI {
   gameProjectCreate(workspaceId: string, input?: import('@craft-agent/shared/protocol').GameProjectCreateInput): Promise<import('@craft-agent/shared/protocol').GameProject>
   gameProjectUpdate(workspaceId: string, projectId: string, patch: import('@craft-agent/shared/protocol').GameProjectUpdateInput): Promise<import('@craft-agent/shared/protocol').GameProject>
   gameProjectDelete(workspaceId: string, projectId: string): Promise<void>
+  gameProjectCheckpoint(workspaceId: string, projectId: string, playable?: boolean): Promise<import('@craft-agent/shared/protocol').GameProjectCheckpointResult>
+  gameProjectRestore(workspaceId: string, projectId: string): Promise<import('@craft-agent/shared/protocol').GameProject | null>
 
   // Game Studio project change listener
   onGameProjectChanged(callback: (event: import('@craft-agent/shared/protocol').GameProjectChangedEvent) => void): () => void
@@ -548,6 +550,9 @@ export interface ElectronAPI {
   designProjectCreate(workspaceId: string, input?: import('@craft-agent/shared/protocol').DesignProjectCreateInput): Promise<import('@craft-agent/shared/protocol').DesignProject>
   designProjectUpdate(workspaceId: string, projectId: string, patch: import('@craft-agent/shared/protocol').DesignProjectUpdateInput): Promise<import('@craft-agent/shared/protocol').DesignProject>
   designProjectDelete(workspaceId: string, projectId: string): Promise<void>
+
+  // Studio aggregate APIs
+  studioListRecents(workspaceId: string): Promise<import('@craft-agent/shared/protocol').StudioRecentArtifact[]>
 
   // Design project change listener
   onDesignProjectChanged(callback: (event: import('@craft-agent/shared/protocol').DesignProjectChangedEvent) => void): () => void
@@ -921,30 +926,17 @@ export interface AutomationsNavigationState {
   rightSidebar?: RightSidebarPanel
 }
 
-/**
- * Canvas navigation state
- */
-export interface CanvasNavigationState {
-  navigator: 'canvas'
-  details: { type: 'doc'; docId: string } | null
-  rightSidebar?: RightSidebarPanel
-}
+export type StudioKind = 'canvas' | 'design' | 'game'
 
 /**
- * Game Studio navigation state
+ * Studio navigation state. Canvas, Design, and Game are product kinds inside
+ * one top-level Studio mode. Legacy canvas/gamestudio/design routes are parsed
+ * as aliases into this shape; serialization emits canonical studio/* routes.
  */
-export interface GameStudioNavigationState {
-  navigator: 'gamestudio'
-  details: { type: 'project'; projectId: string } | null
-  rightSidebar?: RightSidebarPanel
-}
-
-/**
- * Design navigation state
- */
-export interface DesignNavigationState {
-  navigator: 'design'
-  details: { type: 'project'; projectId: string } | null
+export interface StudioNavigationState {
+  navigator: 'studio'
+  kind: StudioKind | null
+  details: { type: 'artifact'; artifactId: string } | null
   rightSidebar?: RightSidebarPanel
 }
 
@@ -957,9 +949,7 @@ export type NavigationState =
   | SettingsNavigationState
   | SkillsNavigationState
   | AutomationsNavigationState
-  | CanvasNavigationState
-  | GameStudioNavigationState
-  | DesignNavigationState
+  | StudioNavigationState
 
 export const isSessionsNavigation = (
   state: NavigationState
@@ -981,17 +971,9 @@ export const isAutomationsNavigation = (
   state: NavigationState
 ): state is AutomationsNavigationState => state.navigator === 'automations'
 
-export const isCanvasNavigation = (
+export const isStudioNavigation = (
   state: NavigationState
-): state is CanvasNavigationState => state.navigator === 'canvas'
-
-export const isGameStudioNavigation = (
-  state: NavigationState
-): state is GameStudioNavigationState => state.navigator === 'gamestudio'
-
-export const isDesignNavigation = (
-  state: NavigationState
-): state is DesignNavigationState => state.navigator === 'design'
+): state is StudioNavigationState => state.navigator === 'studio'
 
 export const DEFAULT_NAVIGATION_STATE: NavigationState = {
   navigator: 'sessions',
@@ -1018,23 +1000,12 @@ export const getNavigationStateKey = (state: NavigationState): string => {
     }
     return 'automations'
   }
-  if (state.navigator === 'canvas') {
-    if (state.details?.type === 'doc') {
-      return `canvas/doc/${state.details.docId}`
+  if (state.navigator === 'studio') {
+    if (!state.kind) return 'studio'
+    if (state.details?.type === 'artifact') {
+      return `studio/${state.kind}/${state.details.artifactId}`
     }
-    return 'canvas'
-  }
-  if (state.navigator === 'gamestudio') {
-    if (state.details?.type === 'project') {
-      return `gamestudio/project/${state.details.projectId}`
-    }
-    return 'gamestudio'
-  }
-  if (state.navigator === 'design') {
-    if (state.details?.type === 'project') {
-      return `design/project/${state.details.projectId}`
-    }
-    return 'design'
+    return `studio/${state.kind}`
   }
   if (state.navigator === 'settings') {
     if (state.subpage === null) return 'settings'
@@ -1084,34 +1055,33 @@ export const parseNavigationStateKey = (key: string): NavigationState | null => 
     return { navigator: 'automations', details: null }
   }
 
-  // Handle canvas
-  if (key === 'canvas') return { navigator: 'canvas', details: null }
+  // Handle studio canonical keys plus legacy canvas/gamestudio/design keys.
+  if (key === 'studio') return { navigator: 'studio', kind: null, details: null }
+  for (const kind of ['canvas', 'design', 'game'] as const) {
+    const prefix = `studio/${kind}`
+    if (key === prefix) return { navigator: 'studio', kind, details: null }
+    if (key.startsWith(`${prefix}/`)) {
+      const artifactId = key.slice(prefix.length + 1)
+      if (artifactId) {
+        return { navigator: 'studio', kind, details: { type: 'artifact', artifactId } }
+      }
+      return { navigator: 'studio', kind, details: null }
+    }
+  }
+  if (key === 'canvas') return { navigator: 'studio', kind: 'canvas', details: null }
   if (key.startsWith('canvas/doc/')) {
-    const docId = key.slice(11)
-    if (docId) {
-      return { navigator: 'canvas', details: { type: 'doc', docId } }
-    }
-    return { navigator: 'canvas', details: null }
+    const artifactId = key.slice(11)
+    return { navigator: 'studio', kind: 'canvas', details: artifactId ? { type: 'artifact', artifactId } : null }
   }
-
-  // Handle gamestudio
-  if (key === 'gamestudio') return { navigator: 'gamestudio', details: null }
+  if (key === 'gamestudio') return { navigator: 'studio', kind: 'game', details: null }
   if (key.startsWith('gamestudio/project/')) {
-    const projectId = key.slice(19)
-    if (projectId) {
-      return { navigator: 'gamestudio', details: { type: 'project', projectId } }
-    }
-    return { navigator: 'gamestudio', details: null }
+    const artifactId = key.slice(19)
+    return { navigator: 'studio', kind: 'game', details: artifactId ? { type: 'artifact', artifactId } : null }
   }
-
-  // Handle design
-  if (key === 'design') return { navigator: 'design', details: null }
+  if (key === 'design') return { navigator: 'studio', kind: 'design', details: null }
   if (key.startsWith('design/project/')) {
-    const projectId = key.slice(15)
-    if (projectId) {
-      return { navigator: 'design', details: { type: 'project', projectId } }
-    }
-    return { navigator: 'design', details: null }
+    const artifactId = key.slice(15)
+    return { navigator: 'studio', kind: 'design', details: artifactId ? { type: 'artifact', artifactId } : null }
   }
 
   // Handle settings

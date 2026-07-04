@@ -11,12 +11,15 @@
  * concurrent RPC mutations cannot interleave on the same project.json file.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'fs'
+import { existsSync, readFileSync, readdirSync } from 'fs'
 import { copyFile, mkdir, rename, rm, unlink, writeFile } from 'fs/promises'
 import { randomUUID } from 'crypto'
-import { basename, dirname, isAbsolute, join } from 'path'
+import { execFile } from 'child_process'
+import { basename, dirname, join } from 'path'
+import { promisify } from 'util'
 import type {
   GameProject,
+  GameProjectCheckpointResult,
   GameProjectCreateInput,
   GameProjectMeta,
   GameProjectUpdateInput,
@@ -34,6 +37,7 @@ export interface GameProjectStorageOptions {
 }
 
 const DOC_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
+const execFileAsync = promisify(execFile)
 
 function assertValidProjectId(projectId: string): void {
   if (!projectId || typeof projectId !== 'string' || basename(projectId) !== projectId || !DOC_ID_PATTERN.test(projectId)) {
@@ -96,6 +100,9 @@ function parseStoredProject(raw: string): StoredGameProject | null {
       name: typeof parsed.name === 'string' ? parsed.name : 'Untitled Game',
       sessionId: typeof parsed.sessionId === 'string' ? parsed.sessionId : null,
       thumbnailPath: typeof parsed.thumbnailPath === 'string' ? parsed.thumbnailPath : null,
+      lastPlayableCommit: typeof parsed.lastPlayableCommit === 'string' ? parsed.lastPlayableCommit : null,
+      lastGeneratedCommit: typeof parsed.lastGeneratedCommit === 'string' ? parsed.lastGeneratedCommit : null,
+      lastError: typeof parsed.lastError === 'string' ? parsed.lastError : null,
       createdAt: typeof parsed.createdAt === 'number' ? parsed.createdAt : 0,
       updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 0,
       version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -116,6 +123,9 @@ function toMeta(project: GameProject): GameProjectMeta {
     name: project.name,
     sessionId: project.sessionId,
     thumbnailPath: project.thumbnailPath,
+    lastPlayableCommit: project.lastPlayableCommit,
+    lastGeneratedCommit: project.lastGeneratedCommit,
+    lastError: project.lastError,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     version: project.version,
@@ -157,8 +167,11 @@ function getVendorSourcePath(resourcesRoot: string, fileName: string): string {
 async function scaffoldProject(projectDir: string, options: GameProjectStorageOptions): Promise<void> {
   await mkdir(join(projectDir, 'src'), { recursive: true })
   await mkdir(join(projectDir, 'vendor'), { recursive: true })
+  await mkdir(join(projectDir, '.agents'), { recursive: true })
   await writeFile(join(projectDir, 'index.html'), GAME_PROJECT_INDEX_HTML, 'utf-8')
   await writeFile(join(projectDir, 'src', 'main.js'), GAME_PROJECT_MAIN_JS, 'utf-8')
+  await writeFile(join(projectDir, 'gameblocks_usage.md'), GAMEBLOCKS_USAGE_MD, 'utf-8')
+  await writeFile(join(projectDir, '.agents', 'AGENTS.md'), GAME_PROJECT_AGENTS_MD, 'utf-8')
   await copyFile(getVendorSourcePath(options.resourcesRoot, 'three.module.js'), join(projectDir, 'vendor', 'three.module.js'))
   await copyFile(getVendorSourcePath(options.resourcesRoot, 'rapier.es.js'), join(projectDir, 'vendor', 'rapier.es.js'))
 }
@@ -175,6 +188,9 @@ export async function createGameProject(
     name: input.name ?? 'Untitled Game',
     sessionId: null,
     thumbnailPath: null,
+    lastPlayableCommit: null,
+    lastGeneratedCommit: null,
+    lastError: null,
     createdAt: now,
     updatedAt: now,
     version: 1,
@@ -183,10 +199,20 @@ export async function createGameProject(
   await writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
     const projectDir = getGameProjectDir(workspaceRootPath, projectId)
     await scaffoldProject(projectDir, options)
+    await initializeProjectGit(projectDir)
     await writeProjectFileAtomic(getGameProjectMetaPath(workspaceRootPath, projectId), {
       schemaVersion: GAME_PROJECT_SCHEMA_VERSION,
       ...project,
     })
+    const commit = await createGitCheckpoint(projectDir, 'Initial playable scaffold')
+    if (commit) {
+      project.lastPlayableCommit = commit
+      project.lastGeneratedCommit = commit
+      await writeProjectFileAtomic(getGameProjectMetaPath(workspaceRootPath, projectId), {
+        schemaVersion: GAME_PROJECT_SCHEMA_VERSION,
+        ...project,
+      })
+    }
   })
   return project
 }
@@ -206,10 +232,63 @@ export async function updateGameProject(
       name: patch.name ?? current.name,
       sessionId: patch.sessionId !== undefined ? patch.sessionId : current.sessionId,
       thumbnailPath: patch.thumbnailPath !== undefined ? patch.thumbnailPath : current.thumbnailPath,
+      lastPlayableCommit: patch.lastPlayableCommit !== undefined ? patch.lastPlayableCommit : current.lastPlayableCommit,
+      lastGeneratedCommit: patch.lastGeneratedCommit !== undefined ? patch.lastGeneratedCommit : current.lastGeneratedCommit,
+      lastError: patch.lastError !== undefined ? patch.lastError : current.lastError,
       updatedAt: Date.now(),
       version: current.version + 1,
     }
     await writeProjectFileAtomic(filePath, { schemaVersion: GAME_PROJECT_SCHEMA_VERSION, ...next })
+    return next
+  })
+}
+
+export async function checkpointGameProject(
+  workspaceRootPath: string,
+  projectId: string,
+  playable = false,
+): Promise<GameProjectCheckpointResult> {
+  return writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
+    const current = loadGameProject(workspaceRootPath, projectId)
+    if (!current) throw new Error(`Game project not found: ${projectId}`)
+    const projectDir = getGameProjectDir(workspaceRootPath, projectId)
+    await initializeProjectGit(projectDir)
+    const commit = await createGitCheckpoint(projectDir, playable ? 'Playable Game Studio checkpoint' : 'Generated Game Studio checkpoint')
+    if (!commit) return { commit: null }
+
+    const next: GameProject = {
+      ...current,
+      lastGeneratedCommit: commit,
+      lastPlayableCommit: playable ? commit : current.lastPlayableCommit,
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    }
+    await writeProjectFileAtomic(getGameProjectMetaPath(workspaceRootPath, projectId), {
+      schemaVersion: GAME_PROJECT_SCHEMA_VERSION,
+      ...next,
+    })
+    return { commit }
+  })
+}
+
+export async function restoreGameProject(workspaceRootPath: string, projectId: string): Promise<GameProject | null> {
+  return writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
+    const current = loadGameProject(workspaceRootPath, projectId)
+    if (!current?.lastPlayableCommit) return current
+    const projectDir = getGameProjectDir(workspaceRootPath, projectId)
+    await git(projectDir, ['checkout', current.lastPlayableCommit, '--', '.'])
+    const commit = await createGitCheckpoint(projectDir, 'Restore last playable Game Studio checkpoint')
+    const next: GameProject = {
+      ...current,
+      lastGeneratedCommit: commit ?? current.lastGeneratedCommit,
+      lastError: null,
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    }
+    await writeProjectFileAtomic(getGameProjectMetaPath(workspaceRootPath, projectId), {
+      schemaVersion: GAME_PROJECT_SCHEMA_VERSION,
+      ...next,
+    })
     return next
   })
 }
@@ -225,6 +304,33 @@ export async function deleteGameProject(workspaceRootPath: string, projectId: st
 
 function projectQueueKey(workspaceRootPath: string, projectId: string): string {
   return `${workspaceRootPath}::${projectId}`
+}
+
+async function git(cwd: string, args: string[]): Promise<string> {
+  const { stdout } = await execFileAsync('git', args, { cwd })
+  return String(stdout).trim()
+}
+
+async function initializeProjectGit(projectDir: string): Promise<void> {
+  if (existsSync(join(projectDir, '.git'))) return
+  await git(projectDir, ['init'])
+  await git(projectDir, ['config', 'user.email', 'gamestudio@local'])
+  await git(projectDir, ['config', 'user.name', 'Game Studio'])
+  await writeFile(join(projectDir, '.gitignore'), 'node_modules/\n.DS_Store\n*.log\n', 'utf-8')
+}
+
+async function createGitCheckpoint(projectDir: string, message: string): Promise<string | null> {
+  await git(projectDir, ['add', '.'])
+  const status = await git(projectDir, ['status', '--porcelain'])
+  if (!status) {
+    try {
+      return await git(projectDir, ['rev-parse', 'HEAD'])
+    } catch {
+      return null
+    }
+  }
+  await git(projectDir, ['commit', '-m', message])
+  return git(projectDir, ['rev-parse', 'HEAD'])
 }
 
 const GAME_PROJECT_INDEX_HTML = `<!doctype html>
@@ -288,4 +394,26 @@ function animate() {
   requestAnimationFrame(animate)
 }
 animate()
+`
+
+const GAMEBLOCKS_USAGE_MD = `# GameBlocks usage
+
+This Game Studio project is a browser-only game. Keep the entry point at \`index.html\` and \`src/main.js\` unless the user asks for a larger structure.
+
+- Use vendored modules from \`./vendor/\`; do not import from external CDNs.
+- Prefer Three.js for rendering and Rapier for physics when needed.
+- Keep runtime errors visible in the preview console and fix them before marking the game playable.
+- After a playable change, ask Game Studio to create a playable checkpoint from the toolbar.
+`
+
+const GAME_PROJECT_AGENTS_MD = `# Game Studio project
+
+You are editing a generated browser game. The preview runs from this directory through a local static server.
+
+Rules:
+- Do not use external CDNs or network dependencies. Use files in vendor/.
+- Keep index.html loadable as an ES-module browser app.
+- Keep controls discoverable in the UI and preserve fullscreen/pointer-lock behavior when relevant.
+- When fixing runtime errors, use the console event details from the user prompt as the source of truth.
+- Prefer small playable iterations over large rewrites.
 `

@@ -15,6 +15,7 @@ import type {
   SourceFilter,
   AutomationFilter,
   RightSidebarPanel,
+  StudioKind,
 } from './types'
 import { isValidSettingsSubpage, type SettingsSubpage } from './settings-registry'
 
@@ -35,7 +36,7 @@ export interface ParsedRoute {
 // Compound Route Types (new format)
 // =============================================================================
 
-export type NavigatorType = 'sessions' | 'sources' | 'skills' | 'automations' | 'canvas' | 'gamestudio' | 'design' | 'settings'
+export type NavigatorType = 'sessions' | 'sources' | 'skills' | 'automations' | 'studio' | 'settings'
 
 export interface ParsedCompoundRoute {
   /** The navigator type */
@@ -46,6 +47,8 @@ export interface ParsedCompoundRoute {
   sourceFilter?: SourceFilter
   /** Automation filter (only for automations navigator) */
   automationFilter?: AutomationFilter
+  /** Studio kind (only for studio navigator) */
+  studioKind?: StudioKind
   /** Details page info (null for empty state) */
   details: {
     type: string
@@ -61,7 +64,7 @@ export interface ParsedCompoundRoute {
  * Known prefixes that indicate a compound route
  */
 const COMPOUND_ROUTE_PREFIXES = [
-  'allSessions', 'flagged', 'archived', 'state', 'label', 'view', 'sources', 'skills', 'automations', 'canvas', 'gamestudio', 'design', 'settings'
+  'allSessions', 'flagged', 'archived', 'state', 'label', 'view', 'sources', 'skills', 'automations', 'studio', 'canvas', 'gamestudio', 'design', 'settings'
 ]
 
 /**
@@ -197,54 +200,50 @@ export function parseCompoundRoute(route: string): ParsedCompoundRoute | null {
     return null
   }
 
-  // Canvas navigator
+  // Studio navigator: canonical routes are studio[/kind[/artifactId]].
+  // Legacy canvas/gamestudio/design routes are parse aliases into Studio.
+  if (first === 'studio') {
+    if (segments.length === 1) {
+      return { navigator: 'studio', studioKind: undefined, details: null }
+    }
+    const kind = segments[1] as StudioKind
+    if (!['canvas', 'design', 'game'].includes(kind)) return null
+    if (segments.length === 2) {
+      return { navigator: 'studio', studioKind: kind, details: null }
+    }
+    if (segments[2] && segments.length === 3) {
+      return { navigator: 'studio', studioKind: kind, details: { type: 'artifact', id: segments[2] } }
+    }
+    return null
+  }
+
   if (first === 'canvas') {
     if (segments.length === 1) {
-      return { navigator: 'canvas', details: null }
+      return { navigator: 'studio', studioKind: 'canvas', details: null }
     }
-
-    // canvas/doc/{docId}
     if (segments[1] === 'doc' && segments[2]) {
-      return {
-        navigator: 'canvas',
-        details: { type: 'doc', id: segments[2] },
-      }
+      return { navigator: 'studio', studioKind: 'canvas', details: { type: 'artifact', id: segments[2] } }
     }
-
     return null
   }
 
-  // Game Studio navigator
   if (first === 'gamestudio') {
     if (segments.length === 1) {
-      return { navigator: 'gamestudio', details: null }
+      return { navigator: 'studio', studioKind: 'game', details: null }
     }
-
-    // gamestudio/project/{projectId}
     if (segments[1] === 'project' && segments[2]) {
-      return {
-        navigator: 'gamestudio',
-        details: { type: 'project', id: segments[2] },
-      }
+      return { navigator: 'studio', studioKind: 'game', details: { type: 'artifact', id: segments[2] } }
     }
-
     return null
   }
 
-  // Design navigator
   if (first === 'design') {
     if (segments.length === 1) {
-      return { navigator: 'design', details: null }
+      return { navigator: 'studio', studioKind: 'design', details: null }
     }
-
-    // design/project/{projectId}
     if (segments[1] === 'project' && segments[2]) {
-      return {
-        navigator: 'design',
-        details: { type: 'project', id: segments[2] },
-      }
+      return { navigator: 'studio', studioKind: 'design', details: { type: 'artifact', id: segments[2] } }
     }
-
     return null
   }
 
@@ -340,19 +339,10 @@ export function buildCompoundRoute(parsed: ParsedCompoundRoute): string {
     return `${base}/automation/${parsed.details.id}`
   }
 
-  if (parsed.navigator === 'canvas') {
-    if (!parsed.details) return 'canvas'
-    return `canvas/doc/${parsed.details.id}`
-  }
-
-  if (parsed.navigator === 'gamestudio') {
-    if (!parsed.details) return 'gamestudio'
-    return `gamestudio/project/${parsed.details.id}`
-  }
-
-  if (parsed.navigator === 'design') {
-    if (!parsed.details) return 'design'
-    return `design/project/${parsed.details.id}`
+  if (parsed.navigator === 'studio') {
+    if (!parsed.studioKind) return 'studio'
+    if (!parsed.details) return `studio/${parsed.studioKind}`
+    return `studio/${parsed.studioKind}/${parsed.details.id}`
   }
 
   // Sessions navigator
@@ -478,28 +468,15 @@ function convertCompoundToViewRoute(compound: ParsedCompoundRoute): ParsedRoute 
     return { type: 'view', name: 'automation-info', id: compound.details.id, params: {} }
   }
 
-  // Canvas
-  if (compound.navigator === 'canvas') {
-    if (!compound.details) {
-      return { type: 'view', name: 'canvas', params: {} }
+  // Studio
+  if (compound.navigator === 'studio') {
+    if (!compound.studioKind) {
+      return { type: 'view', name: 'studio', params: {} }
     }
-    return { type: 'view', name: 'canvas-doc', id: compound.details.id, params: {} }
-  }
-
-  // Game Studio
-  if (compound.navigator === 'gamestudio') {
     if (!compound.details) {
-      return { type: 'view', name: 'gamestudio', params: {} }
+      return { type: 'view', name: 'studio-kind', id: compound.studioKind, params: {} }
     }
-    return { type: 'view', name: 'gamestudio-project', id: compound.details.id, params: {} }
-  }
-
-  // Design
-  if (compound.navigator === 'design') {
-    if (!compound.details) {
-      return { type: 'view', name: 'design', params: {} }
-    }
-    return { type: 'view', name: 'design-project', id: compound.details.id, params: {} }
+    return { type: 'view', name: 'studio-artifact', id: compound.details.id, params: { kind: compound.studioKind } }
   }
 
   // Sessions
@@ -637,36 +614,12 @@ function convertCompoundToNavigationState(compound: ParsedCompoundRoute): Naviga
     }
   }
 
-  // Canvas
-  if (compound.navigator === 'canvas') {
-    if (!compound.details) {
-      return { navigator: 'canvas', details: null }
-    }
+  // Studio
+  if (compound.navigator === 'studio') {
     return {
-      navigator: 'canvas',
-      details: { type: 'doc', docId: compound.details.id },
-    }
-  }
-
-  // Game Studio
-  if (compound.navigator === 'gamestudio') {
-    if (!compound.details) {
-      return { navigator: 'gamestudio', details: null }
-    }
-    return {
-      navigator: 'gamestudio',
-      details: { type: 'project', projectId: compound.details.id },
-    }
-  }
-
-  // Design
-  if (compound.navigator === 'design') {
-    if (!compound.details) {
-      return { navigator: 'design', details: null }
-    }
-    return {
-      navigator: 'design',
-      details: { type: 'project', projectId: compound.details.id },
+      navigator: 'studio',
+      kind: compound.studioKind ?? null,
+      details: compound.details ? { type: 'artifact', artifactId: compound.details.id } : null,
     }
   }
 
@@ -747,45 +700,22 @@ function convertParsedRouteToNavigationState(parsed: ParsedRoute): NavigationSta
         }
       }
       return { navigator: 'automations', details: null }
-    case 'canvas':
-      return { navigator: 'canvas', details: null }
-    case 'canvas-doc':
-      if (parsed.id) {
+    case 'studio':
+      return { navigator: 'studio', kind: null, details: null }
+    case 'studio-kind':
+      if (parsed.id && ['canvas', 'design', 'game'].includes(parsed.id)) {
+        return { navigator: 'studio', kind: parsed.id as StudioKind, details: null }
+      }
+      return { navigator: 'studio', kind: null, details: null }
+    case 'studio-artifact':
+      if (parsed.id && ['canvas', 'design', 'game'].includes(parsed.params.kind)) {
         return {
-          navigator: 'canvas',
-          details: {
-            type: 'doc',
-            docId: parsed.id,
-          },
+          navigator: 'studio',
+          kind: parsed.params.kind as StudioKind,
+          details: { type: 'artifact', artifactId: parsed.id },
         }
       }
-      return { navigator: 'canvas', details: null }
-    case 'gamestudio':
-      return { navigator: 'gamestudio', details: null }
-    case 'gamestudio-project':
-      if (parsed.id) {
-        return {
-          navigator: 'gamestudio',
-          details: {
-            type: 'project',
-            projectId: parsed.id,
-          },
-        }
-      }
-      return { navigator: 'gamestudio', details: null }
-    case 'design':
-      return { navigator: 'design', details: null }
-    case 'design-project':
-      if (parsed.id) {
-        return {
-          navigator: 'design',
-          details: {
-            type: 'project',
-            projectId: parsed.id,
-          },
-        }
-      }
-      return { navigator: 'design', details: null }
+      return { navigator: 'studio', kind: null, details: null }
     case 'session':
       if (parsed.id) {
         // Reconstruct filter from params
@@ -894,24 +824,11 @@ function navigationStateToCompoundRoute(state: NavigationState): ParsedCompoundR
     }
   }
 
-  if (state.navigator === 'canvas') {
+  if (state.navigator === 'studio') {
     return {
-      navigator: 'canvas',
-      details: state.details?.type === 'doc' ? { type: 'doc', id: state.details.docId } : null,
-    }
-  }
-
-  if (state.navigator === 'gamestudio') {
-    return {
-      navigator: 'gamestudio',
-      details: state.details?.type === 'project' ? { type: 'project', id: state.details.projectId } : null,
-    }
-  }
-
-  if (state.navigator === 'design') {
-    return {
-      navigator: 'design',
-      details: state.details?.type === 'project' ? { type: 'project', id: state.details.projectId } : null,
+      navigator: 'studio',
+      studioKind: state.kind ?? undefined,
+      details: state.details?.type === 'artifact' ? { type: 'artifact', id: state.details.artifactId } : null,
     }
   }
 

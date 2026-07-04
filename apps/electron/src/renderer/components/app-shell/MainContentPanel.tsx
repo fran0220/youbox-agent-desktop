@@ -31,15 +31,13 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
   isAutomationsNavigation,
-  isCanvasNavigation,
-  isGameStudioNavigation,
-  isDesignNavigation,
+  isStudioNavigation,
 } from '@/contexts/NavigationContext'
 import { useSessionSelection, useIsMultiSelectActive, useSelectedIds, useSelectionCount } from '@/hooks/useSession'
 import { sourceSelection, skillSelection, automationSelection } from '@/hooks/useEntitySelection'
 import { extractLabelId } from '@craft-agent/shared/labels'
 import type { SessionStatusId } from '@/config/session-status-config'
-import { SourceInfoPage, ChatPage, CanvasPage, GameStudioPage, DesignStudioPage } from '@/pages'
+import { SourceInfoPage, ChatPage, CanvasPage, GameStudioPage, DesignStudioPage, StudioHomePage } from '@/pages'
 import SkillInfoPage from '@/pages/SkillInfoPage'
 import { getSettingsPageComponent } from '@/pages/settings/settings-pages'
 import { AutomationInfoPage } from '../automations/AutomationInfoPage'
@@ -358,38 +356,22 @@ export function MainContentPanel({
     )
   }
 
-  // Canvas navigator - full-bleed canvas page for the routed doc
-  if (isCanvasNavigation(navState)) {
-    return wrapWithStoplight(
-      <Panel variant="grow" className={className}>
-        <CanvasPage
-          workspaceId={activeWorkspaceId || ''}
-          docId={navState.details?.docId ?? null}
-        />
-      </Panel>
-    )
-  }
+  // Studio navigator - one top-level mode dispatching to Studio Home or a kind surface.
+  if (isStudioNavigation(navState)) {
+    const artifactId = navState.details?.artifactId ?? null
+    const content = !artifactId
+      ? <StudioHomePage workspaceId={activeWorkspaceId || ''} />
+      : navState.kind === 'canvas'
+      ? <CanvasPage workspaceId={activeWorkspaceId || ''} docId={artifactId} />
+      : navState.kind === 'game'
+        ? <GameStudioPage workspaceId={activeWorkspaceId || ''} projectId={artifactId} />
+        : navState.kind === 'design'
+          ? <DesignStudioPage workspaceId={activeWorkspaceId || ''} projectId={artifactId} />
+          : <StudioHomePage workspaceId={activeWorkspaceId || ''} />
 
-  // Game Studio navigator - placeholder until full Game Studio UI lands
-  if (isGameStudioNavigation(navState)) {
     return wrapWithStoplight(
       <Panel variant="grow" className={className}>
-        <GameStudioPage
-          workspaceId={activeWorkspaceId || ''}
-          projectId={navState.details?.projectId ?? null}
-        />
-      </Panel>
-    )
-  }
-
-  // Design navigator - placeholder until full Design Studio UI lands
-  if (isDesignNavigation(navState)) {
-    return wrapWithStoplight(
-      <Panel variant="grow" className={className}>
-        <DesignStudioPage
-          workspaceId={activeWorkspaceId || ''}
-          projectId={navState.details?.projectId ?? null}
-        />
+        {content}
       </Panel>
     )
   }

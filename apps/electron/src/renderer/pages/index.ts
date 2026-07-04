@@ -7,6 +7,7 @@
 export { default as CanvasPage } from './CanvasPage'
 export { default as DesignStudioPage } from './DesignStudioPage'
 export { default as GameStudioPage } from './GameStudioPage'
+export { default as StudioHomePage } from './StudioHomePage'
 export { default as ChatPage } from './ChatPage'
 export { default as SourceInfoPage } from './SourceInfoPage'
 // Settings pages

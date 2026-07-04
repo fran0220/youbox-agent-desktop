@@ -107,7 +107,7 @@ export function DocPickerOverlay({ workspaceId, currentDocId, onClose }: DocPick
       const doc = await window.electronAPI.canvasCreate(workspaceId, {
         name: t('canvas.defaultDocName'),
       })
-      navigate(routes.view.canvas(doc.id))
+      navigate(routes.view.studio('canvas', doc.id))
       setRenameDraft(doc.name)
       setRenamingId(doc.id)
     } catch (err) {
@@ -128,12 +128,12 @@ export function DocPickerOverlay({ workspaceId, currentDocId, onClose }: DocPick
     }
     if (docId === currentDocId) {
       const next = mostRecentCanvasDoc(remaining)
-      navigate(routes.view.canvas(next?.id))
+      navigate(routes.view.studio('canvas', next?.id))
     }
   }
 
   const handleSwitch = (docId: string) => {
-    if (docId !== currentDocId) navigate(routes.view.canvas(docId))
+    if (docId !== currentDocId) navigate(routes.view.studio('canvas', docId))
     onClose()
   }
 

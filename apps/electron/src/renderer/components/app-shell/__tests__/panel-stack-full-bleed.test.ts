@@ -3,9 +3,15 @@ import { describe, expect, it } from 'bun:test'
 import { resolvePanelChromeHidden } from '@/lib/full-bleed-routes'
 
 describe('PanelStackContainer full-bleed route chrome', () => {
-  it('forces sidebar and navigator hidden for gamestudio routes even when parent chrome state is stale', () => {
-    expect(resolvePanelChromeHidden(false, 'gamestudio')).toBe(true)
-    expect(resolvePanelChromeHidden(false, 'gamestudio/project/test-project')).toBe(true)
+  it('keeps studio home and kind routes controlled by the parent chrome state', () => {
+    expect(resolvePanelChromeHidden(false, 'studio')).toBe(false)
+    expect(resolvePanelChromeHidden(false, 'studio/game')).toBe(false)
+    expect(resolvePanelChromeHidden(false, 'studio/canvas')).toBe(false)
+    expect(resolvePanelChromeHidden(false, 'studio/design')).toBe(false)
+  })
+
+  it('forces sidebar and navigator hidden for studio artifact detail routes even when parent chrome state is stale', () => {
+    expect(resolvePanelChromeHidden(false, 'studio/game/test-project')).toBe(true)
   })
 
   it('keeps work routes controlled by the parent chrome state', () => {
@@ -13,13 +19,11 @@ describe('PanelStackContainer full-bleed route chrome', () => {
     expect(resolvePanelChromeHidden(true, 'allSessions')).toBe(true)
   })
 
-  it('preserves canvas full-bleed behavior', () => {
-    expect(resolvePanelChromeHidden(false, 'canvas')).toBe(true)
-    expect(resolvePanelChromeHidden(false, 'canvas/doc/test-doc')).toBe(true)
+  it('preserves canvas artifact full-bleed behavior under studio', () => {
+    expect(resolvePanelChromeHidden(false, 'studio/canvas/test-doc')).toBe(true)
   })
 
-  it('forces sidebar and navigator hidden for design routes', () => {
-    expect(resolvePanelChromeHidden(false, 'design')).toBe(true)
-    expect(resolvePanelChromeHidden(false, 'design/project/test-project')).toBe(true)
+  it('forces sidebar and navigator hidden for design artifact routes under studio', () => {
+    expect(resolvePanelChromeHidden(false, 'studio/design/test-project')).toBe(true)
   })
 })

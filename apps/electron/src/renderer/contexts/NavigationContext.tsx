@@ -68,18 +68,12 @@ import {
   isSettingsNavigation,
   isSkillsNavigation,
   isAutomationsNavigation,
-  isCanvasNavigation,
-  isGameStudioNavigation,
-  isDesignNavigation,
+  isStudioNavigation,
   DEFAULT_NAVIGATION_STATE,
 } from '../../shared/types'
 import { sessionMetaMapAtom, updateSessionMetaAtom, type SessionMeta } from '@/atoms/sessions'
 import { sourcesAtom } from '@/atoms/sources'
 import { skillsAtom } from '@/atoms/skills'
-import { canvasDocsAtom } from '@/atoms/canvas'
-import { gamestudioProjectsAtom, mostRecentGameProject } from '@/atoms/gamestudio'
-import { designProjectsAtom, mostRecentDesignProject } from '@/atoms/design'
-import { mostRecentCanvasDoc } from '@/lib/canvas-persistence'
 import {
   panelStackAtom,
   pushPanelAtom,
@@ -97,7 +91,7 @@ export type { Route }
 
 // Re-export navigation state types for consumers
 export type { NavigationState, SessionFilter }
-export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isCanvasNavigation, isGameStudioNavigation, isDesignNavigation }
+export { isSessionsNavigation, isSourcesNavigation, isSettingsNavigation, isSkillsNavigation, isAutomationsNavigation, isStudioNavigation }
 
 // =============================================================================
 // Context
@@ -663,35 +657,6 @@ export function NavigationProvider({
         const firstSkillSlug = getFirstSkillSlug()
         if (firstSkillSlug) {
           return { ...nextState, details: { type: 'skill', skillSlug: firstSkillSlug } }
-        }
-        return nextState
-      }
-
-      // Canvas: auto-select the most recently updated doc (list may still be
-      // loading — CanvasPage redirects once it arrives)
-      if (isCanvasNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
-        const mostRecent = mostRecentCanvasDoc(store.get(canvasDocsAtom) ?? [])
-        if (mostRecent) {
-          return { ...nextState, details: { type: 'doc', docId: mostRecent.id } }
-        }
-        return nextState
-      }
-
-      // Game Studio: auto-select the most recently updated project. As with
-      // canvas, the page redirects once the project list arrives if it is still
-      // loading when navigation first settles.
-      if (isGameStudioNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
-        const mostRecent = mostRecentGameProject(store.get(gamestudioProjectsAtom) ?? [])
-        if (mostRecent) {
-          return { ...nextState, details: { type: 'project', projectId: mostRecent.id } }
-        }
-        return nextState
-      }
-
-      if (isDesignNavigation(nextState) && !nextState.details && !options?.skipAutoSelect) {
-        const mostRecent = mostRecentDesignProject(store.get(designProjectsAtom) ?? [])
-        if (mostRecent) {
-          return { ...nextState, details: { type: 'project', projectId: mostRecent.id } }
         }
         return nextState
       }

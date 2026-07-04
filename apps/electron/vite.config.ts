@@ -60,8 +60,11 @@ export default defineConfig({
     dedupe: ['react', 'react-dom']
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'jotai', 'pdfjs-dist'],
-    exclude: ['@craft-agent/ui'],
+    include: ['react', 'react-dom', 'jotai', 'pdfjs-dist', 'electron-log/renderer'],
+    // electron-log's package entry can pull in Node-only transports (https, fs),
+    // but the renderer subpath is CommonJS and must be pre-bundled so Vite
+    // exposes its default export to ESM renderer imports.
+    exclude: ['@craft-agent/ui', 'electron-log'],
     esbuildOptions: {
       supported: { 'top-level-await': true },
       target: 'esnext'

@@ -255,6 +255,8 @@ export const CHANNEL_MAP = {
   gameProjectCreate: invoke(RPC_CHANNELS.gamestudio.CREATE),
   gameProjectUpdate: invoke(RPC_CHANNELS.gamestudio.UPDATE),
   gameProjectDelete: invoke(RPC_CHANNELS.gamestudio.DELETE),
+  gameProjectCheckpoint: invoke(RPC_CHANNELS.gamestudio.CHECKPOINT),
+  gameProjectRestore: invoke(RPC_CHANNELS.gamestudio.RESTORE),
   onGameProjectChanged: listener(RPC_CHANNELS.gamestudio.CHANGED),
 
   // Game pane runtime
@@ -273,6 +275,9 @@ export const CHANNEL_MAP = {
   designProjectUpdate: invoke(RPC_CHANNELS.design.UPDATE),
   designProjectDelete: invoke(RPC_CHANNELS.design.DELETE),
   onDesignProjectChanged: listener(RPC_CHANNELS.design.CHANGED),
+
+  // Studio aggregate APIs
+  studioListRecents: invoke(RPC_CHANNELS.studio.LIST_RECENTS),
 
   // Statuses
   listStatuses: invoke(RPC_CHANNELS.statuses.LIST),

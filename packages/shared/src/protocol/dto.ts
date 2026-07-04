@@ -740,6 +740,9 @@ export interface GameProjectMeta {
   name: string
   sessionId: string | null
   thumbnailPath: string | null
+  lastPlayableCommit: string | null
+  lastGeneratedCommit: string | null
+  lastError: string | null
   /** Unix epoch ms */
   createdAt: number
   /** Unix epoch ms */
@@ -759,6 +762,13 @@ export interface GameProjectUpdateInput {
   name?: string
   sessionId?: string | null
   thumbnailPath?: string | null
+  lastPlayableCommit?: string | null
+  lastGeneratedCommit?: string | null
+  lastError?: string | null
+}
+
+export interface GameProjectCheckpointResult {
+  commit: string | null
 }
 
 export type GameProjectChangedKind = 'created' | 'updated' | 'deleted' | 'files'
@@ -786,7 +796,7 @@ export interface GamePaneBounds {
 }
 
 export type GamePaneEvent =
-  | { projectId: string; type: 'console'; payload: { level: 'log' | 'warn' | 'error'; message: string; timestamp: number } }
+  | { projectId: string; type: 'console'; payload: { level: 'log' | 'warn' | 'error'; message: string; timestamp: number; source?: string; line?: number } }
   | { projectId: string; type: 'crashed'; payload?: unknown }
   | { projectId: string; type: 'unresponsive'; payload?: unknown }
   | { projectId: string; type: 'load-failed'; payload?: unknown }
@@ -822,6 +832,26 @@ export interface DesignProjectCreateInput {
   kind?: DesignArtifactKind
   designSystemId?: string | null
   templateId?: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Studio aggregate APIs (additive; existing canvas/design/gamestudio channels
+// remain the stable per-kind wire format)
+// ---------------------------------------------------------------------------
+
+export type StudioArtifactKind = 'canvas' | 'design' | 'game'
+
+export interface StudioRecentArtifact {
+  kind: StudioArtifactKind
+  id: string
+  name: string
+  sessionId: string | null
+  thumbnailPath: string | null
+  /** Unix epoch ms */
+  createdAt: number
+  /** Unix epoch ms */
+  updatedAt: number
+  version: number
 }
 
 export interface DesignProjectUpdateInput {

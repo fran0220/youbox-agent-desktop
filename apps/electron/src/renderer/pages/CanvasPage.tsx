@@ -174,7 +174,7 @@ function useCanvasDocPersistence(workspaceId: string, docId: string) {
         hydrated = false
         const remaining = (store.get(canvasDocsAtom) ?? []).filter((d) => d.id !== docId)
         const next = mostRecentCanvasDoc(remaining)
-        navigate(routes.view.canvas(next?.id))
+        navigate(routes.view.studio('canvas', next?.id))
         return
       }
       void reconcileRemoteChange().catch((err) => {
@@ -188,7 +188,7 @@ function useCanvasDocPersistence(workspaceId: string, docId: string) {
         if (disposed) return
         if (!doc) {
           // Stale/deleted doc id in the route — fall back to auto-selection
-          navigate(routes.view.canvas())
+          navigate(routes.view.studio('canvas'))
           return
         }
         applyDoc(doc, 'load')
@@ -357,7 +357,7 @@ function CanvasEmptyState({ workspaceId }: { workspaceId: string }) {
       const doc = await window.electronAPI.canvasCreate(workspaceId, {
         name: t('canvas.defaultDocName'),
       })
-      navigate(routes.view.canvas(doc.id))
+      navigate(routes.view.studio('canvas', doc.id))
     } catch (err) {
       console.error('[Canvas] Failed to create canvas doc:', err)
       setCreating(false)
@@ -395,7 +395,7 @@ export default function CanvasPage({ workspaceId, docId }: CanvasPageProps) {
   useEffect(() => {
     if (docId || !workspaceId || !docs) return
     const mostRecent = mostRecentCanvasDoc(docs)
-    if (mostRecent) navigate(routes.view.canvas(mostRecent.id))
+    if (mostRecent) navigate(routes.view.studio('canvas', mostRecent.id))
   }, [docId, workspaceId, docs])
 
   if (!docId) {

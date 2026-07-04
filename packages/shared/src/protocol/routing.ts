@@ -406,6 +406,8 @@ export const REMOTE_ELIGIBLE_CHANNELS = new Set<string>([
   RPC_CHANNELS.gamestudio.CREATE,
   RPC_CHANNELS.gamestudio.UPDATE,
   RPC_CHANNELS.gamestudio.DELETE,
+  RPC_CHANNELS.gamestudio.CHECKPOINT,
+  RPC_CHANNELS.gamestudio.RESTORE,
   RPC_CHANNELS.gamestudio.CHANGED,
 
   // design, design projects are workspace content

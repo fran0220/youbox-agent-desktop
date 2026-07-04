@@ -28,18 +28,9 @@ describe('isDetailNavState', () => {
     expect(isDetailNavState({ navigator: 'automations', details: { type: 'automation', automationId: 'a' } })).toBe(true)
   })
 
-  it('canvas: always content-focused (no navigator list to fall back to)', () => {
-    expect(isDetailNavState({ navigator: 'canvas', details: null })).toBe(true)
-    expect(isDetailNavState({ navigator: 'canvas', details: { type: 'doc', docId: 'd1' } })).toBe(true)
-  })
-
-  it('gamestudio: always content-focused (no navigator list to fall back to)', () => {
-    expect(isDetailNavState({ navigator: 'gamestudio', details: null })).toBe(true)
-    expect(isDetailNavState({ navigator: 'gamestudio', details: { type: 'project', projectId: 'p1' } })).toBe(true)
-  })
-
-  it('design: always content-focused (no navigator list to fall back to)', () => {
-    expect(isDetailNavState({ navigator: 'design', details: null })).toBe(true)
-    expect(isDetailNavState({ navigator: 'design', details: { type: 'project', projectId: 'p1' } })).toBe(true)
+  it('studio: always content-focused (no navigator list to fall back to)', () => {
+    expect(isDetailNavState({ navigator: 'studio', kind: null, details: null })).toBe(true)
+    expect(isDetailNavState({ navigator: 'studio', kind: 'canvas', details: null })).toBe(true)
+    expect(isDetailNavState({ navigator: 'studio', kind: 'game', details: { type: 'artifact', artifactId: 'p1' } })).toBe(true)
   })
 })

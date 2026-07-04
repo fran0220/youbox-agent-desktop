@@ -17,6 +17,7 @@
   "apiSetup.temporaryCredentials": "For temporary credentials (STS)",
   "appMode.canvas": "Canvas",
   "appMode.design": "Design",
+  "appMode.studio": "Studio",
   "appMode.gamestudio": "Game Studio",
   "appMode.switcher": "App mode",
   "appMode.work": "Work",

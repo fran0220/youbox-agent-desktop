@@ -17,6 +17,7 @@
   "apiSetup.temporaryCredentials": "一時的な認証情報 (STS) の場合",
   "appMode.canvas": "キャンバス",
   "appMode.design": "デザイン",
+  "appMode.studio": "スタジオ",
   "appMode.gamestudio": "ゲームスタジオ",
   "appMode.switcher": "アプリモード",
   "appMode.work": "仕事",

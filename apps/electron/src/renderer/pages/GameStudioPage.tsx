@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
 import { useAtom, useAtomValue, useStore } from 'jotai'
 import { useTranslation } from 'react-i18next'
 import { formatDistanceToNowStrict } from 'date-fns'
 import type { Locale } from 'date-fns'
-import { Check, ChevronDown, MessageSquare, Pencil, Play, Plus, Square, Trash2, X } from 'lucide-react'
+import { Bug, Camera, Check, ChevronDown, FolderOpen, Maximize2, MessageSquare, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Wand2, X } from 'lucide-react'
 import { getDateLocale } from '@craft-agent/shared/i18n'
 import { Button } from '@/components/ui/button'
+import { useAppShellContext } from '@/context/AppShellContext'
+import ChatPage from './ChatPage'
 import {
   createPendingGameProjectRename,
   gamestudioProjectsAtom,
@@ -16,7 +18,7 @@ import {
 } from '@/atoms/gamestudio'
 import { navigate, routes } from '@/lib/navigate'
 import { cn } from '@/lib/utils'
-import type { GameProjectMeta } from '@craft-agent/shared/protocol'
+import type { GamePaneEvent, GameProjectMeta } from '@craft-agent/shared/protocol'
 
 const SPLIT_STORAGE_KEY = 'gamestudio.previewSplitRatio'
 const DEFAULT_PREVIEW_RATIO = 0.68
@@ -133,7 +135,7 @@ function ProjectPickerOverlay({
       })
       setConfirmDeleteId(null)
       setPendingRename(createPendingGameProjectRename(project))
-      navigate(routes.view.gamestudio(project.id))
+      navigate(routes.view.studio('game', project.id))
     } catch (err) {
       console.error('[GameStudio] Failed to create project:', err)
     } finally {
@@ -153,12 +155,12 @@ function ProjectPickerOverlay({
     }
     if (projectId === currentProjectId) {
       const next = mostRecentGameProject(remaining)
-      navigate(routes.view.gamestudio(next?.id))
+      navigate(routes.view.studio('game', next?.id))
     }
   }
 
   const handleSwitch = (projectId: string) => {
-    if (projectId !== currentProjectId) navigate(routes.view.gamestudio(projectId))
+    if (projectId !== currentProjectId) navigate(routes.view.studio('game', projectId))
     onClose()
   }
 
@@ -282,18 +284,33 @@ export interface GameStudioPageProps {
 
 function GameStudioEmptyState({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation()
+  const { workspaces } = useAppShellContext()
   const [creating, setCreating] = useState(false)
+  const [prompt, setPrompt] = useState('')
   const creatingRef = useRef(false)
 
-  const handleCreate = async () => {
+  const workspaceRoot = workspaces.find((workspace) => workspace.id === workspaceId)?.rootPath
+
+  const handleCreate = async (templatePrompt?: string) => {
     if (creatingRef.current) return
     creatingRef.current = true
     setCreating(true)
     try {
+      const finalPrompt = (templatePrompt ?? prompt).trim()
       const project = await window.electronAPI.gameProjectCreate(workspaceId, {
-        name: t('gamestudio.defaultProjectName'),
+        name: finalPrompt ? finalPrompt.slice(0, 48) : t('gamestudio.defaultProjectName'),
       })
-      navigate(routes.view.gamestudio(project.id))
+      if (finalPrompt) {
+        const projectDir = workspaceRoot ? `${workspaceRoot.replace(/\/$/, '')}/gamestudio/${project.id}` : undefined
+        const session = await window.electronAPI.createSession(workspaceId, {
+          name: project.name,
+          labels: ['gamestudio'],
+          workingDirectory: projectDir,
+        })
+        await window.electronAPI.gameProjectUpdate(workspaceId, project.id, { sessionId: session.id })
+        await window.electronAPI.sendMessage(session.id, buildInitialGamePrompt(finalPrompt))
+      }
+      navigate(routes.view.studio('game', project.id))
     } catch (err) {
       console.error('[GameStudio] Failed to create project:', err)
     } finally {
@@ -303,16 +320,43 @@ function GameStudioEmptyState({ workspaceId }: { workspaceId: string }) {
   }
 
   return (
-    <div className="flex h-full w-full select-none flex-col items-center justify-center gap-3 text-center">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-medium text-foreground">{t('gamestudio.createFirst.title')}</h2>
-        <p className="max-w-sm text-xs text-muted-foreground">{t('gamestudio.createFirst.description')}</p>
+    <div className="flex h-full w-full select-none flex-col items-center justify-center bg-[#070914] p-8 text-center text-white">
+      <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(34,211,238,.18)_1px,transparent_1px),linear-gradient(90deg,rgba(168,85,247,.16)_1px,transparent_1px)] [background-size:32px_32px]" />
+      <div className="relative flex w-full max-w-3xl flex-col gap-5 rounded-3xl border border-cyan-300/20 bg-slate-950/80 p-6 shadow-[0_0_60px_rgba(34,211,238,.18)]">
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-300">Game Studio</div>
+          <h2 className="text-3xl font-semibold tracking-tight">{t('gamestudio.createFirst.title')}</h2>
+          <p className="mx-auto max-w-xl text-sm text-slate-300">{t('gamestudio.createFirst.description')}</p>
+        </div>
+        <textarea
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          placeholder="Make a low-poly cyberpunk hover racer with boost pads, obstacles, score, and gamepad-like controls…"
+          className="min-h-32 resize-none rounded-2xl border border-cyan-300/20 bg-black/40 p-4 text-left text-sm text-white outline-none ring-cyan-300/30 placeholder:text-slate-500 focus:ring-4"
+        />
+        <div className="flex flex-wrap justify-center gap-2">
+          {['Arcade snake with neon trails', 'First-person maze shooter', 'Cozy platformer with coins', 'Low-poly racing prototype', 'Physics puzzle sandbox'].map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => setPrompt(chip)}
+              className="rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-xs text-violet-100 hover:bg-violet-400/20"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+        <Button size="lg" disabled={creating} onClick={() => void handleCreate()} className="mx-auto gap-2">
+          <Wand2 className="h-4 w-4" />
+          {t('gamestudio.createFirst.button')}
+        </Button>
       </div>
-      <Button size="sm" disabled={creating} onClick={() => void handleCreate()}>
-        {t('gamestudio.createFirst.button')}
-      </Button>
     </div>
   )
+}
+
+function buildInitialGamePrompt(prompt: string): string {
+  return `Create this browser game in the current Game Studio project. Use only local files and vendored dependencies already in the project; do not use external CDNs. Keep the game playable in index.html/src/main.js and make frequent checkpoints when a playable version works.\n\nGame request:\n${prompt}`
 }
 
 function GameStudioProjectShell({
@@ -329,11 +373,141 @@ function GameStudioProjectShell({
   setPickerOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const { t } = useTranslation()
+  const { workspaces } = useAppShellContext()
   const [previewRatio, setPreviewRatio] = useState(readPreviewRatio)
+  const [paneState, setPaneState] = useState<'starting' | 'ready' | 'error'>('starting')
+  const [consoleOpen, setConsoleOpen] = useState(false)
+  const [consoleEvents, setConsoleEvents] = useState<GamePaneEvent[]>([])
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [busyAction, setBusyAction] = useState<string | null>(null)
+  const previewRef = useRef<HTMLDivElement | null>(null)
   const currentProject = useMemo(
     () => projects.find((project) => project.id === projectId) ?? null,
     [projects, projectId],
   )
+  const workspaceRoot = workspaces.find((workspace) => workspace.id === workspaceId)?.rootPath
+  const projectDir = workspaceRoot ? `${workspaceRoot.replace(/\/$/, '')}/gamestudio/${projectId}` : null
+
+  useEffect(() => {
+    setSessionId(currentProject?.sessionId ?? null)
+  }, [currentProject?.sessionId])
+
+  const syncBounds = useCallback(() => {
+    const rect = previewRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const consoleReserve = consoleOpen ? Math.min(188, Math.max(0, rect.height - 120)) : 0
+    void window.electronAPI.gamePane.setBounds(projectId, {
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height - consoleReserve,
+    })
+  }, [consoleOpen, projectId])
+
+  useLayoutEffect(() => {
+    const node = previewRef.current
+    if (!node) return
+    const observer = new ResizeObserver(syncBounds)
+    observer.observe(node)
+    window.addEventListener('resize', syncBounds)
+    syncBounds()
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', syncBounds)
+    }
+  }, [syncBounds, previewRatio])
+
+  useEffect(() => {
+    let disposed = false
+    setPaneState('starting')
+    void window.electronAPI.gamePane.start(workspaceId, projectId).then(() => {
+      if (!disposed) {
+        setPaneState('ready')
+        syncBounds()
+      }
+    }).catch((err) => {
+      console.error('[GameStudio] Failed to start preview:', err)
+      if (!disposed) setPaneState('error')
+    })
+    return () => {
+      disposed = true
+      void window.electronAPI.gamePane.setVisible(projectId, false)
+      void window.electronAPI.gamePane.stop(projectId)
+    }
+  }, [projectId, syncBounds, workspaceId])
+
+  useEffect(() => {
+    return window.electronAPI.gamePane.onEvent((event) => {
+      if (event.projectId !== projectId) return
+      if (event.type === 'state' && event.payload.state === 'ready') setPaneState('ready')
+      if (event.type === 'console' || event.type === 'crashed' || event.type === 'unresponsive' || event.type === 'load-failed') {
+        setConsoleEvents((prev) => [...prev.slice(-99), event])
+        if (event.type !== 'console' || event.payload.level === 'error') setConsoleOpen(true)
+        if (event.type === 'console' && event.payload.level === 'error') {
+          void window.electronAPI.gameProjectUpdate(workspaceId, projectId, { lastError: event.payload.message }).catch(() => {})
+        }
+      }
+    })
+  }, [projectId, workspaceId])
+
+  useEffect(() => {
+    return window.electronAPI.onGameProjectChanged((event) => {
+      if (event.workspaceId !== workspaceId || event.projectId !== projectId || event.kind !== 'files') return
+      void window.electronAPI.gamePane.reload(projectId)
+    })
+  }, [projectId, workspaceId])
+
+  const ensureSession = useCallback(async (): Promise<string> => {
+    if (sessionId) return sessionId
+    const session = await window.electronAPI.createSession(workspaceId, {
+      name: currentProject?.name ?? t('appMode.gamestudio'),
+      labels: ['gamestudio'],
+      workingDirectory: projectDir ?? undefined,
+    })
+    setSessionId(session.id)
+    await window.electronAPI.gameProjectUpdate(workspaceId, projectId, { sessionId: session.id })
+    return session.id
+  }, [currentProject?.name, projectDir, projectId, sessionId, t, workspaceId])
+
+  const recentErrors = useMemo(() => consoleEvents
+    .filter((event) => event.type !== 'state')
+    .slice(-8)
+    .map((event) => {
+      if (event.type === 'console') return `[${event.payload.level}] ${event.payload.message}${event.payload.source ? ` (${event.payload.source}:${event.payload.line ?? 0})` : ''}`
+      return `[${event.type}] ${JSON.stringify(event.payload ?? {})}`
+    })
+    .join('\n'), [consoleEvents])
+
+  const sendFixToAgent = useCallback(async () => {
+    setBusyAction('fix')
+    try {
+      const sid = await ensureSession()
+      await window.electronAPI.sendMessage(sid, `The Game Studio preview failed. Fix the project files in place and keep dependencies local.\n\nRecent runtime events:\n${recentErrors || '(no console details)'}`)
+    } finally {
+      setBusyAction(null)
+    }
+  }, [ensureSession, recentErrors])
+
+  const captureCheckpoint = useCallback(async () => {
+    setBusyAction('capture')
+    try {
+      const dataUrl = await window.electronAPI.gamePane.capture(projectId)
+      if (dataUrl) await window.electronAPI.gameProjectUpdate(workspaceId, projectId, { thumbnailPath: dataUrl })
+      await window.electronAPI.gameProjectCheckpoint(workspaceId, projectId, true)
+    } finally {
+      setBusyAction(null)
+    }
+  }, [projectId, workspaceId])
+
+  const restorePlayable = useCallback(async () => {
+    setBusyAction('restore')
+    try {
+      await window.electronAPI.gameProjectRestore(workspaceId, projectId)
+      await window.electronAPI.gamePane.reload(projectId)
+    } finally {
+      setBusyAction(null)
+    }
+  }, [projectId, workspaceId])
 
   const startDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
     const container = event.currentTarget.parentElement
@@ -356,16 +530,16 @@ function GameStudioProjectShell({
   }, [])
 
   return (
-    <div key={projectId} className="relative flex h-full w-full overflow-hidden bg-background">
+    <div key={projectId} className="relative flex h-full w-full overflow-hidden bg-[#070914] text-slate-100">
       <div
-        className="flex min-w-0 flex-col border-r border-border/70"
+        className="flex min-w-0 flex-col border-r border-cyan-300/20"
         style={{ width: `${previewRatio * 100}%` }}
       >
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-border bg-card/60 px-3">
+        <div className="flex h-11 shrink-0 items-center justify-between border-b border-cyan-300/20 bg-slate-950/90 px-3 shadow-[0_0_24px_rgba(34,211,238,.12)]">
           <Button
             variant="ghost"
             size="sm"
-            className="min-w-0 gap-2"
+            className="min-w-0 gap-2 text-cyan-100 hover:bg-cyan-300/10 hover:text-white"
             onClick={() => setPickerOpen(true)}
             title={t('gamestudio.toolbar.switchProject')}
           >
@@ -373,42 +547,69 @@ function GameStudioProjectShell({
             <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-70" />
           </Button>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" disabled title={t('gamestudio.toolbar.run')}>
-              <Play className="mr-1.5 h-3.5 w-3.5" />
-              {t('gamestudio.toolbar.run')}
+            <Button variant="ghost" size="sm" onClick={() => void window.electronAPI.gamePane.reload(projectId)} title="Reload">
+              <RefreshCw className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="sm" disabled title={t('gamestudio.toolbar.stop')}>
-              <Square className="mr-1.5 h-3.5 w-3.5" />
-              {t('gamestudio.toolbar.stop')}
+            <Button variant="ghost" size="sm" onClick={() => void document.documentElement.requestFullscreen?.()} title="Fullscreen">
+              <Maximize2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" disabled={busyAction === 'capture'} onClick={() => void captureCheckpoint()} title="Screenshot + checkpoint">
+              <Camera className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="ghost" size="sm" disabled={!projectDir} onClick={() => projectDir && void window.electronAPI.showInFolder(projectDir)} title="Open project folder">
+              <FolderOpen className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
 
-        <div className="relative flex min-h-0 flex-1 items-center justify-center bg-muted/20">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <div className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-              {t('gamestudio.preview.statusIdle')}
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+          <div ref={previewRef} className="absolute inset-0" />
+          {paneState !== 'ready' && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-950 text-center">
+              <div className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-medium text-cyan-100">
+                {paneState === 'error' ? 'Preview failed' : 'Booting preview…'}
+              </div>
+              <p className="max-w-xs text-sm text-slate-400">{t('gamestudio.preview.runPrompt')}</p>
             </div>
-            <p className="max-w-xs text-sm text-muted-foreground">{t('gamestudio.preview.runPrompt')}</p>
-          </div>
+          )}
+          {consoleOpen && (
+            <div className="absolute inset-x-3 bottom-3 z-20 max-h-44 overflow-hidden rounded-xl border border-orange-300/30 bg-slate-950/95 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-white/10 px-3 py-2 text-xs text-orange-100">
+                <span className="flex items-center gap-2"><Bug className="h-3.5 w-3.5" /> Runtime console</span>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" className="h-7" disabled={busyAction === 'fix'} onClick={() => void sendFixToAgent()}>Fix with agent</Button>
+                  <Button variant="ghost" size="sm" className="h-7" disabled={busyAction === 'restore'} onClick={() => void restorePlayable()}><RotateCcw className="h-3.5 w-3.5" /></Button>
+                  <button type="button" onClick={() => setConsoleOpen(false)}><X className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+              <pre className="max-h-28 overflow-auto whitespace-pre-wrap p-3 text-left text-[11px] leading-relaxed text-slate-300">{recentErrors || 'No runtime errors yet.'}</pre>
+            </div>
+          )}
         </div>
       </div>
 
       <div
         role="separator"
         aria-orientation="vertical"
-        className="z-10 w-1.5 cursor-col-resize bg-border/50 transition-colors hover:bg-primary/60"
+        className="z-10 w-1.5 cursor-col-resize bg-cyan-300/20 transition-colors hover:bg-cyan-300/60"
         onPointerDown={startDrag}
       />
 
-      <aside className="flex min-w-64 flex-1 flex-col bg-card/40">
-        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3 text-sm font-medium text-foreground">
+      <aside className="flex min-w-64 flex-1 flex-col bg-slate-950/80">
+        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-cyan-300/20 px-3 text-sm font-medium text-slate-100">
+          <div className="flex items-center gap-2">
           <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          {t('gamestudio.chat.placeholderTitle')}
+            {sessionId ? currentProject?.name : t('gamestudio.chat.placeholderTitle')}
+          </div>
+          {!sessionId && (
+            <Button size="sm" variant="ghost" onClick={() => void ensureSession()}>Attach agent</Button>
+          )}
         </div>
-        <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
-          {t('gamestudio.chat.placeholderDescription')}
-        </div>
+        {sessionId ? <ChatPage sessionId={sessionId} /> : (
+          <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-slate-400">
+            {t('gamestudio.chat.placeholderDescription')}
+          </div>
+        )}
       </aside>
 
       {pickerOpen && (
@@ -434,7 +635,7 @@ export default function GameStudioPage({ workspaceId, projectId }: GameStudioPag
   useEffect(() => {
     if (projectId || !workspaceId || !projects) return
     const mostRecent = mostRecentGameProject(projects)
-    if (mostRecent) navigate(routes.view.gamestudio(mostRecent.id))
+    if (mostRecent) navigate(routes.view.studio('game', mostRecent.id))
   }, [projectId, workspaceId, projects])
 
   // Stale/deleted project id fallback, mirroring CanvasPage. The page never
@@ -448,11 +649,11 @@ export default function GameStudioPage({ workspaceId, projectId }: GameStudioPag
       if (event.kind === 'deleted') {
         const remaining = (store.get(gamestudioProjectsAtom) ?? []).filter((p) => p.id !== projectId)
         const next = mostRecentGameProject(remaining)
-        navigate(routes.view.gamestudio(next?.id))
+        navigate(routes.view.studio('game', next?.id))
       }
     })
     window.electronAPI.gameProjectGet(workspaceId, projectId).then((project) => {
-      if (!disposed && !project) navigate(routes.view.gamestudio())
+      if (!disposed && !project) navigate(routes.view.studio('game'))
     }).catch((err) => {
       console.error('[GameStudio] Failed to load project:', err)
     })

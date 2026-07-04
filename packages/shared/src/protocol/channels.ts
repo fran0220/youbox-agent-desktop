@@ -293,6 +293,8 @@ export const RPC_CHANNELS = {
     CREATE: 'gamestudio:create',
     UPDATE: 'gamestudio:update',
     DELETE: 'gamestudio:delete',
+    CHECKPOINT: 'gamestudio:checkpoint',
+    RESTORE: 'gamestudio:restore',
     CHANGED: 'gamestudio:changed',
   },
   gamePane: {
@@ -303,6 +305,9 @@ export const RPC_CHANNELS = {
     SET_VISIBLE: 'gamePane:setVisible',
     CAPTURE: 'gamePane:capture',
     EVENT: 'gamePane:event',
+  },
+  studio: {
+    LIST_RECENTS: 'studio:listRecents',
   },
   design: {
     LIST: 'design:list',

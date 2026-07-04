@@ -17,6 +17,7 @@
   "apiSetup.temporaryCredentials": "Ideiglenes hitelesítő adatokhoz (STS)",
   "appMode.canvas": "Vászon",
   "appMode.design": "Tervezés",
+  "appMode.studio": "Stúdió",
   "appMode.gamestudio": "Játékstúdió",
   "appMode.switcher": "Alkalmazásmód",
   "appMode.work": "Munka",

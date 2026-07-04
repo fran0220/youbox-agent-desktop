@@ -17,6 +17,7 @@
   "apiSetup.temporaryCredentials": "Dla tymczasowych danych uwierzytelniających (STS)",
   "appMode.canvas": "Kanwa",
   "appMode.design": "Projektowanie",
+  "appMode.studio": "Studio",
   "appMode.gamestudio": "Studio gier",
   "appMode.switcher": "Tryb aplikacji",
   "appMode.work": "Praca",

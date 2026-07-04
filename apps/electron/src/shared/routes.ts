@@ -177,23 +177,21 @@ export const routes = {
     automationsAgentic: (automationId?: string) =>
       automationId ? `automations/agentic/automation/${automationId}` as const : 'automations/agentic' as const,
 
-    /** Canvas view (canvas navigator). Pass a doc id for a specific canvas document. */
-    canvas: (docId?: string) => {
-      if (!docId) return 'canvas' as const
-      return `canvas/doc/${docId}` as const
+    /** Studio view. Pass a kind and artifact id for a specific Studio artifact. */
+    studio: (kind?: 'canvas' | 'design' | 'game', artifactId?: string) => {
+      if (!kind) return 'studio' as const
+      if (!artifactId) return `studio/${kind}` as const
+      return `studio/${kind}/${artifactId}` as const
     },
 
-    /** Game Studio view (gamestudio navigator). Pass a project id for a specific project. */
-    gamestudio: (projectId?: string) => {
-      if (!projectId) return 'gamestudio' as const
-      return `gamestudio/project/${projectId}` as const
-    },
+    /** @deprecated Use routes.view.studio('canvas', docId). */
+    canvas: (docId?: string) => routes.view.studio('canvas', docId),
 
-    /** Design view (design navigator). Pass a project id for a specific project. */
-    design: (projectId?: string) => {
-      if (!projectId) return 'design' as const
-      return `design/project/${projectId}` as const
-    },
+    /** @deprecated Use routes.view.studio('game', projectId). */
+    gamestudio: (projectId?: string) => routes.view.studio('game', projectId),
+
+    /** @deprecated Use routes.view.studio('design', projectId). */
+    design: (projectId?: string) => routes.view.studio('design', projectId),
 
     /** Settings view (settings navigator) - uses SettingsSubpage from registry */
     settings: (subpage?: SettingsSubpage) =>

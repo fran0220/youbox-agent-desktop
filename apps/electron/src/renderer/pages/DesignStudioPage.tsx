@@ -279,7 +279,7 @@ function DesignProjectGallery({
     try {
       const project = await window.electronAPI.designProjectCreate(workspaceId, input)
       setPendingRename(createPendingDesignProjectRename(project))
-      navigate(routes.view.design(project.id))
+      navigate(routes.view.studio('design', project.id))
       onOpenProject?.()
       setCreateFlowOpen(false)
     } catch (err) {
@@ -318,7 +318,7 @@ function DesignProjectGallery({
       })
       await refreshProjects()
       if (targetId === currentProjectId) {
-        navigate(routes.view.design())
+        navigate(routes.view.studio('design'))
       }
     } catch (err) {
       toast.error(t('design.error.delete'), {
@@ -331,13 +331,13 @@ function DesignProjectGallery({
       }
       if (targetId === currentProjectId) {
         const next = mostRecentDesignProject(remaining)
-        navigate(routes.view.design(next?.id))
+        navigate(routes.view.studio('design', next?.id))
       }
     }
   }
 
   const openProject = (id: string) => {
-    navigate(routes.view.design(id))
+    navigate(routes.view.studio('design', id))
     onOpenProject?.()
   }
 
@@ -503,7 +503,7 @@ function DesignEmptyState({ workspaceId }: { workspaceId: string }) {
     try {
       const project = await window.electronAPI.designProjectCreate(workspaceId, input)
       setPendingRename(createPendingDesignProjectRename(project))
-      navigate(routes.view.design(project.id))
+      navigate(routes.view.studio('design', project.id))
       setCreateFlowOpen(false)
     } catch (err) {
       toast.error(t('design.error.create'), {
@@ -825,7 +825,7 @@ export default function DesignStudioPage({ workspaceId, projectId }: DesignStudi
   useEffect(() => {
     if (projectId || !workspaceId || !projects) return
     const mostRecent = mostRecentDesignProject(projects)
-    if (mostRecent) navigate(routes.view.design(mostRecent.id))
+    if (mostRecent) navigate(routes.view.studio('design', mostRecent.id))
   }, [projectId, workspaceId, projects])
 
   useEffect(() => {
@@ -836,11 +836,11 @@ export default function DesignStudioPage({ workspaceId, projectId }: DesignStudi
       if (event.kind === 'deleted') {
         const remaining = (store.get(designProjectsAtom) ?? []).filter((p) => p.id !== projectId)
         const next = mostRecentDesignProject(remaining)
-        navigate(routes.view.design(next?.id))
+        navigate(routes.view.studio('design', next?.id))
       }
     })
     window.electronAPI.designProjectGet(workspaceId, projectId).then((project) => {
-      if (!disposed && !project) navigate(routes.view.design())
+      if (!disposed && !project) navigate(routes.view.studio('design'))
     }).catch((err) => {
       console.error('[Design] Failed to load project:', err)
     })

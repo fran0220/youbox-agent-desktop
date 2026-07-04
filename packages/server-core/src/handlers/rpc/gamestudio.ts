@@ -7,10 +7,12 @@ import { pushTyped, type RpcServer } from '@craft-agent/server-core/transport'
 import type { PlatformServices } from '../../runtime/platform'
 import type { HandlerDeps } from '../handler-deps'
 import {
+  checkpointGameProject,
   createGameProject,
   deleteGameProject,
   listGameProjects,
   loadGameProject,
+  restoreGameProject,
   updateGameProject,
 } from '../../gamestudio/game-project-storage'
 
@@ -20,6 +22,8 @@ export const HANDLED_CHANNELS = [
   RPC_CHANNELS.gamestudio.CREATE,
   RPC_CHANNELS.gamestudio.UPDATE,
   RPC_CHANNELS.gamestudio.DELETE,
+  RPC_CHANNELS.gamestudio.CHECKPOINT,
+  RPC_CHANNELS.gamestudio.RESTORE,
 ] as const
 
 export function registerGameStudioHandlers(server: RpcServer, deps: HandlerDeps): void {
@@ -78,6 +82,24 @@ export function registerGameStudioHandlers(server: RpcServer, deps: HandlerDeps)
       log.info(`GAMESTUDIO_DELETE: Deleted game project ${projectId} in workspace ${workspaceId}`)
       broadcastChanged(workspaceId, projectId, 'deleted')
     }
+  })
+
+  server.handle(RPC_CHANNELS.gamestudio.CHECKPOINT, async (_ctx, workspaceId: string, projectId: string, playable?: boolean) => {
+    const workspace = getWorkspaceByNameOrId(workspaceId)
+    if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`)
+
+    const result = await checkpointGameProject(workspace.rootPath, projectId, !!playable)
+    if (result.commit) broadcastChanged(workspaceId, projectId, 'updated')
+    return result
+  })
+
+  server.handle(RPC_CHANNELS.gamestudio.RESTORE, async (_ctx, workspaceId: string, projectId: string) => {
+    const workspace = getWorkspaceByNameOrId(workspaceId)
+    if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`)
+
+    const project = await restoreGameProject(workspace.rootPath, projectId)
+    if (project) broadcastChanged(workspaceId, projectId, 'updated')
+    return project
   })
 }
 

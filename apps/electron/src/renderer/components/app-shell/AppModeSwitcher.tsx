@@ -1,7 +1,7 @@
 /**
  * AppModeSwitcher - Registry-driven top-level mode switcher for the TopBar
  *
- * Renders every entry of the `app-modes` registry (work | canvas | ...) as a
+ * Renders every entry of the `app-modes` registry (work | studio) as a
  * centered segmented control. The active mode is DERIVED from the current
  * navigation state via getAppModeForNavigation — there is no local mode state.
  * Clicking a mode navigates to that mode's default route, so back/forward
@@ -35,9 +35,7 @@ import {
 /** Maps registry icon identifiers to lucide-react components (renderer-only concern). */
 const MODE_ICONS: Record<AppModeIconId, LucideIcon> = {
   briefcase: Icons.Briefcase,
-  palette: Icons.Palette,
-  'gamepad-2': Icons.Gamepad2,
-  'pen-tool': Icons.PenTool,
+  sparkles: Icons.Sparkles,
 }
 
 /** Breathing room required around the segmented control before degrading to a dropdown. */
