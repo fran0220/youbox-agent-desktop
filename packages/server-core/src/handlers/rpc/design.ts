@@ -1,7 +1,10 @@
+import { existsSync } from 'fs'
+import { join } from 'path'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
 import type { DesignProjectChangedKind, DesignProjectCreateInput, DesignProjectUpdateInput } from '@craft-agent/shared/protocol'
 import { getWorkspaceByNameOrId } from '@craft-agent/shared/config'
 import { pushTyped, type RpcServer } from '@craft-agent/server-core/transport'
+import type { PlatformServices } from '../../runtime/platform'
 import type { HandlerDeps } from '../handler-deps'
 import {
   createDesignProject,
@@ -48,7 +51,10 @@ export function registerDesignHandlers(server: RpcServer, deps: HandlerDeps): vo
     const workspace = getWorkspaceByNameOrId(workspaceId)
     if (!workspace) throw new Error(`Workspace not found: ${workspaceId}`)
 
-    const project = await createDesignProject(workspace.rootPath, input ?? {})
+    const createInput = input ?? {}
+    const project = await createDesignProject(workspace.rootPath, createInput, {
+      resourcesRoot: createInput.templateId || createInput.designSystemId ? resolveDesignResourcesRoot(deps.platform) : undefined,
+    })
     log.info(`DESIGN_CREATE: Created design project ${project.id} in workspace ${workspaceId}`)
     broadcastChanged(workspaceId, project.id, 'created')
     return project
@@ -74,4 +80,38 @@ export function registerDesignHandlers(server: RpcServer, deps: HandlerDeps): vo
       broadcastChanged(workspaceId, projectId, 'deleted')
     }
   })
+}
+
+function uniqueCandidates(candidates: string[]): string[] {
+  return [...new Set(candidates)]
+}
+
+export function getDesignResourcesRootCandidates(platform: Pick<PlatformServices, 'appRootPath' | 'resourcesPath' | 'isPackaged'>): string[] {
+  return uniqueCandidates(platform.isPackaged
+    ? [
+        join(platform.appRootPath, 'dist', 'resources'),
+        join(platform.appRootPath, 'resources'),
+        join(platform.resourcesPath, 'app', 'dist', 'resources'),
+        join(platform.resourcesPath, 'app', 'resources'),
+      ]
+    : [
+        join(platform.appRootPath, 'apps', 'electron', 'resources'),
+        join(platform.appRootPath, 'apps', 'electron', 'dist', 'resources'),
+        join(platform.appRootPath, 'resources'),
+        join(platform.appRootPath, 'dist', 'resources'),
+        join(process.cwd(), 'apps', 'electron', 'resources'),
+        join(process.cwd(), 'apps', 'electron', 'dist', 'resources'),
+      ])
+}
+
+export function resolveDesignResourcesRoot(
+  platform: PlatformServices,
+  pathExists: (path: string) => boolean = existsSync,
+): string {
+  const candidates = getDesignResourcesRootCandidates(platform)
+  const match = candidates.find(candidate => pathExists(join(candidate, 'design', 'manifest.json')))
+  if (!match) {
+    throw new Error(`Design resources not found. Tried: ${candidates.join(', ')}`)
+  }
+  return match
 }

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'bun:test'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { RPC_CHANNELS } from '@craft-agent/shared/protocol'
@@ -7,7 +7,7 @@ import type { PushTarget } from '@craft-agent/shared/protocol'
 import type { HandlerFn, RequestContext, RpcServer } from '../../transport/types'
 import type { HandlerDeps } from '../handler-deps'
 import { getDesignProjectDir } from '../../design/design-project-storage'
-import { HANDLED_CHANNELS, registerDesignHandlers } from './design'
+import { getDesignResourcesRootCandidates, registerDesignHandlers, resolveDesignResourcesRoot, HANDLED_CHANNELS } from './design'
 
 const WORKSPACE_ID = 'ws-design-test'
 
@@ -28,6 +28,7 @@ beforeAll(() => {
     llmConnections: [],
   }))
   process.env.CRAFT_CONFIG_DIR = configDir
+  writeResourcesFixture(join(appRoot, 'apps', 'electron', 'resources'))
 })
 
 afterAll(() => {
@@ -69,6 +70,39 @@ function createHarness() {
   } as unknown as HandlerDeps
   registerDesignHandlers(server, deps)
   return { handlers, pushes }
+}
+
+function writeResourcesFixture(resourcesRoot: string) {
+  const designRoot = join(resourcesRoot, 'design')
+  const templateDir = join(designRoot, 'templates', 'deck-template')
+  const systemDir = join(designRoot, 'design-systems', 'system-one')
+  mkdirSync(join(templateDir, 'slides'), { recursive: true })
+  mkdirSync(systemDir, { recursive: true })
+  writeFileSync(join(templateDir, 'template.json'), JSON.stringify({
+    id: 'deck-template',
+    name: 'Deck Template',
+    kind: 'deck',
+    entryFile: 'slides/index.html',
+    description: 'Deck fixture.',
+  }))
+  writeFileSync(join(templateDir, 'slides', 'index.html'), '<!doctype html><h1>RPC template slide</h1>')
+  writeFileSync(join(systemDir, 'DESIGN.md'), '# System One')
+  writeFileSync(join(designRoot, 'manifest.json'), JSON.stringify({
+    templates: [{
+      id: 'deck-template',
+      name: 'Deck Template',
+      kind: 'deck',
+      entryFile: 'slides/index.html',
+      description: 'Deck fixture.',
+    }],
+    designSystems: [{
+      id: 'system-one',
+      name: 'System One',
+      description: 'System fixture.',
+      path: 'design-systems/system-one/DESIGN.md',
+    }],
+    skills: [],
+  }))
 }
 
 function ctx(): RequestContext {
@@ -119,10 +153,54 @@ describe('design RPC handlers', () => {
     expect(h.pushes[2]!.args).toEqual([{ workspaceId: WORKSPACE_ID, projectId: project.id, kind: 'deleted' }])
   })
 
+  it('honors template and design-system ids server-side and rejects unknown ids cleanly', async () => {
+    const h = createHarness()
+    const create = h.handlers.get(RPC_CHANNELS.design.CREATE)!
+
+    const project = await create(ctx(), WORKSPACE_ID, {
+      name: 'Template RPC Design',
+      templateId: 'deck-template',
+      designSystemId: 'system-one',
+    })
+    const projectDir = getDesignProjectDir(wsRoot, project.id)
+    expect(project.kind).toBe('deck')
+    expect(project.entryFile).toBe('slides/index.html')
+    expect(project.templateId).toBe('deck-template')
+    expect(project.designSystemId).toBe('system-one')
+    expect(readFileSync(join(projectDir, 'slides', 'index.html'), 'utf-8')).toContain('RPC template slide')
+    expect(readFileSync(join(projectDir, 'DESIGN.md'), 'utf-8')).toBe('# System One')
+
+    await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', templateId: 'missing-template' })).rejects.toThrow('Unknown design template id')
+    await expect(create(ctx(), WORKSPACE_ID, { name: 'Bad', designSystemId: 'missing-system' })).rejects.toThrow('Unknown design system id')
+    expect(existsSync(join(wsRoot, 'design', 'missing-template'))).toBe(false)
+  })
+
   it('does not broadcast for read-only operations', async () => {
     const h = createHarness()
     await h.handlers.get(RPC_CHANNELS.design.LIST)!(ctx(), WORKSPACE_ID)
     await h.handlers.get(RPC_CHANNELS.design.GET)!(ctx(), WORKSPACE_ID, 'missing-id')
     expect(h.pushes).toEqual([])
+  })
+})
+
+describe('resolveDesignResourcesRoot', () => {
+  it('uses the same packaged and development candidate matrix as bundled resources', () => {
+    const appRootPath = '/Applications/OriginAI.app/Contents/Resources/app'
+    expect(getDesignResourcesRootCandidates({
+      appRootPath,
+      resourcesPath: '/Applications/OriginAI.app/Contents/Resources',
+      isPackaged: true,
+    })).toEqual([
+      join(appRootPath, 'dist', 'resources'),
+      join(appRootPath, 'resources'),
+    ])
+  })
+
+  it('resolves a development resources directory containing design/manifest.json', () => {
+    expect(resolveDesignResourcesRoot({
+      appRootPath: appRoot,
+      resourcesPath: appRoot,
+      isPackaged: false,
+    } as HandlerDeps['platform'])).toBe(join(appRoot, 'apps', 'electron', 'resources'))
   })
 })

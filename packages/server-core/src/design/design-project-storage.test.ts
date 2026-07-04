@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import {
@@ -15,14 +15,53 @@ import {
 } from './design-project-storage'
 
 let wsRoot: string
+let resourcesRoot: string
 
 beforeEach(() => {
   wsRoot = mkdtempSync(join(tmpdir(), 'design-project-storage-test-'))
+  resourcesRoot = mkdtempSync(join(tmpdir(), 'design-project-resources-test-'))
+  writeDesignResourcesFixture(resourcesRoot)
 })
 
 afterEach(() => {
   rmSync(wsRoot, { recursive: true, force: true })
+  rmSync(resourcesRoot, { recursive: true, force: true })
 })
+
+function writeDesignResourcesFixture(root: string) {
+  const designRoot = join(root, 'design')
+  const templateDir = join(designRoot, 'templates', 'deck-template')
+  const systemDir = join(designRoot, 'design-systems', 'system-one')
+  mkdirSync(join(templateDir, 'slides'), { recursive: true })
+  mkdirSync(join(templateDir, 'assets'), { recursive: true })
+  mkdirSync(systemDir, { recursive: true })
+  writeFileSync(join(templateDir, 'template.json'), JSON.stringify({
+    id: 'deck-template',
+    name: 'Deck Template',
+    kind: 'deck',
+    entryFile: 'slides/index.html',
+    description: 'A deck template.',
+  }))
+  writeFileSync(join(templateDir, 'slides', 'index.html'), '<!doctype html><h1>Template first slide</h1>')
+  writeFileSync(join(templateDir, 'assets', 'theme.css'), 'body{color:rebeccapurple}')
+  writeFileSync(join(systemDir, 'DESIGN.md'), '# System One\n\nUse sharp layouts.')
+  writeFileSync(join(designRoot, 'manifest.json'), JSON.stringify({
+    templates: [{
+      id: 'deck-template',
+      name: 'Deck Template',
+      kind: 'deck',
+      entryFile: 'slides/index.html',
+      description: 'A deck template.',
+    }],
+    designSystems: [{
+      id: 'system-one',
+      name: 'System One',
+      description: 'System fixture.',
+      path: 'design-systems/system-one/DESIGN.md',
+    }],
+    skills: [],
+  }))
+}
 
 describe('design project storage paths', () => {
   it('places projects under <workspace>/design/<projectId>', () => {
@@ -74,6 +113,38 @@ describe('design project scaffold and CRUD', () => {
   it('create accepts an explicit artifact kind', async () => {
     const project = await createDesignProject(wsRoot, { name: 'Pitch Deck', kind: 'deck' })
     expect(project.kind).toBe('deck')
+  })
+
+  it('copies template files and records template metadata when templateId is provided', async () => {
+    const project = await createDesignProject(wsRoot, { name: 'From Template', templateId: 'deck-template' }, { resourcesRoot })
+    const projectDir = getDesignProjectDir(wsRoot, project.id)
+
+    expect(project.kind).toBe('deck')
+    expect(project.entryFile).toBe('slides/index.html')
+    expect(project.templateId).toBe('deck-template')
+    expect(project.designSystemId).toBeNull()
+    expect(readFileSync(join(projectDir, 'slides', 'index.html'), 'utf-8')).toContain('Template first slide')
+    expect(readFileSync(join(projectDir, 'assets', 'theme.css'), 'utf-8')).toContain('rebeccapurple')
+    expect(readFileSync(getDesignProjectMetaPath(wsRoot, project.id), 'utf-8')).toContain('"templateId": "deck-template"')
+    expect(readFileSync(join(projectDir, project.entryFile), 'utf-8')).not.toContain('Design project ready')
+  })
+
+  it('copies selected design system DESIGN.md and omits it when none is selected', async () => {
+    const withSystem = await createDesignProject(wsRoot, { name: 'With System', designSystemId: 'system-one' }, { resourcesRoot })
+    const withoutSystem = await createDesignProject(wsRoot, { name: 'No System' }, { resourcesRoot })
+
+    expect(withSystem.designSystemId).toBe('system-one')
+    expect(readFileSync(join(getDesignProjectDir(wsRoot, withSystem.id), 'DESIGN.md'), 'utf-8')).toBe('# System One\n\nUse sharp layouts.')
+    expect(withoutSystem.designSystemId).toBeNull()
+    expect(existsSync(join(getDesignProjectDir(wsRoot, withoutSystem.id), 'DESIGN.md'))).toBe(false)
+  })
+
+  it('rejects unknown template and design-system ids without leaving partial project directories', async () => {
+    await expect(createDesignProject(wsRoot, { name: 'Bad Template', templateId: 'missing-template' }, { resourcesRoot })).rejects.toThrow('Unknown design template id')
+    await expect(createDesignProject(wsRoot, { name: 'Bad System', designSystemId: 'missing-system' }, { resourcesRoot })).rejects.toThrow('Unknown design system id')
+    await expect(createDesignProject(wsRoot, { name: 'Traversal', templateId: '../escape' }, { resourcesRoot })).rejects.toThrow('Invalid design template id')
+
+    expect(existsSync(getWorkspaceDesignDir(wsRoot))).toBe(false)
   })
 
   it('load returns the created project, get missing returns null, and list returns metas sorted by updatedAt desc', async () => {

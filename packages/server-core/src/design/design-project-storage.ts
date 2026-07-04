@@ -11,7 +11,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from 'fs'
-import { mkdir, rename, rm, unlink, writeFile } from 'fs/promises'
+import { copyFile, cp, mkdir, rename, rm, unlink, writeFile } from 'fs/promises'
 import { randomUUID } from 'crypto'
 import { basename, dirname, join } from 'path'
 import type {
@@ -28,6 +28,30 @@ export interface StoredDesignProject extends DesignProject {
   schemaVersion: number
 }
 
+export interface DesignProjectStorageOptions {
+  resourcesRoot?: string
+}
+
+interface DesignTemplateManifest {
+  id: string
+  name: string
+  kind: DesignArtifactKind
+  entryFile: string
+  description: string
+}
+
+interface DesignSystemManifest {
+  id: string
+  name: string
+  description: string
+  path: string
+}
+
+interface DesignContentManifest {
+  templates: DesignTemplateManifest[]
+  designSystems: DesignSystemManifest[]
+}
+
 const DOC_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 const DESIGN_ARTIFACT_KINDS = new Set<DesignArtifactKind>(['prototype', 'deck', 'doc', 'image'])
 
@@ -39,6 +63,12 @@ function assertValidProjectId(projectId: string): void {
 
 function normalizeKind(kind: unknown): DesignArtifactKind {
   return DESIGN_ARTIFACT_KINDS.has(kind as DesignArtifactKind) ? kind as DesignArtifactKind : 'prototype'
+}
+
+function assertValidContentId(id: string, label: string): void {
+  if (!id || typeof id !== 'string' || basename(id) !== id || !DOC_ID_PATTERN.test(id)) {
+    throw new Error(`Invalid design ${label} id: ${JSON.stringify(id)}`)
+  }
 }
 
 export function getWorkspaceDesignDir(workspaceRootPath: string): string {
@@ -154,40 +184,114 @@ export function listDesignProjects(workspaceRootPath: string): DesignProjectMeta
   return metas.sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
-async function scaffoldProject(projectDir: string): Promise<void> {
+async function scaffoldBlankProject(projectDir: string): Promise<void> {
   await mkdir(join(projectDir, 'assets'), { recursive: true })
   await writeFile(join(projectDir, 'index.html'), DESIGN_PROJECT_INDEX_HTML, 'utf-8')
+}
+
+function readContentManifest(resourcesRoot: string): DesignContentManifest {
+  const manifestPath = join(resourcesRoot, 'design', 'manifest.json')
+  const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8')) as Partial<DesignContentManifest>
+  return {
+    templates: Array.isArray(parsed.templates) ? parsed.templates as DesignTemplateManifest[] : [],
+    designSystems: Array.isArray(parsed.designSystems) ? parsed.designSystems as DesignSystemManifest[] : [],
+  }
+}
+
+function requireResourcesRoot(options: DesignProjectStorageOptions, reason: string): string {
+  if (!options.resourcesRoot) throw new Error(`Design resources root is required to ${reason}`)
+  return options.resourcesRoot
+}
+
+function resolveTemplate(resourcesRoot: string, templateId: string): DesignTemplateManifest {
+  assertValidContentId(templateId, 'template')
+  const manifest = readContentManifest(resourcesRoot)
+  const template = manifest.templates.find(item => item.id === templateId)
+  if (!template) throw new Error(`Unknown design template id: ${templateId}`)
+  if (template.id !== templateId) throw new Error(`Invalid design template manifest id: ${templateId}`)
+  if (!DESIGN_ARTIFACT_KINDS.has(template.kind)) throw new Error(`Invalid design template kind: ${template.kind}`)
+  if (!template.entryFile || template.entryFile.startsWith('/') || template.entryFile.split(/[\\/]/).includes('..')) {
+    throw new Error(`Invalid design template entry file: ${template.entryFile}`)
+  }
+  const templateDir = join(resourcesRoot, 'design', 'templates', templateId)
+  const templateJson = JSON.parse(readFileSync(join(templateDir, 'template.json'), 'utf-8')) as DesignTemplateManifest
+  if (templateJson.id !== template.id || templateJson.entryFile !== template.entryFile || templateJson.kind !== template.kind) {
+    throw new Error(`Design template manifest mismatch: ${templateId}`)
+  }
+  if (!existsSync(join(templateDir, template.entryFile))) {
+    throw new Error(`Design template entry file not found: ${templateId}/${template.entryFile}`)
+  }
+  return template
+}
+
+function resolveDesignSystem(resourcesRoot: string, designSystemId: string): DesignSystemManifest {
+  assertValidContentId(designSystemId, 'system')
+  const manifest = readContentManifest(resourcesRoot)
+  const designSystem = manifest.designSystems.find(item => item.id === designSystemId)
+  if (!designSystem) throw new Error(`Unknown design system id: ${designSystemId}`)
+  const designFile = join(resourcesRoot, 'design', designSystem.path)
+  if (!existsSync(designFile)) throw new Error(`Design system file not found: ${designSystemId}`)
+  return designSystem
+}
+
+async function scaffoldProject(
+  projectDir: string,
+  input: DesignProjectCreateInput,
+  options: DesignProjectStorageOptions,
+): Promise<{ kind: DesignArtifactKind; entryFile: string; templateId: string | null; designSystemId: string | null }> {
+  const templateId = input.templateId ?? null
+  const designSystemId = input.designSystemId ?? null
+  let kind = normalizeKind(input.kind)
+  let entryFile = 'index.html'
+  const template = templateId ? resolveTemplate(requireResourcesRoot(options, 'copy a design template'), templateId) : null
+  const designSystem = designSystemId ? resolveDesignSystem(requireResourcesRoot(options, 'copy a design system'), designSystemId) : null
+
+  if (template) {
+    kind = template.kind
+    entryFile = template.entryFile
+    await mkdir(projectDir, { recursive: true })
+    await cp(join(requireResourcesRoot(options, 'copy a design template'), 'design', 'templates', template.id), projectDir, { recursive: true })
+  } else {
+    await scaffoldBlankProject(projectDir)
+  }
+
+  if (designSystem) {
+    await copyFile(join(requireResourcesRoot(options, 'copy a design system'), 'design', designSystem.path), join(projectDir, 'DESIGN.md'))
+  }
+
+  return { kind, entryFile, templateId, designSystemId }
 }
 
 export async function createDesignProject(
   workspaceRootPath: string,
   input: DesignProjectCreateInput = {},
+  options: DesignProjectStorageOptions = {},
 ): Promise<DesignProject> {
   const projectId = randomUUID()
   const now = Date.now()
-  const project: DesignProject = {
-    id: projectId,
-    name: input.name ?? 'Untitled Design',
-    kind: normalizeKind(input.kind),
-    sessionId: null,
-    designSystemId: null,
-    templateId: null,
-    entryFile: 'index.html',
-    thumbnailPath: null,
-    createdAt: now,
-    updatedAt: now,
-    version: 1,
-  }
 
-  await writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
+  return writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
     const projectDir = getDesignProjectDir(workspaceRootPath, projectId)
-    await scaffoldProject(projectDir)
+    const scaffold = await scaffoldProject(projectDir, input, options)
+    const project: DesignProject = {
+      id: projectId,
+      name: input.name ?? 'Untitled Design',
+      kind: scaffold.kind,
+      sessionId: null,
+      designSystemId: scaffold.designSystemId,
+      templateId: scaffold.templateId,
+      entryFile: scaffold.entryFile,
+      thumbnailPath: null,
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    }
     await writeProjectFileAtomic(getDesignProjectMetaPath(workspaceRootPath, projectId), {
       schemaVersion: DESIGN_PROJECT_SCHEMA_VERSION,
       ...project,
     })
+    return project
   })
-  return project
 }
 
 export async function updateDesignProject(

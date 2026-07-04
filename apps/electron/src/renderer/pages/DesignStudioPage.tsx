@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { formatDistanceToNowStrict } from 'date-fns'
 import type { Locale } from 'date-fns'
-import { Check, LayoutGrid, Monitor, Pencil, PenTool, Plus, RefreshCw, Smartphone, Tablet, Trash2, X } from 'lucide-react'
+import { Check, FileText, LayoutGrid, Monitor, Pencil, PenTool, Plus, RefreshCw, Smartphone, Tablet, Trash2, X } from 'lucide-react'
 import { getDateLocale } from '@craft-agent/shared/i18n'
 import type { DesignProjectMeta } from '@craft-agent/shared/protocol'
+import designContentManifest from '../../../resources/design/manifest.json'
 import { Button } from '@/components/ui/button'
 import {
   buildDesignPreviewUrl,
@@ -24,6 +25,14 @@ import {
 } from '@/atoms/design'
 import { DesignChatPanel } from '@/components/design/DesignChatPanel'
 import { useActiveWorkspace } from '@/context/AppShellContext'
+import {
+  BLANK_DESIGN_TEMPLATE_ID,
+  NONE_DESIGN_SYSTEM_ID,
+  buildDesignProjectCreateInput,
+  createInitialDesignCreationState,
+  selectDesignCreationSystem,
+  selectDesignCreationTemplate,
+} from '@/lib/design-creation'
 import { createDesignPreviewRefreshScheduler, resolveDesignProjectDir } from '@/lib/design-chat'
 import { navigate, routes } from '@/lib/navigate'
 import { cn } from '@/lib/utils'
@@ -73,6 +82,149 @@ function useRefreshDesignProjects(workspaceId: string) {
   }
 }
 
+interface DesignTemplateOption {
+  id: string
+  name: string
+  description: string
+  kind?: string
+}
+
+interface DesignSystemOption {
+  id: string
+  name: string
+  description: string
+}
+
+const DESIGN_TEMPLATE_OPTIONS = designContentManifest.templates as DesignTemplateOption[]
+const DESIGN_SYSTEM_OPTIONS = designContentManifest.designSystems as DesignSystemOption[]
+
+function DesignCreationDialog({
+  creating,
+  onCancel,
+  onCreate,
+}: {
+  creating: boolean
+  onCancel: () => void
+  onCreate: (input: ReturnType<typeof buildDesignProjectCreateInput>) => Promise<void>
+}) {
+  const { t } = useTranslation()
+  const [state, setState] = useState(createInitialDesignCreationState)
+
+  const submit = async () => {
+    await onCreate(buildDesignProjectCreateInput(t('design.defaultProjectName'), state))
+  }
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30 p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="design-create-title"
+        className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-popover shadow-modal-small"
+      >
+        <div className="border-b border-border p-4">
+          <h3 id="design-create-title" className="text-sm font-medium text-foreground">
+            {t('design.createFlow.title')}
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">{t('design.createFlow.description')}</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="flex flex-col gap-5">
+            <section className="flex flex-col gap-2">
+              <div>
+                <h4 className="text-xs font-medium text-foreground">{t('design.createFlow.templateLabel')}</h4>
+                <p className="text-[11px] text-muted-foreground">{t('design.createFlow.templateDescription')}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  aria-pressed={state.templateId === BLANK_DESIGN_TEMPLATE_ID}
+                  onClick={() => setState(prev => selectDesignCreationTemplate(prev, BLANK_DESIGN_TEMPLATE_ID))}
+                  className={cn(
+                    'flex min-h-24 gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-foreground/20',
+                    state.templateId === BLANK_DESIGN_TEMPLATE_ID && 'border-primary/60 bg-primary/5',
+                  )}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                    <FileText className="h-4 w-4" strokeWidth={1.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-foreground">{t('design.createFlow.blankTemplate')}</div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">{t('design.createFlow.blankTemplateDescription')}</div>
+                  </div>
+                </button>
+                {DESIGN_TEMPLATE_OPTIONS.map(template => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    aria-pressed={state.templateId === template.id}
+                    onClick={() => setState(prev => selectDesignCreationTemplate(prev, template.id))}
+                    className={cn(
+                      'flex min-h-24 gap-3 rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-foreground/20',
+                      state.templateId === template.id && 'border-primary/60 bg-primary/5',
+                    )}
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <PenTool className="h-4 w-4" strokeWidth={1.5} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground" title={template.name}>{template.name}</div>
+                      <div className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{template.description}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+            <section className="flex flex-col gap-2">
+              <div>
+                <h4 className="text-xs font-medium text-foreground">{t('design.createFlow.designSystemLabel')}</h4>
+                <p className="text-[11px] text-muted-foreground">{t('design.createFlow.designSystemDescription')}</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  aria-pressed={state.designSystemId === NONE_DESIGN_SYSTEM_ID}
+                  onClick={() => setState(prev => selectDesignCreationSystem(prev, NONE_DESIGN_SYSTEM_ID))}
+                  className={cn(
+                    'rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-foreground/20',
+                    state.designSystemId === NONE_DESIGN_SYSTEM_ID && 'border-primary/60 bg-primary/5',
+                  )}
+                >
+                  <div className="text-sm font-medium text-foreground">{t('design.createFlow.noDesignSystem')}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{t('design.createFlow.noDesignSystemDescription')}</div>
+                </button>
+                {DESIGN_SYSTEM_OPTIONS.map(system => (
+                  <button
+                    key={system.id}
+                    type="button"
+                    aria-pressed={state.designSystemId === system.id}
+                    onClick={() => setState(prev => selectDesignCreationSystem(prev, system.id))}
+                    className={cn(
+                      'rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-foreground/20',
+                      state.designSystemId === system.id && 'border-primary/60 bg-primary/5',
+                    )}
+                  >
+                    <div className="truncate text-sm font-medium text-foreground" title={system.name}>{system.name}</div>
+                    <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">{system.description}</div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border p-4">
+          <Button variant="ghost" disabled={creating} onClick={onCancel}>
+            {t('common.cancel')}
+          </Button>
+          <Button disabled={creating} onClick={() => void submit()}>
+            {t('design.createFlow.create')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DesignProjectGallery({
   workspaceId,
   projects,
@@ -92,6 +244,7 @@ function DesignProjectGallery({
   const [pendingRename, setPendingRename] = useAtom(pendingDesignProjectRenameAtom)
   const setSessionIds = useSetAtom(designChatSessionIdsAtom)
   const [deleteTarget, setDeleteTarget] = useState<DesignProjectMeta | null>(null)
+  const [createFlowOpen, setCreateFlowOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const creatingRef = useRef(false)
   const refreshProjects = useRefreshDesignProjects(workspaceId)
@@ -118,17 +271,16 @@ function DesignProjectGallery({
     }
   }
 
-  const handleCreate = async () => {
+  const handleCreate = async (input: ReturnType<typeof buildDesignProjectCreateInput>) => {
     if (creatingRef.current) return
     creatingRef.current = true
     setCreating(true)
     try {
-      const project = await window.electronAPI.designProjectCreate(workspaceId, {
-        name: t('design.defaultProjectName'),
-      })
+      const project = await window.electronAPI.designProjectCreate(workspaceId, input)
       setPendingRename(createPendingDesignProjectRename(project))
       navigate(routes.view.design(project.id))
       onOpenProject?.()
+      setCreateFlowOpen(false)
     } catch (err) {
       toast.error(t('design.error.create'), {
         description: err instanceof Error ? err.message : undefined,
@@ -191,7 +343,7 @@ function DesignProjectGallery({
           <h2 className="truncate text-sm font-medium text-foreground">{t('design.gallery.title')}</h2>
           <p className="truncate text-xs text-muted-foreground">{t('design.gallery.description')}</p>
         </div>
-        <Button size="sm" disabled={creating} onClick={() => void handleCreate()}>
+        <Button size="sm" disabled={creating} onClick={() => setCreateFlowOpen(true)}>
           <Plus className="mr-1.5 h-3.5 w-3.5" />
           {t('design.gallery.create')}
         </Button>
@@ -316,6 +468,13 @@ function DesignProjectGallery({
           </div>
         </div>
       )}
+      {createFlowOpen && (
+        <DesignCreationDialog
+          creating={creating}
+          onCancel={() => setCreateFlowOpen(false)}
+          onCreate={handleCreate}
+        />
+      )}
     </div>
   )
 }
@@ -323,19 +482,19 @@ function DesignProjectGallery({
 function DesignEmptyState({ workspaceId }: { workspaceId: string }) {
   const { t } = useTranslation()
   const setPendingRename = useSetAtom(pendingDesignProjectRenameAtom)
+  const [createFlowOpen, setCreateFlowOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const creatingRef = useRef(false)
 
-  const handleCreate = async () => {
+  const handleCreate = async (input: ReturnType<typeof buildDesignProjectCreateInput>) => {
     if (creatingRef.current) return
     creatingRef.current = true
     setCreating(true)
     try {
-      const project = await window.electronAPI.designProjectCreate(workspaceId, {
-        name: t('design.defaultProjectName'),
-      })
+      const project = await window.electronAPI.designProjectCreate(workspaceId, input)
       setPendingRename(createPendingDesignProjectRename(project))
       navigate(routes.view.design(project.id))
+      setCreateFlowOpen(false)
     } catch (err) {
       toast.error(t('design.error.create'), {
         description: err instanceof Error ? err.message : undefined,
@@ -355,9 +514,16 @@ function DesignEmptyState({ workspaceId }: { workspaceId: string }) {
         <h2 className="text-sm font-medium text-foreground">{t('design.createFirst.title')}</h2>
         <p className="max-w-sm text-xs text-muted-foreground">{t('design.createFirst.description')}</p>
       </div>
-      <Button size="sm" disabled={creating} onClick={() => void handleCreate()}>
+      <Button size="sm" disabled={creating} onClick={() => setCreateFlowOpen(true)}>
         {t('design.createFirst.button')}
       </Button>
+      {createFlowOpen && (
+        <DesignCreationDialog
+          creating={creating}
+          onCancel={() => setCreateFlowOpen(false)}
+          onCreate={handleCreate}
+        />
+      )}
     </div>
   )
 }
