@@ -40,7 +40,12 @@ async function arm(baseUrl: string, playbook: string): Promise<string> {
 }
 
 async function chat(baseUrl: string, runId: string, body: Record<string, unknown> = {}): Promise<any> {
-  const response = await postJson(baseUrl, '/llm/v1/chat/completions', { model: 'mock-model', ...body }, { 'x-mock-gateway-run-id': runId });
+  const response = await postJson(
+    baseUrl,
+    '/llm/v1/chat/completions',
+    { model: 'mock-model', tools: [{ type: 'function', function: { name: 'write' } }], ...body },
+    { 'x-mock-gateway-run-id': runId },
+  );
   expect(response.status).toBe(200);
   return response.json();
 }
@@ -48,8 +53,8 @@ async function chat(baseUrl: string, runId: string, body: Record<string, unknown
 async function applyWriteToolCalls(projectDir: string, toolCalls: any[]): Promise<void> {
   for (const toolCall of toolCalls) {
     expect(toolCall.type).toBe('function');
-    const args = JSON.parse(toolCall.function.arguments) as { file_path: string; content: string };
-    const target = path.resolve(projectDir, args.file_path);
+    const args = JSON.parse(toolCall.function.arguments) as { path: string; content: string };
+    const target = path.resolve(projectDir, args.path);
     if (!target.startsWith(`${projectDir}${path.sep}`) && target !== projectDir) continue;
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, args.content);
@@ -85,6 +90,10 @@ describe('validation mock gateway playbooks', () => {
     expect(writeTurn.choices[0].finish_reason).toBe('tool_calls');
     expect(writeTurn.choices[0].message.tool_calls[0].function.name).toBe('write');
     expect(writeTurn.choices[0].message.tool_calls[0].function.arguments).toContain('index.html');
+    expect(JSON.parse(writeTurn.choices[0].message.tool_calls[0].function.arguments)).toMatchObject({
+      path: 'index.html',
+    });
+    expect(JSON.parse(writeTurn.choices[0].message.tool_calls[0].function.arguments)).not.toHaveProperty('file_path');
 
     const echoRunId = await arm(baseUrl, 'echo-context');
     const echoTurn = await chat(baseUrl, echoRunId);
@@ -114,6 +123,80 @@ describe('validation mock gateway playbooks', () => {
     expect(written).toContain('MOCK-WRITE-ENTRY-FILE');
   });
 
+  it('uses Pi-compatible write tool arguments for rapid and outside-project playbooks', async () => {
+    const { baseUrl } = startServer();
+
+    const rapidRunId = await arm(baseUrl, 'rapid-writes');
+    const rapidTurn = await chat(baseUrl, rapidRunId);
+    const rapidCalls = rapidTurn.choices[0].message.tool_calls;
+    expect(rapidCalls).toHaveLength(4);
+    expect(rapidCalls.map((call: any) => call.function.name)).toEqual(['write', 'write', 'write', 'write']);
+    const rapidArgs = rapidCalls.map((call: any) => JSON.parse(call.function.arguments));
+    expect(rapidArgs.every((args: any) => typeof args.path === 'string')).toBe(true);
+    expect(rapidArgs.every((args: any) => !('file_path' in args))).toBe(true);
+    expect(rapidArgs.at(-1)).toMatchObject({
+      path: 'index.html',
+      content: '<h1>MOCK-RAPID-WRITE-FINAL</h1>',
+    });
+
+    const outsideRunId = await arm(baseUrl, 'write-outside-project');
+    const outsideTurn = await chat(baseUrl, outsideRunId);
+    const outsideArgs = JSON.parse(outsideTurn.choices[0].message.tool_calls[0].function.arguments);
+    expect(outsideTurn.choices[0].message.tool_calls[0].function.name).toBe('write');
+    expect(outsideArgs).toMatchObject({
+      path: '/tmp/originai-validation-outside-project.html',
+    });
+    expect(outsideArgs).not.toHaveProperty('file_path');
+  });
+
+  it('does not consume armed playbook turns for non-agent completion requests', async () => {
+    const { baseUrl } = startServer();
+    const runId = await arm(baseUrl, 'write-entry-file');
+
+    const noTools = await postJson(
+      baseUrl,
+      '/llm/v1/chat/completions',
+      { model: 'mock-model', messages: [{ role: 'user', content: 'title request' }] },
+      { 'x-mock-gateway-run-id': runId },
+    );
+    expect(noTools.status).toBe(200);
+    expect((await noTools.json() as any).choices[0].message.content).toContain('MOCK-LLM-RESPONSE');
+
+    const emptyTools = await postJson(
+      baseUrl,
+      '/llm/v1/chat/completions',
+      { model: 'mock-model', tools: [] },
+      { 'x-mock-gateway-run-id': runId },
+    );
+    expect(emptyTools.status).toBe(200);
+    expect((await emptyTools.json() as any).choices[0].message.content).toContain('MOCK-LLM-RESPONSE');
+
+    const captures = await fetch(`${baseUrl}/control/captures?runId=${encodeURIComponent(runId)}`);
+    const capturesBody = await captures.json() as any;
+    expect(capturesBody.runs[0].nextTurnIndex).toBe(0);
+    expect(capturesBody.runs[0].captures.map((capture: any) => capture.turnIndex)).toEqual([null, null]);
+
+    const agentTurn = await chat(baseUrl, runId);
+    expect(agentTurn.choices[0].finish_reason).toBe('tool_calls');
+    const agentArgs = JSON.parse(agentTurn.choices[0].message.tool_calls[0].function.arguments);
+    expect(agentArgs.path).toBe('index.html');
+  });
+
+  it('generates unique automatic tool-call ids across separately armed runs', async () => {
+    const { baseUrl } = startServer();
+
+    const firstRunId = await arm(baseUrl, 'write-entry-file');
+    const firstTurn = await chat(baseUrl, firstRunId);
+    const firstCallId = firstTurn.choices[0].message.tool_calls[0].id;
+
+    const secondRunId = await arm(baseUrl, 'rapid-writes');
+    const secondTurn = await chat(baseUrl, secondRunId);
+    const secondCallIds = secondTurn.choices[0].message.tool_calls.map((call: any) => call.id);
+
+    expect(secondCallIds).not.toContain(firstCallId);
+    expect(new Set([firstCallId, ...secondCallIds]).size).toBe(1 + secondCallIds.length);
+  });
+
   it('captures every chat completion payload retrievably per run', async () => {
     const { baseUrl } = startServer();
     const runId = await arm(baseUrl, 'echo-context');
@@ -138,7 +221,7 @@ describe('validation mock gateway playbooks', () => {
     const response = await postJson(
       baseUrl,
       '/llm/v1/chat/completions',
-      { model: 'mock-model', stream: true },
+      { model: 'mock-model', stream: true, tools: [{ type: 'function', function: { name: 'write' } }] },
       { 'x-mock-gateway-run-id': runId },
     );
     expect(response.status).toBe(200);

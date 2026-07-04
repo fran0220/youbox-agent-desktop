@@ -54,6 +54,7 @@ type RunState = {
 type ChatCompletionRequest = {
   stream?: boolean;
   model?: string;
+  tools?: unknown[];
 };
 
 const PORT = Number(process.argv[2] ?? 8899);
@@ -72,7 +73,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
           {
             name: 'write',
             arguments: {
-              file_path: 'index.html',
+              path: 'index.html',
               content: '<!doctype html><html><body><h1>MOCK-WRITE-ENTRY-FILE</h1></body></html>',
             },
           },
@@ -87,9 +88,10 @@ export const PLAYBOOKS: Record<string, Playbook> = {
       {
         type: 'tool_calls',
         toolCalls: [
-          { name: 'write', arguments: { file_path: 'index.html', content: '<h1>MOCK-RAPID-WRITE-1</h1>' } },
-          { name: 'write', arguments: { file_path: 'assets/rapid-a.txt', content: 'rapid-a' } },
-          { name: 'write', arguments: { file_path: 'assets/rapid-b.txt', content: 'rapid-b' } },
+          { name: 'write', arguments: { path: 'assets/rapid-a.txt', content: 'rapid-a' } },
+          { name: 'write', arguments: { path: 'assets/rapid-b.txt', content: 'rapid-b' } },
+          { name: 'write', arguments: { path: 'assets/rapid-c.txt', content: 'rapid-c' } },
+          { name: 'write', arguments: { path: 'index.html', content: '<h1>MOCK-RAPID-WRITE-FINAL</h1>' } },
         ],
       },
       { type: 'text', text: 'Completed rapid writes.' },
@@ -104,7 +106,7 @@ export const PLAYBOOKS: Record<string, Playbook> = {
           {
             name: 'write',
             arguments: {
-              file_path: '/tmp/originai-validation-outside-project.html',
+              path: '/tmp/originai-validation-outside-project.html',
               content: '<h1>SHOULD-NOT-BE-WRITTEN-BY-DESIGN-SESSION</h1>',
             },
           },
@@ -168,13 +170,13 @@ function sseDone(): Uint8Array {
   return encoder.encode('data: [DONE]\n\n');
 }
 
-function makeToolCalls(turn: ToolCallTurn, turnIndex: number): Array<{
+function makeToolCalls(turn: ToolCallTurn, runId: string | null, turnIndex: number): Array<{
   id: string;
   type: 'function';
   function: { name: string; arguments: string };
 }> {
   return turn.toolCalls.map((toolCall, index) => ({
-    id: toolCall.id ?? `call_mock_${turnIndex}_${index}`,
+    id: toolCall.id ?? `call_mock_${runId ?? 'default'}_${turnIndex}_${index}`,
     type: 'function',
     function: {
       name: toolCall.name,
@@ -204,7 +206,7 @@ function toolCallCompletion(turn: ToolCallTurn, model: string, runId: string | n
     choices: [
       {
         index: 0,
-        message: { role: 'assistant', content: null, tool_calls: makeToolCalls(turn, turnIndex) },
+        message: { role: 'assistant', content: null, tool_calls: makeToolCalls(turn, runId, turnIndex) },
         finish_reason: 'tool_calls',
       },
     ],
@@ -236,7 +238,7 @@ function streamToolCalls(turn: ToolCallTurn, model: string, runId: string | null
   const body = new ReadableStream({
     start(controller) {
       controller.enqueue(sseChunk(model, id, { role: 'assistant' }, null));
-      controller.enqueue(sseChunk(model, id, { tool_calls: makeToolCalls(turn, turnIndex).map((call, index) => ({ index, ...call })) }, null));
+      controller.enqueue(sseChunk(model, id, { tool_calls: makeToolCalls(turn, runId, turnIndex).map((call, index) => ({ index, ...call })) }, null));
       controller.enqueue(sseChunk(model, id, {}, 'tool_calls'));
       controller.enqueue(sseDone());
       controller.close();
@@ -362,8 +364,9 @@ export function createMockGatewayHandler(
     if (p === '/llm/v1/chat/completions' && req.method === 'POST') {
       const payload = (await req.json().catch(() => ({}))) as ChatCompletionRequest;
       const run = selectedRun(req);
-      const turnIndex = run ? run.nextTurnIndex : null;
-      if (run && turnIndex !== null) {
+      const isAgentRequest = Array.isArray(payload.tools) && payload.tools.length > 0;
+      const turnIndex = run && isAgentRequest ? run.nextTurnIndex : null;
+      if (run) {
         run.captures.push({
           id: `capture-${run.captures.length + 1}`,
           runId: run.runId,
@@ -373,7 +376,7 @@ export function createMockGatewayHandler(
           payload,
         });
       }
-      if (!run) return fallbackCompletion(payload.stream === true, payload.model ?? 'mock-model');
+      if (!run || !isAgentRequest) return fallbackCompletion(payload.stream === true, payload.model ?? 'mock-model');
 
       const turn = run.playbook.turns[run.nextTurnIndex] ?? run.playbook.turns[run.playbook.turns.length - 1];
       run.nextTurnIndex += 1;
