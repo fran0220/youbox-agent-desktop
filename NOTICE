@@ -11,5 +11,11 @@ Commercial Terms of Service: https://www.anthropic.com/legal/commercial-terms
 
 ---
 
+This product includes curated design content from open-design:
+https://github.com/nexu-io/open-design
+Licensed under Apache-2.0.
+
+---
+
 Third-party dependencies are listed in package.json files and are subject
 to their respective licenses.

@@ -1,0 +1,156 @@
+{
+  "templates": [
+    {
+      "id": "guizang-ppt",
+      "name": "Guizang Editorial Deck",
+      "kind": "deck",
+      "entryFile": "assets/template.html",
+      "description": "Trimmed editorial presentation template from open-design, retaining the core HTML deck and reference layout guides."
+    },
+    {
+      "id": "html-ppt",
+      "name": "HTML PPT Deck",
+      "kind": "deck",
+      "entryFile": "templates/deck.html",
+      "description": "Trimmed zero-build HTML presentation kit with core runtime, layouts, animations, and selected themes."
+    },
+    {
+      "id": "blank-prototype",
+      "name": "Blank Prototype",
+      "kind": "prototype",
+      "entryFile": "index.html",
+      "description": "Minimal in-house responsive HTML prototype starter for design explorations."
+    },
+    {
+      "id": "blank-doc",
+      "name": "Blank Document",
+      "kind": "doc",
+      "entryFile": "index.html",
+      "description": "Minimal in-house document starter with readable typography and print-friendly layout."
+    }
+  ],
+  "designSystems": [
+    {
+      "id": "arc",
+      "name": "Arc Browser",
+      "description": "Translucent browser-inspired UI with warm gradients, frosted panels, and sidebar-first composition.",
+      "path": "design-systems/arc/DESIGN.md"
+    },
+    {
+      "id": "canva",
+      "name": "Canva",
+      "description": "Friendly creator-tool system with approachable color, practical hierarchy, and template-first composition.",
+      "path": "design-systems/canva/DESIGN.md"
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "description": "Cheerful AI community style with sunshine yellow accents, crisp borders, and dense technical layouts.",
+      "path": "design-systems/huggingface/DESIGN.md"
+    },
+    {
+      "id": "mistral-ai",
+      "name": "Mistral AI",
+      "description": "Research-grade AI product language with restrained palette, confident type, and technical clarity.",
+      "path": "design-systems/mistral-ai/DESIGN.md"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "description": "Calm document-product system emphasizing neutral surfaces, editorial hierarchy, and flexible blocks.",
+      "path": "design-systems/notion/DESIGN.md"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "description": "Answer-engine interface language with refined search surfaces, citation density, and cool minimalism.",
+      "path": "design-systems/perplexity/DESIGN.md"
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "description": "Polished developer-commerce aesthetic with gradients, precise grid, and crisp product storytelling.",
+      "path": "design-systems/stripe/DESIGN.md"
+    },
+    {
+      "id": "vercel",
+      "name": "Vercel",
+      "description": "Monochrome deployment-product system with sharp typography, spacious rhythm, and developer focus.",
+      "path": "design-systems/vercel/DESIGN.md"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI",
+      "description": "Quiet AI product language with warm neutrals, generous whitespace, and research-oriented restraint.",
+      "path": "design-systems/openai/DESIGN.md"
+    },
+    {
+      "id": "material",
+      "name": "Material",
+      "description": "General product system with clear components, familiar affordances, and accessible token guidance.",
+      "path": "design-systems/material/DESIGN.md"
+    },
+    {
+      "id": "neobrutalism",
+      "name": "Neo Brutalism",
+      "description": "High-contrast expressive product style with thick borders, offset shadows, and playful structure.",
+      "path": "design-systems/neobrutalism/DESIGN.md"
+    },
+    {
+      "id": "editorial",
+      "name": "Editorial",
+      "description": "Magazine-inspired system for refined serif hierarchy, structured grids, and long-form presentation.",
+      "path": "design-systems/editorial/DESIGN.md"
+    }
+  ],
+  "skills": [
+    {
+      "slug": "impeccable-design-polish",
+      "name": "Impeccable Design Polish",
+      "description": "Audit, critique, polish, animate, and harden an existing HTML design artifact.",
+      "path": "skills/impeccable-design-polish/SKILL.md"
+    },
+    {
+      "slug": "design-brief",
+      "name": "Design Brief Parser",
+      "description": "Turn vague visual requests into structured palette, typography, layout, mood, and constraint specs.",
+      "path": "skills/design-brief/SKILL.md"
+    },
+    {
+      "slug": "emilkowalski-motion",
+      "name": "Emil Kowalski Motion",
+      "description": "Add restrained, useful interaction motion to existing interfaces without creating animation clutter.",
+      "path": "skills/emilkowalski-motion/SKILL.md"
+    },
+    {
+      "slug": "gpt-tasteskill",
+      "name": "GPT Taste Skill",
+      "description": "Apply a high-taste visual quality bar to web artifacts, especially hierarchy, spacing, and composition.",
+      "path": "skills/gpt-tasteskill/SKILL.md"
+    },
+    {
+      "slug": "brutalist-skill",
+      "name": "Brutalist Interface Skill",
+      "description": "Create bold brutalist web interfaces with intentional contrast, layout tension, and usable roughness.",
+      "path": "skills/brutalist-skill/SKILL.md"
+    },
+    {
+      "slug": "minimalist-skill",
+      "name": "Minimalist Interface Skill",
+      "description": "Create restrained minimalist interfaces with strong whitespace, quiet hierarchy, and functional clarity.",
+      "path": "skills/minimalist-skill/SKILL.md"
+    },
+    {
+      "slug": "frontend-design",
+      "name": "Frontend Design Skill",
+      "description": "Design and implement polished front-end pages with strong information architecture and responsive detail.",
+      "path": "skills/frontend-design/SKILL.md"
+    },
+    {
+      "slug": "web-design-guidelines",
+      "name": "Web Design Guidelines",
+      "description": "Use practical web design rules for accessible layout, typography, color, content, and interaction polish.",
+      "path": "skills/web-design-guidelines/SKILL.md"
+    }
+  ]
+}

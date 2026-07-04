@@ -1,0 +1,7 @@
+{
+  "id": "guizang-ppt",
+  "name": "Guizang Editorial Deck",
+  "kind": "deck",
+  "entryFile": "assets/template.html",
+  "description": "Trimmed editorial presentation template from open-design, retaining the core HTML deck and reference layout guides."
+}

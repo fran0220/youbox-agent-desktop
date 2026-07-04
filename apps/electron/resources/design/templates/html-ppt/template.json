@@ -1,0 +1,7 @@
+{
+  "id": "html-ppt",
+  "name": "HTML PPT Deck",
+  "kind": "deck",
+  "entryFile": "templates/deck.html",
+  "description": "Trimmed zero-build HTML presentation kit with core runtime, layouts, animations, and selected themes."
+}

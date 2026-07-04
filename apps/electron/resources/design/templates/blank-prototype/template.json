@@ -1,0 +1,7 @@
+{
+  "id": "blank-prototype",
+  "name": "Blank Prototype",
+  "kind": "prototype",
+  "entryFile": "index.html",
+  "description": "Minimal in-house responsive HTML prototype starter for design explorations."
+}

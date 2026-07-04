@@ -1,0 +1,7 @@
+{
+  "id": "blank-doc",
+  "name": "Blank Document",
+  "kind": "doc",
+  "entryFile": "index.html",
+  "description": "Minimal in-house document starter with readable typography and print-friendly layout."
+}
