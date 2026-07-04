@@ -48,4 +48,14 @@ describe('design protocol wiring', () => {
     expect(src).not.toContain('decodeURIComponent')
     expect(src).not.toContain("join(workspaceRoot")
   })
+
+  it('returns a graceful missing-artifact page for missing preview entries', () => {
+    const src = readFileSync(DESIGN_PROTOCOL_PATH, 'utf8')
+
+    expect(src).toContain('const body = status === 404 ? missingArtifactHtml() : null')
+    expect(src).toContain('<title>Artifact missing</title>')
+    expect(src).toContain('<h1>Artifact not found</h1>')
+    expect(src).toContain('The entry file is missing. Restore it, then refresh the preview.')
+    expect(src).toContain("'Content-Type': 'text/html'")
+  })
 })

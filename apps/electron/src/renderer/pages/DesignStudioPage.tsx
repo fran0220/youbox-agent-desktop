@@ -553,7 +553,7 @@ const DESIGN_DEVICE_OPTIONS: Array<{ id: DesignPrototypeDevice; icon: typeof Mon
   { id: 'mobile', icon: Smartphone },
 ]
 
-function DesignPreviewStage({
+export function DesignPreviewStage({
   workspaceId,
   project,
   reloadToken,

@@ -12,12 +12,14 @@ describe('design preview stage source wiring', () => {
     expect(src).toContain('buildDesignPreviewUrl(')
     expect(src).toContain('sandbox="allow-scripts allow-same-origin"')
     expect(src).not.toContain('allow-top-navigation')
+    expect(src).not.toContain('allow-top-navigation-by-user-activation')
   })
 
   it('keeps manual refresh and kind-specific stage controls wired', () => {
     const src = readFileSync(DESIGN_PAGE_PATH, 'utf8')
 
     expect(src).toContain("t('design.preview.refresh')")
+    expect(src).toContain('onClick={onRefresh}')
     expect(src).toContain('createDesignPreviewRefreshScheduler')
     expect(src).toContain('onProjectFileWrite={previewRefreshScheduler.schedule}')
     expect(src).toContain("project.kind === 'deck'")
