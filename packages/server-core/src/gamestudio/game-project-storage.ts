@@ -12,8 +12,10 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync } from 'fs'
-import { copyFile, mkdir, rename, rm, unlink, writeFile } from 'fs/promises'
+import { copyFile, cp, mkdir, rename, rm, unlink, writeFile } from 'fs/promises'
 import { randomUUID } from 'crypto'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
 import { basename, dirname, isAbsolute, join } from 'path'
 import type {
   GameProject,
@@ -23,6 +25,7 @@ import type {
 } from '@craft-agent/shared/protocol'
 
 export const GAME_PROJECT_SCHEMA_VERSION = 1
+const execFileAsync = promisify(execFile)
 
 export interface StoredGameProject extends GameProject {
   schemaVersion: number
@@ -96,6 +99,8 @@ function parseStoredProject(raw: string): StoredGameProject | null {
       name: typeof parsed.name === 'string' ? parsed.name : 'Untitled Game',
       sessionId: typeof parsed.sessionId === 'string' ? parsed.sessionId : null,
       thumbnailPath: typeof parsed.thumbnailPath === 'string' ? parsed.thumbnailPath : null,
+      lastPlayableCommit: typeof parsed.lastPlayableCommit === 'string' ? parsed.lastPlayableCommit : null,
+      autoFix: typeof parsed.autoFix === 'boolean' ? parsed.autoFix : false,
       createdAt: typeof parsed.createdAt === 'number' ? parsed.createdAt : 0,
       updatedAt: typeof parsed.updatedAt === 'number' ? parsed.updatedAt : 0,
       version: typeof parsed.version === 'number' ? parsed.version : 1,
@@ -116,6 +121,8 @@ function toMeta(project: GameProject): GameProjectMeta {
     name: project.name,
     sessionId: project.sessionId,
     thumbnailPath: project.thumbnailPath,
+    lastPlayableCommit: project.lastPlayableCommit,
+    autoFix: project.autoFix,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
     version: project.version,
@@ -154,13 +161,27 @@ function getVendorSourcePath(resourcesRoot: string, fileName: string): string {
   return filePath
 }
 
-async function scaffoldProject(projectDir: string, options: GameProjectStorageOptions): Promise<void> {
+function getTemplateSourcePath(resourcesRoot: string, templateId: string): string | null {
+  if (!templateId || basename(templateId) !== templateId || !/^[A-Za-z0-9][A-Za-z0-9_-]*$/.test(templateId)) return null
+  const templatePath = join(resourcesRoot, 'gamestudio', 'templates', templateId, 'files')
+  return existsSync(templatePath) ? templatePath : null
+}
+
+async function scaffoldProject(projectDir: string, options: GameProjectStorageOptions, templateId?: string): Promise<void> {
   await mkdir(join(projectDir, 'src'), { recursive: true })
   await mkdir(join(projectDir, 'vendor'), { recursive: true })
+  await mkdir(join(projectDir, '.agents', 'skills', 'gameblocks'), { recursive: true })
+  await writeFile(join(projectDir, 'AGENTS.md'), GAME_PROJECT_AGENTS_MD, 'utf-8')
+  await writeFile(join(projectDir, '.agents', 'skills', 'gameblocks', 'SKILL.md'), GAMEBLOCKS_SKILL_MD, 'utf-8')
   await writeFile(join(projectDir, 'index.html'), GAME_PROJECT_INDEX_HTML, 'utf-8')
   await writeFile(join(projectDir, 'src', 'main.js'), GAME_PROJECT_MAIN_JS, 'utf-8')
   await copyFile(getVendorSourcePath(options.resourcesRoot, 'three.module.js'), join(projectDir, 'vendor', 'three.module.js'))
   await copyFile(getVendorSourcePath(options.resourcesRoot, 'rapier.es.js'), join(projectDir, 'vendor', 'rapier.es.js'))
+  if (templateId) {
+    const templatePath = getTemplateSourcePath(options.resourcesRoot, templateId)
+    if (!templatePath) throw new Error(`Missing Game Studio template: ${templateId}`)
+    await cp(templatePath, projectDir, { recursive: true, force: true })
+  }
 }
 
 export async function createGameProject(
@@ -175,6 +196,8 @@ export async function createGameProject(
     name: input.name ?? 'Untitled Game',
     sessionId: null,
     thumbnailPath: null,
+    lastPlayableCommit: null,
+    autoFix: false,
     createdAt: now,
     updatedAt: now,
     version: 1,
@@ -182,7 +205,7 @@ export async function createGameProject(
 
   await writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
     const projectDir = getGameProjectDir(workspaceRootPath, projectId)
-    await scaffoldProject(projectDir, options)
+    await scaffoldProject(projectDir, options, input.template)
     await writeProjectFileAtomic(getGameProjectMetaPath(workspaceRootPath, projectId), {
       schemaVersion: GAME_PROJECT_SCHEMA_VERSION,
       ...project,
@@ -206,6 +229,8 @@ export async function updateGameProject(
       name: patch.name ?? current.name,
       sessionId: patch.sessionId !== undefined ? patch.sessionId : current.sessionId,
       thumbnailPath: patch.thumbnailPath !== undefined ? patch.thumbnailPath : current.thumbnailPath,
+      lastPlayableCommit: patch.lastPlayableCommit !== undefined ? patch.lastPlayableCommit : current.lastPlayableCommit,
+      autoFix: patch.autoFix !== undefined ? patch.autoFix : current.autoFix,
       updatedAt: Date.now(),
       version: current.version + 1,
     }
@@ -221,6 +246,87 @@ export async function deleteGameProject(workspaceRootPath: string, projectId: st
     await rm(projectDir, { recursive: true, force: true })
     return true
   })
+}
+
+export async function checkpointGameProject(workspaceRootPath: string, projectId: string): Promise<GameProject> {
+  return writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
+    const projectDir = getGameProjectDir(workspaceRootPath, projectId)
+    const current = loadGameProject(workspaceRootPath, projectId)
+    if (!current) throw new Error(`Game project not found: ${projectId}`)
+
+    await runGit(projectDir, ['init'])
+    await runGit(projectDir, ['add', '-A'])
+    const hasChanges = await hasStagedGitChanges(projectDir)
+    let commit = await getGitHead(projectDir)
+    if (hasChanges || !commit) {
+      await runGit(projectDir, [
+        '-c', 'user.name=OriginAI Game Studio',
+        '-c', 'user.email=gamestudio@originai.local',
+        'commit', '-m', 'Game Studio checkpoint',
+        '--allow-empty',
+      ])
+      commit = await getGitHead(projectDir)
+    }
+    if (!commit) throw new Error(`Failed to create game project checkpoint: ${projectId}`)
+
+    return writeProjectMetadata(workspaceRootPath, projectId, {
+      ...current,
+      lastPlayableCommit: commit,
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    })
+  })
+}
+
+export async function restoreGameProject(workspaceRootPath: string, projectId: string, commit?: string | null): Promise<GameProject> {
+  return writeQueue.enqueue(projectQueueKey(workspaceRootPath, projectId), async () => {
+    const current = loadGameProject(workspaceRootPath, projectId)
+    if (!current) throw new Error(`Game project not found: ${projectId}`)
+    const targetCommit = commit ?? current.lastPlayableCommit
+    if (!targetCommit) throw new Error(`Game project has no playable checkpoint: ${projectId}`)
+
+    const projectDir = getGameProjectDir(workspaceRootPath, projectId)
+    await runGit(projectDir, ['reset', '--hard', targetCommit])
+    await runGit(projectDir, ['clean', '-fd'])
+
+    return writeProjectMetadata(workspaceRootPath, projectId, {
+      ...current,
+      lastPlayableCommit: targetCommit,
+      updatedAt: Date.now(),
+      version: current.version + 1,
+    })
+  })
+}
+
+async function writeProjectMetadata(workspaceRootPath: string, projectId: string, project: GameProject): Promise<GameProject> {
+  await writeProjectFileAtomic(getGameProjectMetaPath(workspaceRootPath, projectId), {
+    schemaVersion: GAME_PROJECT_SCHEMA_VERSION,
+    ...project,
+  })
+  return project
+}
+
+async function runGit(projectDir: string, args: string[]): Promise<void> {
+  await execFileAsync('git', args, { cwd: projectDir, maxBuffer: 1024 * 1024 })
+}
+
+async function getGitHead(projectDir: string): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: projectDir, maxBuffer: 1024 * 1024 })
+    const commit = stdout.trim()
+    return commit || null
+  } catch {
+    return null
+  }
+}
+
+async function hasStagedGitChanges(projectDir: string): Promise<boolean> {
+  try {
+    await execFileAsync('git', ['diff', '--cached', '--quiet'], { cwd: projectDir, maxBuffer: 1024 * 1024 })
+    return false
+  } catch {
+    return true
+  }
 }
 
 function projectQueueKey(workspaceRootPath: string, projectId: string): string {
@@ -249,6 +355,65 @@ const GAME_PROJECT_INDEX_HTML = `<!doctype html>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
+`
+
+const GAME_PROJECT_AGENTS_MD = `# Game Studio Project
+
+You are editing a browser-playable Game Studio project.
+
+## Runtime
+
+- The app preview serves this directory from localhost and loads \`index.html\`.
+- Keep the project self-contained. Do not use CDNs, hotlinked assets, external script URLs, or external font hosts.
+- Three.js is vendored at \`./vendor/three.module.js\` and available through the scaffold import map as \`three\`.
+- Rapier is available at \`./vendor/rapier.es.js\` if physics are useful.
+
+## Workflow
+
+- Preserve a playable loop after each change: controls, objective, feedback, and restart or scoring.
+- Prefer \`index.html\` and \`src/main.js\` unless the user asks for more structure.
+- Make controls visible in the game UI and summarize them when responding.
+- If the preview reports an error, inspect the referenced file/line before editing.
+`
+
+const GAMEBLOCKS_SKILL_MD = `---
+name: gameblocks
+description: Build and repair self-contained browser 3D games for Game Studio projects.
+---
+
+# GameBlocks
+
+Use this skill whenever the user asks to create, modify, debug, or polish the game in this directory.
+
+## Runtime contract
+
+- The game must run from \`index.html\` in a localhost static preview.
+- Keep everything self-contained in this project. Do not use CDNs, external image URLs, external audio URLs, or remote fonts.
+- Use the scaffolded import map for Three.js: \`import * as THREE from 'three'\`.
+- If physics are needed, import Rapier from \`./vendor/rapier.es.js\` and keep the game playable if physics initialization fails.
+- Prefer plain ES modules, Canvas/WebGL, and small local assets generated in code.
+
+## Required game loop
+
+Every generated or edited game should include:
+
+1. A clear objective visible in the UI.
+2. Keyboard/mouse/touch controls documented on screen.
+3. Immediate feedback for success, failure, score, health, time, or progress.
+4. A restart path after win/loss or when the player gets stuck.
+5. A resilient render loop that does not crash if assets are missing.
+
+## Debugging workflow
+
+- When runtime errors are reported, inspect the referenced source location before editing.
+- Fix root causes, not just symptoms, and keep the game playable after the fix.
+- After significant edits, summarize the controls and what changed.
+
+## File conventions
+
+- Keep the main implementation in \`src/main.js\` unless more files clearly simplify the design.
+- Do not edit \`vendor/\` files.
+- Do not remove \`project.json\`, \`AGENTS.md\`, or this skill.
 `
 
 const GAME_PROJECT_MAIN_JS = `import * as THREE from 'three'

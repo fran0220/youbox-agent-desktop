@@ -40,9 +40,9 @@ function makeProject(id: string): string {
   return projectDir
 }
 
-function rawGet(port: number, path: string): Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }> {
+function rawGet(port: number, path: string, headers?: Record<string, string>): Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }> {
   return new Promise((resolvePromise, rejectPromise) => {
-    const req = request({ hostname: GAME_SERVER_HOST, port, path, method: 'GET' }, res => {
+    const req = request({ hostname: GAME_SERVER_HOST, port, path, method: 'GET', headers }, res => {
       const chunks: Buffer[] = []
       res.on('data', chunk => chunks.push(Buffer.from(chunk)))
       res.on('end', () => {
@@ -55,6 +55,27 @@ function rawGet(port: number, path: string): Promise<{ status: number; headers: 
     })
     req.on('error', rejectPromise)
     req.end()
+  })
+}
+
+function rawPost(port: number, path: string, body: string): Promise<{ status: number; body: string }> {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const req = request({
+      hostname: GAME_SERVER_HOST,
+      port,
+      path,
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'content-length': Buffer.byteLength(body),
+      },
+    }, res => {
+      const chunks: Buffer[] = []
+      res.on('data', chunk => chunks.push(Buffer.from(chunk)))
+      res.on('end', () => resolvePromise({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf-8') }))
+    })
+    req.on('error', rejectPromise)
+    req.end(body)
   })
 }
 
@@ -112,6 +133,60 @@ describe('GameServerManager', () => {
       expect(response.body).not.toContain('do-not-leak')
       expect(response.body).not.toContain('<html><body><ul>')
     }
+  })
+
+  it('does not serve metadata/dotfiles and rejects spoofed Host headers', async () => {
+    const projectDir = makeProject('project-security')
+    writeFileSync(join(projectDir, 'project.json'), '{"sessionId":"secret"}')
+    mkdirSync(join(projectDir, '.git'), { recursive: true })
+    writeFileSync(join(projectDir, '.git', 'config'), 'private')
+
+    const { port } = await manager.start(projectDir)
+    expect((await rawGet(port, '/project.json')).status).toBe(403)
+    expect((await rawGet(port, '/.git/config')).status).toBe(403)
+    expect((await rawGet(port, '/index.html', { host: 'evil.example' })).status).toBe(400)
+  })
+
+  it('injects runtime bridge into HTML and emits structured runtime events', async () => {
+    const events: unknown[] = []
+    manager = new GameServerManager(undefined, event => events.push(event))
+    const projectDir = makeProject('project-runtime')
+    const { port } = await manager.start(projectDir)
+
+    const html = await rawGet(port, '/index.html')
+    expect(html.body).toContain('data-craft-gamestudio-runtime')
+
+    const consoleResponse = await rawPost(port, '/__craft_gamestudio_event', JSON.stringify({
+      type: 'console',
+      payload: { level: 'error', message: 'boom', timestamp: 123 },
+    }))
+    expect(consoleResponse.status).toBe(204)
+
+    const errorResponse = await rawPost(port, '/__craft_gamestudio_event', JSON.stringify({
+      type: 'runtime-error',
+      payload: {
+        message: 'ReferenceError: missingThing is not defined',
+        stack: 'stack line',
+        source: { fileName: 'src/main.js', lineNumber: 7, columnNumber: 11 },
+        timestamp: 456,
+        recentConsole: [{ level: 'error', message: 'boom', timestamp: 123 }],
+      },
+    }))
+    expect(errorResponse.status).toBe(204)
+    expect(events).toEqual([
+      { projectId: 'project-runtime', type: 'console', payload: { level: 'error', message: 'boom', timestamp: 123 } },
+      {
+        projectId: 'project-runtime',
+        type: 'runtime-error',
+        payload: {
+          message: 'ReferenceError: missingThing is not defined',
+          stack: 'stack line',
+          source: { fileName: 'src/main.js', lineNumber: 7, columnNumber: 11 },
+          timestamp: 456,
+          recentConsole: [{ level: 'error', message: 'boom', timestamp: 123 }],
+        },
+      },
+    ])
   })
 
   it('serves required MIME types with JavaScript as text/javascript', async () => {

@@ -527,6 +527,10 @@ export interface ElectronAPI {
   gameProjectCreate(workspaceId: string, input?: import('@craft-agent/shared/protocol').GameProjectCreateInput): Promise<import('@craft-agent/shared/protocol').GameProject>
   gameProjectUpdate(workspaceId: string, projectId: string, patch: import('@craft-agent/shared/protocol').GameProjectUpdateInput): Promise<import('@craft-agent/shared/protocol').GameProject>
   gameProjectDelete(workspaceId: string, projectId: string): Promise<void>
+  gameProjectCheckpoint(workspaceId: string, projectId: string): Promise<import('@craft-agent/shared/protocol').GameProject>
+  gameProjectRestore(workspaceId: string, projectId: string, commit?: string | null): Promise<import('@craft-agent/shared/protocol').GameProject>
+  gameProjectExportZip(workspaceId: string, projectId: string): Promise<string | null>
+  gameProjectImportZip(workspaceId: string, projectId: string, zipPath: string): Promise<void>
 
   // Game Studio project change listener
   onGameProjectChanged(callback: (event: import('@craft-agent/shared/protocol').GameProjectChangedEvent) => void): () => void

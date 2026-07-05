@@ -4,6 +4,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import {
   GAME_PROJECT_SCHEMA_VERSION,
+  checkpointGameProject,
   createGameProject,
   deleteGameProject,
   getGameProjectDir,
@@ -11,6 +12,7 @@ import {
   getWorkspaceGameStudioDir,
   listGameProjects,
   loadGameProject,
+  restoreGameProject,
   updateGameProject,
 } from './game-project-storage'
 
@@ -55,6 +57,7 @@ describe('game project scaffold and CRUD', () => {
     expect(project.name).toBe('My Game')
     expect(project.sessionId).toBeNull()
     expect(project.thumbnailPath).toBeNull()
+    expect(project.autoFix).toBe(false)
     expect(project.version).toBe(1)
     expect(project.updatedAt).toBe(project.createdAt)
 
@@ -63,6 +66,7 @@ describe('game project scaffold and CRUD', () => {
     expect(existsSync(join(projectDir, 'src', 'main.js'))).toBe(true)
     expect(existsSync(join(projectDir, 'vendor', 'three.module.js'))).toBe(true)
     expect(existsSync(join(projectDir, 'vendor', 'rapier.es.js'))).toBe(true)
+    expect(existsSync(join(projectDir, '.agents', 'skills', 'gameblocks', 'SKILL.md'))).toBe(true)
 
     const raw = JSON.parse(readFileSync(getGameProjectMetaPath(wsRoot, project.id), 'utf-8'))
     expect(raw.schemaVersion).toBe(GAME_PROJECT_SCHEMA_VERSION)
@@ -70,6 +74,7 @@ describe('game project scaffold and CRUD', () => {
     expect(raw.name).toBe('My Game')
     expect(raw.sessionId).toBeNull()
     expect(raw.thumbnailPath).toBeNull()
+    expect(raw.autoFix).toBe(false)
 
     const html = readFileSync(join(projectDir, 'index.html'), 'utf-8')
     expect(html).toContain('<script type="importmap">')
@@ -80,7 +85,22 @@ describe('game project scaffold and CRUD', () => {
     expect(main).toContain("from 'three'")
     expect(main).toContain('BoxGeometry')
 
+    const skill = readFileSync(join(projectDir, '.agents', 'skills', 'gameblocks', 'SKILL.md'), 'utf-8')
+    expect(skill).toContain('name: gameblocks')
+
     expect(readFileSync(join(projectDir, 'vendor', 'three.module.js'), 'utf-8')).toContain('test-three')
+  })
+
+  it('create can scaffold from a bundled template', async () => {
+    const templateDir = join(resourcesRoot, 'gamestudio', 'templates', 'runner', 'files', 'src')
+    mkdirSync(templateDir, { recursive: true })
+    writeFileSync(join(templateDir, 'main.js'), 'console.log("template runner")')
+
+    const project = await createGameProject(wsRoot, { name: 'Runner', template: 'runner' }, { resourcesRoot })
+    const projectDir = getGameProjectDir(wsRoot, project.id)
+
+    expect(readFileSync(join(projectDir, 'src', 'main.js'), 'utf-8')).toContain('template runner')
+    await expect(createGameProject(wsRoot, { template: 'missing-template' }, { resourcesRoot })).rejects.toThrow('Missing Game Studio template')
   })
 
   it('load returns the created project and list returns metas sorted by updatedAt desc', async () => {
@@ -98,10 +118,35 @@ describe('game project scaffold and CRUD', () => {
       name: 'B',
       sessionId: null,
       thumbnailPath: null,
+      lastPlayableCommit: null,
+      autoFix: false,
       createdAt: b.createdAt,
       updatedAt: b.updatedAt,
       version: 1,
     })
+  })
+
+  it('checkpoints and restores project files with per-project git', async () => {
+    const project = await createGameProject(wsRoot, { name: 'Checkpointed' }, { resourcesRoot })
+    const projectDir = getGameProjectDir(wsRoot, project.id)
+    const mainPath = join(projectDir, 'src', 'main.js')
+
+    writeFileSync(mainPath, 'export const version = 1')
+    const first = await checkpointGameProject(wsRoot, project.id)
+    expect(first.lastPlayableCommit).toBeTruthy()
+    expect(existsSync(join(projectDir, '.git'))).toBe(true)
+
+    writeFileSync(mainPath, 'export const version = 2')
+    const second = await checkpointGameProject(wsRoot, project.id)
+    expect(second.lastPlayableCommit).toBeTruthy()
+    expect(second.lastPlayableCommit).not.toBe(first.lastPlayableCommit)
+
+    writeFileSync(mainPath, 'throw new Error("broken")')
+    await restoreGameProject(wsRoot, project.id)
+    expect(readFileSync(mainPath, 'utf-8')).toBe('export const version = 2')
+
+    await restoreGameProject(wsRoot, project.id, first.lastPlayableCommit)
+    expect(readFileSync(mainPath, 'utf-8')).toBe('export const version = 1')
   })
 
   it('update applies metadata, bumps version and updatedAt, preserving createdAt', async () => {

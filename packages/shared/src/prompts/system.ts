@@ -298,8 +298,9 @@ export interface SystemPromptOptions {
  * - 'default': Full Craft Agent system prompt
  * - 'mini': Focused prompt for quick configuration edits
  * - 'design': Full prompt plus design-engineer charter
+ * - 'gamestudio': Full prompt plus browser-game charter
  */
-export type SystemPromptPreset = 'default' | 'mini' | 'design';
+export type SystemPromptPreset = 'default' | 'mini' | 'design' | 'gamestudio';
 
 /**
  * Get a focused system prompt for mini agents (quick edit tasks).
@@ -354,6 +355,33 @@ You are operating in design mode. Your goal is to turn the user's brief into a r
 `;
 }
 
+function getGameStudioCharter(): string {
+  return `
+
+## Game Studio Mode
+
+You are building a browser-playable game inside the current Game Studio project directory. Treat the project directory as the product source of truth.
+
+### Runtime Contract
+- The preview serves this directory from localhost and loads \`index.html\`.
+- Use local files only. Do not use remote CDNs, hotlinked assets, external script URLs, or external font hosts.
+- Three.js is vendored at \`./vendor/three.module.js\` and exposed by the scaffold import map as \`three\`.
+- Rapier is available at \`./vendor/rapier.es.js\` when physics are useful.
+
+### Game Workflow
+1. Implement a complete, playable loop first: objective, controls, feedback, win/lose or scoring, and restart.
+2. Keep changes small and preview-friendly. Prefer \`index.html\` + \`src/main.js\` unless the user asks for more structure.
+3. Make controls obvious in the game UI and summarize them in your response.
+4. Preserve playability while iterating. If a change is risky, make the smallest safe version first.
+5. When fixing errors, inspect stack traces and the edited files before changing code.
+
+### Quality Bar
+- The game should start without a build step and without network access.
+- Use responsive canvas sizing and handle window resize.
+- Avoid placeholder-only demos. Ship real interactions, visible state, and clear feedback.
+`;
+}
+
 /**
  * Get the full system prompt with current date/time and user preferences
  *
@@ -386,6 +414,7 @@ export function getSystemPrompt(
   const preferences = pinnedPreferencesPrompt ?? formatPreferencesForPrompt();
   const debugContext = debugMode?.enabled ? formatDebugModeContext(debugMode.logFilePath) : '';
   const designCharter = preset === 'design' ? getDesignEngineerCharter() : '';
+  const gameStudioCharter = preset === 'gamestudio' ? getGameStudioCharter() : '';
 
   // Get project context files for monorepo support (lives in system prompt for persistence across compaction)
   const projectContextFiles = getProjectContextFilesPrompt(workingDirectory);
@@ -398,7 +427,7 @@ export function getSystemPrompt(
   // to enable prompt caching. The system prompt stays static and cacheable.
   // Safe Mode context is also in user messages for the same reason.
   const basePrompt = getCraftAssistantPrompt(workspaceRootPath, backendName, resolvedIncludeCoAuthoredBy);
-  const fullPrompt = `${basePrompt}${designCharter}${preferences}${debugContext}${projectContextFiles}`;
+  const fullPrompt = `${basePrompt}${designCharter}${gameStudioCharter}${preferences}${debugContext}${projectContextFiles}`;
 
   debug('[getSystemPrompt] full prompt length:', fullPrompt.length);
 

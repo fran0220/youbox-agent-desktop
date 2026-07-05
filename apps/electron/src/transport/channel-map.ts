@@ -255,6 +255,10 @@ export const CHANNEL_MAP = {
   gameProjectCreate: invoke(RPC_CHANNELS.gamestudio.CREATE),
   gameProjectUpdate: invoke(RPC_CHANNELS.gamestudio.UPDATE),
   gameProjectDelete: invoke(RPC_CHANNELS.gamestudio.DELETE),
+  gameProjectCheckpoint: invoke(RPC_CHANNELS.gamestudio.CHECKPOINT),
+  gameProjectRestore: invoke(RPC_CHANNELS.gamestudio.RESTORE),
+  gameProjectExportZip: invoke(RPC_CHANNELS.gamestudio.EXPORT_ZIP),
+  gameProjectImportZip: invoke(RPC_CHANNELS.gamestudio.IMPORT_ZIP),
   onGameProjectChanged: listener(RPC_CHANNELS.gamestudio.CHANGED),
 
   // Game pane runtime

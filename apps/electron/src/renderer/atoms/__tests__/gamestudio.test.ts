@@ -16,6 +16,8 @@ function project(id: string, updatedAt: number): GameProjectMeta {
     name: id,
     sessionId: null,
     thumbnailPath: null,
+    lastPlayableCommit: null,
+    autoFix: false,
     createdAt: updatedAt - 1,
     updatedAt,
     version: 1,

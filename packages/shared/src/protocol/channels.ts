@@ -293,6 +293,10 @@ export const RPC_CHANNELS = {
     CREATE: 'gamestudio:create',
     UPDATE: 'gamestudio:update',
     DELETE: 'gamestudio:delete',
+    CHECKPOINT: 'gamestudio:checkpoint',
+    RESTORE: 'gamestudio:restore',
+    EXPORT_ZIP: 'gamestudio:exportZip',
+    IMPORT_ZIP: 'gamestudio:importZip',
     CHANGED: 'gamestudio:changed',
   },
   gamePane: {

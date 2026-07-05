@@ -746,6 +746,10 @@ export interface GameProjectMeta {
   updatedAt: number
   /** Monotonic metadata write counter — bumped on every gamestudio:update */
   version: number
+  /** Git commit for the most recent known playable checkpoint, if available. */
+  lastPlayableCommit: string | null
+  /** When enabled, runtime errors are automatically queued for the Game Studio agent. */
+  autoFix: boolean
 }
 
 export type GameProject = GameProjectMeta
@@ -759,6 +763,8 @@ export interface GameProjectUpdateInput {
   name?: string
   sessionId?: string | null
   thumbnailPath?: string | null
+  lastPlayableCommit?: string | null
+  autoFix?: boolean
 }
 
 export type GameProjectChangedKind = 'created' | 'updated' | 'deleted' | 'files'
@@ -785,8 +791,27 @@ export interface GamePaneBounds {
   height: number
 }
 
+export interface GamePaneConsoleEntry {
+  level: 'log' | 'warn' | 'error'
+  message: string
+  timestamp: number
+}
+
+export interface GamePaneRuntimeErrorPayload {
+  message: string
+  stack?: string
+  source?: {
+    fileName?: string
+    lineNumber?: number
+    columnNumber?: number
+  }
+  timestamp: number
+  recentConsole: GamePaneConsoleEntry[]
+}
+
 export type GamePaneEvent =
-  | { projectId: string; type: 'console'; payload: { level: 'log' | 'warn' | 'error'; message: string; timestamp: number } }
+  | { projectId: string; type: 'console'; payload: GamePaneConsoleEntry }
+  | { projectId: string; type: 'runtime-error'; payload: GamePaneRuntimeErrorPayload }
   | { projectId: string; type: 'crashed'; payload?: unknown }
   | { projectId: string; type: 'unresponsive'; payload?: unknown }
   | { projectId: string; type: 'load-failed'; payload?: unknown }

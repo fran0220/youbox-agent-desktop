@@ -11,6 +11,18 @@ import type { GameProjectMeta } from '@craft-agent/shared/protocol'
 
 export const gamestudioProjectsAtom = atom<GameProjectMeta[] | null>(null)
 
+export const gamestudioChatSessionIdsAtom = atom<Record<string, string>>({})
+
+export const seedGameStudioChatSessionIdAtom = atom(
+  null,
+  (get, set, { projectId, sessionId }: { projectId: string; sessionId: string | null | undefined }) => {
+    if (!sessionId) return
+    const current = get(gamestudioChatSessionIdsAtom)
+    if (current[projectId] === sessionId) return
+    set(gamestudioChatSessionIdsAtom, { ...current, [projectId]: sessionId })
+  },
+)
+
 export interface PendingGameProjectRename {
   projectId: string
   draft: string

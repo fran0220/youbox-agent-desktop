@@ -116,6 +116,7 @@ import { setPowerShellValidatorRoot } from '@craft-agent/shared/agent'
 import { handleDeepLink } from './deep-link'
 import { BrowserPaneManager } from './browser-pane-manager'
 import { GameServerManager } from './game-server-manager'
+import { GamePaneManager } from './game-pane-manager'
 import { OAuthFlowStore } from '@craft-agent/shared/auth'
 import { registerDesignScheme, registerDesignHandler } from './design-protocol'
 import { registerThumbnailScheme, registerThumbnailHandler } from './thumbnail-protocol'
@@ -231,6 +232,7 @@ let windowManager: WindowManager | null = null
 let sessionManager: SessionManager | null = null
 let browserPaneManager: BrowserPaneManager | null = null
 let gameServerManager: GameServerManager | null = null
+let gamePaneManager: GamePaneManager | null = null
 let oauthFlowStore: OAuthFlowStore | null = null
 let moduleSink: EventSink | null = null
 let moduleClientResolver: ((webContentsId: number) => string | undefined) | null = null
@@ -509,6 +511,7 @@ app.whenReady().then(async () => {
     browserPaneManager.registerToolbarIpc()
     browserPaneManager.registerCapabilityIpc()
     gameServerManager = new GameServerManager()
+    gamePaneManager = new GamePaneManager()
 
     // Build real PlatformServices from Electron APIs
     const platform: PlatformServices = createElectronPlatform({
@@ -723,6 +726,7 @@ app.whenReady().then(async () => {
             platform: p,
             windowManager: windowManager ?? undefined,
             browserPaneManager: browserPaneManager ?? undefined,
+            gamePaneManager: gamePaneManager ?? undefined,
             gameServerManager: gameServerManager ?? undefined,
             oauthFlowStore: ofs,
             messagingRegistry: messagingHandle.registry,

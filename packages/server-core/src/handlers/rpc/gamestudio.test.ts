@@ -99,6 +99,8 @@ describe('gamestudio RPC handlers', () => {
       RPC_CHANNELS.gamestudio.CREATE,
       RPC_CHANNELS.gamestudio.UPDATE,
       RPC_CHANNELS.gamestudio.DELETE,
+      RPC_CHANNELS.gamestudio.CHECKPOINT,
+      RPC_CHANNELS.gamestudio.RESTORE,
     ])
   })
 

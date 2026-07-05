@@ -196,6 +196,8 @@ export const LOCAL_ONLY_CHANNELS = new Set<string>([
   RPC_CHANNELS.gamePane.SET_VISIBLE,
   RPC_CHANNELS.gamePane.CAPTURE,
   RPC_CHANNELS.gamePane.EVENT,
+  RPC_CHANNELS.gamestudio.EXPORT_ZIP,
+  RPC_CHANNELS.gamestudio.IMPORT_ZIP,
 
   // gitbash — Windows-specific local
   RPC_CHANNELS.gitbash.CHECK,
@@ -406,6 +408,8 @@ export const REMOTE_ELIGIBLE_CHANNELS = new Set<string>([
   RPC_CHANNELS.gamestudio.CREATE,
   RPC_CHANNELS.gamestudio.UPDATE,
   RPC_CHANNELS.gamestudio.DELETE,
+  RPC_CHANNELS.gamestudio.CHECKPOINT,
+  RPC_CHANNELS.gamestudio.RESTORE,
   RPC_CHANNELS.gamestudio.CHANGED,
 
   // design, design projects are workspace content
